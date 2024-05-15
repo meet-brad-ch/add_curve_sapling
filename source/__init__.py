@@ -2,19 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-bl_info = {
-    "name": "Sapling Tree Gen",
-    "author": "Andrew Hale (TrumanBlending), Aaron Buchler, CansecoGPC",
-    "version": (0, 3, 5),
-    "blender": (2, 80, 0),
-    "location": "View3D > Add > Curve",
-    "description": ("Adds a parametric tree. The method is presented by "
-    "Jason Weber & Joseph Penn in their paper 'Creation and Rendering of "
-    "Realistic Trees'"),
-    "doc_url": "{BLENDER_MANUAL_URL}/addons/add_curve/sapling.html",
-    "category": "Add Curve",
-}
-
 if "bpy" in locals():
     import importlib
     importlib.reload(utils)
