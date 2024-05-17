@@ -6,7 +6,7 @@ if "bpy" in locals():
     import importlib
     importlib.reload(utils)
 else:
-    from add_curve_sapling import utils
+    from . import utils
 
 import bpy
 import time
