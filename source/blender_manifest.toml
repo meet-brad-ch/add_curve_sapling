@@ -9,4 +9,8 @@ tags = ["Add Curve"]
 blender_version_min = "4.2.0"
 license = ["SPDX:GPL-2.0-or-later"]
 website = "https://projects.blender.org/extensions/add_curve_sapling"
-copyright = ["2024 Andrew Hale (TrumanBlending)", "2024 Aaron Buchler", "2024 CansecoGPC"]
+copyright = [
+    "2024 Andrew Hale (TrumanBlending)",
+    "2024 Aaron Buchler",
+    "2024 CansecoGPC",
+]
