@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 id = "sapling_tree_gen"
 name = "Sapling Tree Gen"
-version = "0.3.5"
+version = "0.3.6"
 tagline = "Adds a parametric tree"
 maintainer = "Community"
 type = "add-on"
