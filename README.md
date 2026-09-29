@@ -48,6 +48,23 @@ The tests build the extension zip and install it into a throwaway profile under
 - **Instance Points** leaves put your leaf object on every leaf point with a Geometry Nodes
   modifier (*Sapling Leaf Instancer*), rotated per leaf; the leaf object itself is not moved.
 
+## Performance
+
+Generation time per built-in preset with leaves on (median of 5, Blender 5.2.2, Windows, same
+settings for both, runs one after another), 2026-09-29:
+
+| Preset | Leaves | 0.3.7 (upstream) | 0.4.0 | Change |
+| --- | ---: | ---: | ---: | ---: |
+| callistemon | 9 588 | 145 ms | 102 ms | −30 % |
+| douglas_fir | 52 454 | 1 437 ms | 1 020 ms | −29 % |
+| japanese_maple | 106 800 | 4 418 ms | 3 924 ms | −11 % |
+| quaking_aspen | 882 | 16 ms | 12 ms | −22 % |
+| small_maple | 36 290 | 862 ms | 683 ms | −21 % |
+| small_pine | 48 607 | 881 ms | 672 ms | −24 % |
+| weeping_willow | 62 340 | 993 ms | 682 ms | −31 % |
+| white_birch | 18 918 | 495 ms | 369 ms | −25 % |
+| willow | 1 328 | 59 ms | 55 ms | −6 % |
+
 ## Layout
 
 - `source/` — the extension package
