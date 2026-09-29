@@ -110,6 +110,7 @@ class ArmatureBuilder:
         rng = self.rng
         bone_levels = self.bone_levels()
         anim_speed = (24 / fps) * p.frame_rate
+        gust_frequency = self._gust_frequency(fps)
         for i, link in enumerate(grown.bone_map):
             if not ((i < grown.level_ends[bone_levels]) or (bone_levels == -1) or (not p.make_mesh)):
                 continue
@@ -151,15 +152,13 @@ class ArmatureBuilder:
                     bone.use_connect = True
 
                 if wind:
-                    sway = self._branch_sway(points, segments, n, tail, step, spline_length, fps)
+                    sway = self._branch_sway(points, segments, n, tail, step, spline_length)
                     # the first two trunk bones hold the tree base still
                     if (i == 0) and (n <= step):
                         sway = (0, 0, 0, 0)
-                    wind.add_branch_sway(
-                        name, BranchSway(sway, (x_offset, y_offset), (freq1, freq2), self._gust_frequency(fps))
-                    )
+                    wind.add_branch_sway(name, BranchSway(sway, (x_offset, y_offset), (freq1, freq2), gust_frequency))
 
-    def _branch_sway(self, points, segments, n, tail, step, spline_length, fps):
+    def _branch_sway(self, points, segments, n, tail, step, spline_length):
         """Sway amplitudes (radians) of one bone: stronger for thin bones far up the branch."""
         p = self.params
         a0 = 2 * (spline_length / segments) * (1 - n / (segments + 1)) / max(points[n].radius, 1e-6)
@@ -187,9 +186,10 @@ class ArmatureBuilder:
         bone_names = grown.bone_map.bones()
         size = leaves.verts_per_leaf
         anim_speed = (24 / fps) * p.frame_rate
+        step = self.leaf_bone_step()
         groups = {}
         for i, sprout in enumerate(leaves.sprouts):
-            parent = BoneName.rounded(sprout.parent_bone, self.leaf_bone_step())
+            parent = BoneName.rounded(sprout.parent_bone, step)
             while parent not in bones:
                 parent = bone_names[BoneName.spline(parent)]
 

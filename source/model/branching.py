@@ -22,7 +22,6 @@ class BranchSpawner:
         """The trunk stem, standing at the origin."""
         p = self.params
         spline = self.curve.splines.new("BEZIER")
-        self.curve.resolution_u = p.res_u
         point = spline.bezier_points[-1]
         point.co = Vector((0, 0, 0))
         point.handle_right = Vector((0, 0, 1))
@@ -67,7 +66,6 @@ class BranchSpawner:
         old_rotate = 0.0
         for i, sprout in enumerate(sprouts):
             spline = self.curve.splines.new("BEZIER")
-            self.curve.resolution_u = p.res_u
             point = spline.bezier_points[-1]
             point.co = sprout.co
             direction = Axes.z()

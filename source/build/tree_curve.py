@@ -25,6 +25,7 @@ class TreeCurveBuilder:
         curve.fill_mode = "FULL"
         curve.bevel_depth = p.bevel_depth
         curve.bevel_resolution = p.bevel_res
+        curve.resolution_u = p.res_u
         return tree
 
     @staticmethod

@@ -226,7 +226,8 @@ class StemGrower:
     @staticmethod
     def _attract_up(stem, direction_vec):
         """Bend the growth direction up (attractUp > 0) or down."""
+        track = direction_vec.to_track_quat("Z", "Y")
         up_axis = Axes.x()
-        up_axis.rotate(direction_vec.to_track_quat("Z", "Y"))
-        angle = Angles.curve_up(stem.attract_up, direction_vec.to_track_quat("Z", "Y"), stem.segments)
+        up_axis.rotate(track)
+        angle = Angles.curve_up(stem.attract_up, track, stem.segments)
         direction_vec.rotate(Matrix.Rotation(-angle, 3, up_axis))
