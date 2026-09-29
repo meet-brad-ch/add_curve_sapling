@@ -2,7 +2,7 @@
 
 """Growing each stem to full length, shortened by the pruning envelope when pruning is on."""
 
-from .geometry import Bezier, CrownShape
+from .geometry import Bezier
 from .growth import StemGrower
 from .sprouting import SproutPlanner
 
@@ -72,7 +72,6 @@ class StemPruner:
         self.bone_map = bone_map
         self.grower = StemGrower(params, rng)
         self.sprouts = SproutPlanner(params, rng)
-        self.prune_base = min(params.prune_base, params.base_size)
 
     def grow(self, stem, level, close_tip, base_size):
         """Grow `stem` (and its splits) to full length; return the sprout points for the next level."""
@@ -172,10 +171,7 @@ class StemPruner:
             return 1
         if (level >= 1) and p.split_by_len:
             length = (stem.segment_length * segments) / self.scale
-            level_length = 1
-            for factor in p.length[: level + 1]:
-                level_length *= factor
-            length = length / level_length
+            length = length / p.length_product(level, 1)
             return self.grower.split_count(value * length)
         return self.grower.split_count(value)
 
@@ -187,13 +183,11 @@ class StemPruner:
         for s in stems:
             end = s.spline.bezier_points[-1].co
             distance = (end.xy).length
-            ratio = (scale - end.z) / (scale * max(1 - self.prune_base, 1e-6))
-            if (level == 0) and (end.z < self.prune_base * scale):
+            ratio = (scale - end.z) / (scale * max(1 - p.prune_base_clamped, 1e-6))
+            if (level == 0) and (end.z < p.prune_base_clamped * scale):
                 inside = True
             else:
-                inside = (distance / scale) < p.prune_width * CrownShape.ratio(
-                    CrownShape.ENVELOPE, ratio, p.prune_width_peak, p.prune_power_high, p.prune_power_low
-                )
+                inside = (distance / scale) < p.prune_width * p.envelope(ratio)
             if not inside:
                 search.outside()
                 break

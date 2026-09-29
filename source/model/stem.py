@@ -49,7 +49,6 @@ class Stem:
         radius_end,
         index,
         offset_length,
-        parent_quat,
     ):
         self.spline = spline
         self.point = spline.bezier_points[-1]
@@ -64,9 +63,8 @@ class Stem:
         self.radius_end = radius_end
         self.index = index
         self.offset_length = offset_length
-        self.parent_quat = parent_quat
-        self.curve_sign_x = 1
-        self.curve_sign_y = 1
+        # Curvature variation alternates its sign from segment to segment
+        self.curve_sign = 1
         self.split_last = 0
         # None until the first split, which then draws a random start rotation
         self.last_rotation = None
@@ -77,6 +75,10 @@ class Stem:
         if len(points) == 1:
             return ((points[-1].handle_right - points[-1].co).normalized()).to_track_quat("Z", "Y")
         return ((points[-1].co - points[-2].co).normalized()).to_track_quat("Z", "Y")
+
+    def radius_at(self, segment):
+        """Radius at a segment boundary, tapering from the start radius to the end radius."""
+        return self.radius_start * (1 - segment / self.segments) + self.radius_end * (segment / self.segments)
 
     def update_end(self):
         """The newly added point becomes the end of the stem."""

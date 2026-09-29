@@ -106,9 +106,22 @@ class TreeParams:
         # Bone Step simplifies the armature for the skin mesh only
         self.bone_step = s.boneStep if s.makeMesh else [1, 1, 1, 1]
 
+        # The envelope's base cannot be above the bare trunk
+        self.prune_base_clamped = min(self.prune_base, self.base_size)
+
         if s.autoTaper:
             self.taper = CrownShape.auto_taper(
                 self.length, s.taper, self.shape, self.shape_s, self.levels, self.custom_shape
             )
         else:
             self.taper = s.taper
+
+    def length_product(self, level, start):
+        """`start` times the relative lengths of levels 0..level."""
+        for factor in self.length[: level + 1]:
+            start *= factor
+        return start
+
+    def envelope(self, ratio):
+        """Pruning envelope width factor at a height ratio of the envelope."""
+        return CrownShape.envelope(ratio, self.prune_width_peak, self.prune_power_high, self.prune_power_low)

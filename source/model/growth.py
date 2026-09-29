@@ -36,10 +36,9 @@ class StemGrower:
         if (level == 0) and (kp <= p.split_height):
             curvature = 0.0
 
-        curve_angle = curvature + (uniform(0, stem.curvature_v) * kp * stem.curve_sign_x)
-        curve_var = uniform(0, stem.curvature_v) * kp * stem.curve_sign_y
-        stem.curve_sign_x *= -1
-        stem.curve_sign_y *= -1
+        curve_angle = curvature + (uniform(0, stem.curvature_v) * kp * stem.curve_sign)
+        curve_var = uniform(0, stem.curvature_v) * kp * stem.curve_sign
+        stem.curve_sign *= -1
 
         curve_var_mat = Matrix.Rotation(curve_var, 3, "Y")
 
@@ -92,19 +91,8 @@ class StemGrower:
         direction_vec.normalize()
         direction_vec *= stem.segment_length * taper_factor
 
-        end_co = stem.point.co.copy()
-        stem.spline.bezier_points.add(1)
-        new_point = stem.spline.bezier_points[-1]
-        (new_point.co, new_point.handle_left_type, new_point.handle_right_type) = (
-            end_co + direction_vec,
-            p.handles,
-            p.handles,
-        )
-        new_point.radius = stem.radius_start * (1 - (stem.segment + 1) / stem.segments) + stem.radius_end * (
-            (stem.segment + 1) / stem.segments
-        )
-        if (stem.segment == stem.segments - 1) and close_tip:
-            new_point.radius = 0.0
+        new_point = self._append_point(stem.spline, stem.point, direction_vec)
+        new_point.radius = 0.0 if self._closes_tip(stem, close_tip) else stem.radius_at(stem.segment + 1)
         # The first point cannot have VECTOR handles before a second point exists
         if len(stem.spline.bezier_points) == 2:
             first = stem.spline.bezier_points[0]
@@ -147,10 +135,7 @@ class StemGrower:
                 Bezier.VECTOR,
                 Bezier.VECTOR,
             )
-            new_point.radius = (
-                stem.radius_start * (1 - stem.segment / stem.segments)
-                + stem.radius_end * (stem.segment / stem.segments)
-            ) * radius_scale
+            new_point.radius = stem.radius_at(stem.segment) * radius_scale
 
             # The new stem diverges from the current direction
             direction_vec = Axes.z()
@@ -173,35 +158,23 @@ class StemGrower:
             direction_vec *= segment_length * taper_factor
             offset = stem.offset_length + (stem.segment_length * (len(stem.spline.bezier_points) - 1))
 
-            end_co = stem.point.co.copy()
-            new_spline.bezier_points.add(1)
-            new_point = new_spline.bezier_points[-1]
-            (new_point.co, new_point.handle_left_type, new_point.handle_right_type) = (
-                end_co + direction_vec,
-                p.handles,
-                p.handles,
-            )
-            new_point.radius = (
-                stem.radius_start * (1 - (stem.segment + 1) / stem.segments)
-                + stem.radius_end * ((stem.segment + 1) / stem.segments)
-            ) * radius_scale
-            if (stem.segment == stem.segments - 1) and close_tip:
-                new_point.radius = 0.0
+            new_point = self._append_point(new_spline, stem.point, direction_vec)
+            closes = self._closes_tip(stem, close_tip)
+            new_point.radius = 0.0 if closes else stem.radius_at(stem.segment + 1) * radius_scale
 
             split = Stem(
                 new_spline,
-                stem.curvature,
-                stem.curvature_v,
-                stem.attract_up,
-                stem.segment + 1,
-                stem.segments,
-                segment_length,
-                stem.children,
-                stem.radius_start * radius_scale,
-                stem.radius_end * radius_scale,
-                bone_map.next_index(),
-                offset,
-                stem.quat(),
+                curvature=stem.curvature,
+                curvature_v=stem.curvature_v,
+                attract_up=stem.attract_up,
+                segment=stem.segment + 1,
+                segments=stem.segments,
+                segment_length=segment_length,
+                children=stem.children,
+                radius_start=stem.radius_start * radius_scale,
+                radius_end=stem.radius_end * radius_scale,
+                index=bone_map.next_index(),
+                offset_length=offset,
             )
             split.split_last = 1
             split.last_rotation = branch_rot + pi
@@ -222,6 +195,20 @@ class StemGrower:
 
         stem.split_last = 1
         return direction_vec
+
+    def _append_point(self, spline, from_point, direction_vec):
+        """A new last point on `spline`, `direction_vec` away from `from_point`, with the tree's handles."""
+        end_co = from_point.co.copy()  # before add(): adding points can move the point array
+        spline.bezier_points.add(1)
+        point = spline.bezier_points[-1]
+        handles = self.params.handles
+        (point.co, point.handle_left_type, point.handle_right_type) = (end_co + direction_vec, handles, handles)
+        return point
+
+    @staticmethod
+    def _closes_tip(stem, close_tip):
+        """Whether this segment ends the stem and Close Tip makes its radius 0."""
+        return close_tip and stem.segment == stem.segments - 1
 
     @staticmethod
     def _attract_up(stem, direction_vec):

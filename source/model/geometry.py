@@ -82,44 +82,60 @@ class Bezier:
 
 
 class CrownShape:
-    """Shape ratio functions of the Weber-Penn paper, plus custom (8) and pruning envelope (9)."""
+    """Shape ratio functions of the Weber-Penn paper (plus a custom shape), and the pruning envelope."""
 
+    CONICAL = 0
+    SPHERICAL = 1
+    HEMISPHERICAL = 2
+    CYLINDRICAL = 3
+    TAPERED_CYLINDRICAL = 4
+    FLAME = 5
+    INVERSE_CONICAL = 6
+    TEND_FLAME = 7
     CUSTOM = 8
-    ENVELOPE = 9
+    INVERSE_TAPERED_CYLINDRICAL = 10
 
     @staticmethod
-    def ratio(shape, ratio, prune_width_peak=0.0, prune_power_high=0.0, prune_power_low=0.0, custom=None):
-        if shape == 0:
-            return 0.05 + 0.95 * ratio
-        if shape == 1:
-            return 0.2 + 0.8 * sin(pi * ratio)
-        if shape == 2:
-            return 0.2 + 0.8 * sin(0.5 * pi * ratio)
-        if shape == 3:
-            return 1.0
-        if shape == 4:
-            return 0.5 + 0.5 * ratio
-        if shape == 5:
-            if ratio <= 0.7:
-                return 0.05 + 0.95 * ratio / 0.7
-            return 0.05 + 0.95 * (1.0 - ratio) / 0.3
-        if shape == 6:
-            return 1.0 - 0.8 * ratio
-        if shape == 7:
-            if ratio <= 0.7:
-                return 0.5 + 0.5 * ratio / 0.7
-            return 0.5 + 0.5 * (1.0 - ratio) / 0.3
+    def ratio(shape, ratio, custom=None):
+        """The shape's factor at `ratio` (0..1); CUSTOM takes its four control values in `custom`."""
         if shape == CrownShape.CUSTOM:
             return CrownShape._custom(ratio, custom)
-        if shape == CrownShape.ENVELOPE:
-            if (ratio < (1 - prune_width_peak)) and (ratio > 0.0):
-                return (ratio / (1 - prune_width_peak)) ** prune_power_high
-            if (ratio >= (1 - prune_width_peak)) and (ratio < 1.0):
-                return ((1 - ratio) / prune_width_peak) ** prune_power_low
-            return 0.0
-        if shape == 10:
-            return 0.5 + 0.5 * (1 - ratio)
-        raise ValueError(f"unknown crown shape {shape}")
+        if shape not in CrownShape._SHAPES:
+            raise ValueError(f"unknown crown shape {shape}")
+        return CrownShape._SHAPES[shape](ratio)
+
+    @staticmethod
+    def envelope(ratio, peak, power_high, power_low):
+        """Pruning envelope width factor: rises to 1 at `peak` from the top, then falls to 0 at both ends."""
+        if (ratio < (1 - peak)) and (ratio > 0.0):
+            return (ratio / (1 - peak)) ** power_high
+        if (ratio >= (1 - peak)) and (ratio < 1.0):
+            return ((1 - ratio) / peak) ** power_low
+        return 0.0
+
+    @staticmethod
+    def _flame(ratio):
+        if ratio <= 0.7:
+            return 0.05 + 0.95 * ratio / 0.7
+        return 0.05 + 0.95 * (1.0 - ratio) / 0.3
+
+    @staticmethod
+    def _tend_flame(ratio):
+        if ratio <= 0.7:
+            return 0.5 + 0.5 * ratio / 0.7
+        return 0.5 + 0.5 * (1.0 - ratio) / 0.3
+
+    _SHAPES = {
+        CONICAL: lambda ratio: 0.05 + 0.95 * ratio,
+        SPHERICAL: lambda ratio: 0.2 + 0.8 * sin(pi * ratio),
+        HEMISPHERICAL: lambda ratio: 0.2 + 0.8 * sin(0.5 * pi * ratio),
+        CYLINDRICAL: lambda ratio: 1.0,
+        TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * ratio,
+        FLAME: _flame,
+        INVERSE_CONICAL: lambda ratio: 1.0 - 0.8 * ratio,
+        TEND_FLAME: _tend_flame,
+        INVERSE_TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * (1 - ratio),
+    }
 
     @staticmethod
     def _custom(ratio, custom):
