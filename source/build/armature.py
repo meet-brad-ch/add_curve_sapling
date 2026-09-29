@@ -26,6 +26,8 @@ class ArmatureBuilder:
     ROLE = "treeArm"
     DATA_NAME = "tree"
     MODIFIER = "windSway"
+    # Every bone is in this bone collection, hidden unless Fast Preview shows the armature instead of the tree
+    BONE_COLLECTION = "Sapling Bones"
     # Branch bones deform the curve through their envelopes, kept tight around the bone
     BRANCH_ENVELOPE = 0.001
     # Leaf bones (Leaf Animation): short, pointing up from the leaf's sprout
@@ -42,7 +44,8 @@ class ArmatureBuilder:
 
         Adds Armature modifiers to the tree curve and the leaves. Switches the new armature into edit mode
         and back (see _editing). Draws from the rng only with Armature Animation: two phase offsets per
-        spline that gets bones, and two per leaf bone with Leaf Animation.
+        spline that gets bones, and two per leaf bone with Leaf Animation. The bones are hidden (see
+        _collect_bones); the armature object stays visible, so the tree is still selected and movable.
         """
         p = self.params
         armature = bpy.data.armatures.new(self.DATA_NAME)
@@ -69,8 +72,21 @@ class ArmatureBuilder:
 
         for pose_bone in armature_ob.pose.bones:  # type: ignore[union-attr]  # an armature object has a pose
             pose_bone.rotation_mode = "XYZ"
+        self._collect_bones(armature, visible=p.preview_armature)
         tree.parent = armature_ob
         return armature_ob
+
+    @classmethod
+    def _collect_bones(cls, armature: Armature, visible: bool) -> None:
+        """Put every bone into one bone collection, shown only when asked (Fast Preview).
+
+        Hiding the bones, not the armature object: a hidden object is deselected and left out of
+        Move/Rotate/Scale, and the armature is the tree's root. Bones in no collection are always shown.
+        """
+        collection = armature.collections.new(cls.BONE_COLLECTION)
+        for bone in armature.bones:
+            collection.assign(bone)
+        collection.is_visible = visible
 
     @classmethod
     def deform(cls, ob: Object, armature_ob: Object, by_envelopes: bool) -> ArmatureModifier:

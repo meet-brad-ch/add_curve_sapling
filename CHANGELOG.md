@@ -60,6 +60,8 @@ Requires Blender 5.2 LTS.
   snapshots made growth O(n²), and leaf rotations were rebuilt per vertex. The built-in presets
   generate 18–56 % faster than in 0.3.7 (japanese_maple 4.4 s → 1.9 s); see the README.
 - Wind F-curves are grouped by bone in the Graph Editor.
+- The armature's bones are hidden after generation, in the bone collection *Sapling Bones*
+  (Fast Preview still shows them); the tree stays selected and can be moved at once.
 - Errors fail fast with a message instead of silent defaults; a failed Add leaves nothing behind.
 - The settings stored on a tree are versioned JSON.
 - Development: `tools/check.py` gates ruff (complexity ≤ 10, docstrings, annotations), mypy,

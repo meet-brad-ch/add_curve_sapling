@@ -178,3 +178,45 @@ class ArmatureContext(unittest.TestCase):
         self.assertEqual(len(other.data.bones), 0)
         self.assertEqual(bpy.context.mode, "OBJECT")
         self.assertEqual(bpy.context.active_object.location.to_tuple(), (0.0, 0.0, 0.0))
+
+
+class ArmatureDisplay(unittest.TestCase):
+    """The bones are hidden after generation; the armature object, the tree's root, is not."""
+
+    def add(self, **changes):
+        helpers.reset_scene()
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(useArm=True, **changes)
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+        root = helpers.active_object()
+        self.assertEqual(root.type, "ARMATURE")
+        (collection,) = root.data.collections
+        return root, collection
+
+    def test_bones_hidden_tree_still_selected_and_movable(self):
+        root, collection = self.add()
+        self.assertEqual(collection.name, "Sapling Bones")
+        self.assertFalse(collection.is_visible)
+        self.assertEqual(len(collection.bones), len(root.data.bones))
+        self.assertGreater(len(root.data.bones), 10)
+        self.assertTrue(root.visible_get())
+        self.assertTrue(root.select_get())
+        editable = bpy.context.selected_editable_objects
+        if editable is None:
+            raise AssertionError("no selected_editable_objects in this context")
+        self.assertIn(root, editable)
+
+    def test_fast_preview_shows_the_bones(self):
+        _root, collection = self.add(previewArm=True)
+        self.assertTrue(collection.is_visible)
+
+    def test_hidden_bones_still_deform(self):
+        self.add(showLeaves=True, armAnim=True)
+        leaves = bpy.data.objects["leaves"]
+        scene = bpy.context.scene
+        positions = []
+        for frame in (1, 17):
+            scene.frame_set(frame)
+            mesh = leaves.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+            positions.append([v.co.copy() for v in mesh.vertices[:50]])
+        self.assertTrue(any((a - b).length > 1e-6 for a, b in zip(*positions, strict=True)), "leaves do not sway")

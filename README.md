@@ -53,6 +53,10 @@ Python 3.13 for the `.venv` (ruff, mypy, coverage and the Blender stubs, pinned 
   BSDF in Blender 5.2's **Thin Wall** mode with thin subsurface scattering, so light shines
   through the leaves. Branches get *Sapling Bark*. Both are created once and then reused, so
   your edits to them are kept.
+- **Armature:** the bones are hidden after generation (bone collection *Sapling Bones*); show
+  them with its eye icon in *Armature properties > Bone Collections*. The armature object, the
+  top of the tree, stays visible and selected, so the whole tree can be moved right away. *Fast
+  Preview* shows the bones instead of the tree.
 - **Instance Points** leaves put your leaf object on every leaf point with a Geometry Nodes
   modifier (*Sapling Leaf Instancer*), rotated per leaf; the leaf object itself is not moved.
 
@@ -126,6 +130,9 @@ instead of per vertex. The benchmark is not part of the gate: timings depend on 
   annotations for `source/`), mypy with typed signatures, and branch coverage ≥ 98 % measured
   inside Blender. A `type: ignore` is allowed only with its reason (stub gaps, values Blender
   always sets); `warn_unused_ignores` flags the ones that become unnecessary.
+- 2026-09-29 — the armature's bones are hidden after generation through a hidden bone collection,
+  not by hiding the armature object: a hidden object is deselected and left out of
+  Move/Rotate/Scale (measured on 5.2.2), and the armature is the tree's root (owner's choice).
 
 ## Credits
 
