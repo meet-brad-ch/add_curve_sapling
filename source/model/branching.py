@@ -7,7 +7,7 @@ from math import atan2, copysign, cos, pi, radians, sin
 from mathutils import Euler, Matrix, Vector
 
 from .geometry import Angles, Axes, CrownShape
-from .stem import BoneName, Stem
+from .stem import BoneName, ChildPoint, Stem
 
 
 class BranchSpawner:
@@ -59,12 +59,12 @@ class BranchSpawner:
         p = self.params
         rng = self.rng
         base_size = min(0.999, base_size)  # never divide by zero below
-        rotations = None
+        rotations: list[float] = []
         if (level == 1) and (p.rotate_mode != "original"):
             sprouts, rotations = self._pick_trunk_sprouts(sprouts, level, base_size)
 
-        stems = []
-        old_rotate = 0
+        stems: list[Stem] = []
+        old_rotate = 0.0
         for i, sprout in enumerate(sprouts):
             spline = self.curve.splines.new("BEZIER")
             self.curve.resolution_u = p.res_u
@@ -175,17 +175,17 @@ class BranchSpawner:
         """
         p = self.params
         rng = self.rng
-        by_height = {}
-        tips = []
+        by_height: dict[float, list[ChildPoint]] = {}
+        tips: list[ChildPoint] = []
         for sprout in sprouts:
             if sprout.offset == 1:
                 tips.append(sprout)
             else:
                 by_height.setdefault(sprout.offset, []).append(sprout)
 
-        chosen = []
-        rotations = []
-        old_rotate = 0
+        chosen: list[ChildPoint] = []
+        rotations: list[float] = []
+        old_rotate = 0.0
         for height in sorted(by_height):
             candidates = by_height[height]
             if p.rotate_mode == "rotate":

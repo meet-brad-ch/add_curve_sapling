@@ -57,7 +57,7 @@ class Choices:
 class LeafObjectChoice:
     """Enum items for the leaf instance object; Blender needs the strings kept alive (T83360)."""
 
-    _items = []
+    _items: list[tuple[str, str, str]] = []
 
     @staticmethod
     def items(props, context):
@@ -473,7 +473,7 @@ class TreeProperties:
     @classmethod
     def generation_names(cls):
         """Names of the properties that shape the tree (what presets and stored trees hold)."""
-        names = []
+        names: list[str] = []
         for klass in reversed(cls.__mro__):
             names.extend(n for n in getattr(klass, "__annotations__", {}) if n not in names)
         return [n for n in names if n not in cls.UI_ONLY and n != "leafDupliObj"]

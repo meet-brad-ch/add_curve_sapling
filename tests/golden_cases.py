@@ -6,6 +6,8 @@ Each recorded case stores its fully resolved settings, so the comparison exercis
 and does not depend on how presets are loaded.
 """
 
+from typing import Any
+
 PRESETS = (
     "callistemon",
     "douglas_fir",
@@ -18,7 +20,7 @@ PRESETS = (
     "willow",
 )
 
-CASES = [(f"preset_{name}", name, {}) for name in PRESETS] + [
+CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for name in PRESETS] + [
     # Leaf shapes and placement.
     ("leaf_rect", "callistemon", {"showLeaves": True, "leafShape": "rect"}),
     ("leaf_instance_faces", "callistemon", {"showLeaves": True, "leafShape": "dFace"}),

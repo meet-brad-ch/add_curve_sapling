@@ -58,9 +58,10 @@ class LeafObjectBuilder:
         Vertex normals cannot be set since Blender 4.1, so the instancer reads this attribute instead.
         """
         normals = leaves.normals
-        rotations = []
+        rotations: list[float] = []
         for i in range(0, len(normals), 3):
-            rotations.extend(Vector(normals[i : i + 3]).to_track_quat("Y", "Z"))
+            q = Vector(normals[i : i + 3]).to_track_quat("Y", "Z")
+            rotations.extend((q.w, q.x, q.y, q.z))
         attribute = mesh.attributes.new(LeafInstancerNodes.ROTATION, "QUATERNION", "POINT")
         attribute.data.foreach_set("value", rotations)
 

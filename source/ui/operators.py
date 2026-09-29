@@ -17,7 +17,7 @@ from .properties import TreeProperties
 class PresetChoice:
     """Enum items for the preset list; Blender needs the strings kept alive (T83360)."""
 
-    _items = []
+    _items: list[tuple[str, str, str]] = []
 
     @staticmethod
     def items(props, context):

@@ -19,3 +19,27 @@ ignore = ["SIM108"]
 "source/ui/properties.py" = ["N815"]
 # Test methods follow unittest's camelCase API (setUp, assertEqual, ...).
 "tests/*" = ["N802"]
+
+[tool.mypy]
+python_version = "3.13"  # Blender 5.2 bundles Python 3.13.
+files = ["source", "tests", "tools"]
+exclude = ["source/presets/"]
+mypy_path = ["tests", "tools"]
+explicit_package_bases = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Blender declares operator properties as annotations (seed: IntProperty(...)), which are not types.
+module = ["source.ui.properties", "source.ui.operators"]
+disable_error_code = ["valid-type"]
+
+[[tool.mypy.overrides]]
+# Tests reach into generated objects: the stubs type context.scene as Optional and object.data as a
+# union of every data type; the operator bpy.ops.curve.tree_add only exists once the add-on runs.
+module = [
+    "golden_cases", "helpers", "run",
+    "test_golden", "test_materials", "test_regressions", "test_smoke", "test_ui",
+]
+disable_error_code = ["union-attr", "attr-defined"]

@@ -5,6 +5,7 @@
 """Sapling Tree Gen: parametric trees (Weber-Penn) with leaves, pruning, armature and wind."""
 
 import bpy
+from bpy.types import Operator, Panel
 
 from .ui.operators import AddTreeOperator, SavePresetOperator
 from .ui.panels import Menus, TreePanel
@@ -13,7 +14,7 @@ from .ui.panels import Menus, TreePanel
 class Registration:
     """The classes and menu entries this add-on registers."""
 
-    CLASSES = (AddTreeOperator, SavePresetOperator, TreePanel)
+    CLASSES: tuple[type[Operator] | type[Panel], ...] = (AddTreeOperator, SavePresetOperator, TreePanel)
 
     @classmethod
     def register(cls):

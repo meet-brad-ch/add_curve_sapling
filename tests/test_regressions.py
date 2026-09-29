@@ -23,6 +23,8 @@ def tree_curve():
 class WindAnimation(unittest.TestCase):
     """Blender 5.0 removed Action.fcurves; wind animation crashed on every 5.x release."""
 
+    result: set[str]
+
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
@@ -46,7 +48,10 @@ class WindAnimation(unittest.TestCase):
     def test_each_leaf_bone_owns_its_x_and_z_sway(self):
         channels = defaultdict(set)
         for fc in helpers.fcurves_of(armature()):
-            bone = re.match(r'pose\.bones\["(.+)"\]\.rotation_euler', fc.data_path).group(1)
+            match = re.match(r'pose\.bones\["(.+)"\]\.rotation_euler', fc.data_path)
+            self.assertIsNotNone(match, fc.data_path)
+            assert match is not None
+            bone = match.group(1)
             channels[bone].add(fc.array_index)
         leaf_bones = [b.name for b in armature().data.bones if b.name.startswith("leaf")]
         self.assertTrue(leaf_bones)
@@ -142,6 +147,8 @@ class DeepTrees(unittest.TestCase):
 class BoneStep(unittest.TestCase):
     """With Bone Step > 1 a bone spans several points: its tail radius came from the point after its
     head instead of the point at its tail, and only one of the two trunk base bones was held still."""
+
+    result: set[str]
 
     @classmethod
     def setUpClass(cls):

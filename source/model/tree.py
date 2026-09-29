@@ -4,7 +4,7 @@
 
 from .branching import BranchSpawner
 from .pruning import StemPruner
-from .stem import BoneMap
+from .stem import BoneMap, ChildPoint
 
 
 class GrownTree:
@@ -42,8 +42,8 @@ class TreeGrower:
         spawner = BranchSpawner(p, self.rng, curve)
         pruner = StemPruner(p, self.rng, curve, scratch, scale, bone_map)
         base_size = p.base_size
-        sprouts = []
-        level_ends = []
+        sprouts: list[ChildPoint] = []
+        level_ends: list[int] = []
 
         for depth in range(p.levels):
             # Per-level parameters only exist for 4 levels; deeper levels reuse the last one

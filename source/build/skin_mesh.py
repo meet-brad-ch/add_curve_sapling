@@ -3,6 +3,7 @@
 """Make Mesh: the branches as a vertex skeleton with a Skin modifier, weighted to the armature."""
 
 import bpy
+from mathutils import Vector
 
 from ..model.geometry import BezierSegment
 from ..model.stem import BoneName
@@ -19,12 +20,12 @@ class SkinMeshBuilder:
         p = self.params
         res = p.res_u
         links = grown.bone_map
-        verts = []
+        verts: list[Vector] = []
         edges = []
         roots = []
         radii = []
-        groups = {}
-        last_verts = []
+        groups: dict[str, list[int]] = {}
+        last_verts: list[int] = []
 
         for i, spline in enumerate(curve.splines):
             link = links[i]

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import bpy
 import helpers
-from mathutils import Matrix, Vector
+from mathutils import Matrix
 
 SOURCE = Path(__file__).resolve().parent.parent / "source"
 
@@ -102,7 +102,7 @@ class Placement(unittest.TestCase):
             bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         root = bpy.context.active_object
         self.assertEqual(root_of(root), root)
-        self.assertEqual(tuple(root.location), (1.0, 2.0, 3.0))
+        self.assertEqual(root.location.to_tuple(), (1.0, 2.0, 3.0))
         self.assertEqual(bpy.context.selected_objects, [root])
 
 
@@ -117,6 +117,11 @@ class ReEdit(unittest.TestCase):
         bpy.context.scene.collection.objects.link(self.instance)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True), {"FINISHED"})
         return bpy.context.active_object
+
+    def assert_same_transform(self, a, b):
+        self.assertLess((a.to_translation() - b.to_translation()).length, 1e-5)
+        self.assertLess(a.to_quaternion().rotation_difference(b.to_quaternion()).angle, 1e-5)
+        self.assertLess((a.to_scale() - b.to_scale()).length, 1e-5)
 
     def test_settings_stored_on_root(self):
         root = self.generate(useArm=True)
@@ -143,9 +148,9 @@ class ReEdit(unittest.TestCase):
         bpy.context.view_layer.update()
         self.assertEqual(len(bpy.data.objects), count)
         self.assertEqual(new_root.name, "tree")
-        self.assertTrue(all((a - b).length < 1e-5 for a, b in zip(new_root.matrix_world, placed, strict=True)))
+        self.assert_same_transform(new_root.matrix_world, placed)
         self.assertEqual(self.instance.parent, bpy.data.objects["leaves"])
-        self.assertTrue(all((a - b).length < 1e-5 for a, b in zip(self.instance.matrix_world, card_world, strict=True)))
+        self.assert_same_transform(self.instance.matrix_world, card_world)
         self.assertEqual(helpers.fingerprint(), before)
 
     def test_edit_changes_settings(self):
@@ -184,4 +189,4 @@ class ArmatureContext(unittest.TestCase):
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         self.assertEqual(len(other.data.bones), 0)
         self.assertEqual(bpy.context.mode, "OBJECT")
-        self.assertEqual(Vector(bpy.context.active_object.location), Vector((0, 0, 0)))
+        self.assertEqual(bpy.context.active_object.location.to_tuple(), (0.0, 0.0, 0.0))

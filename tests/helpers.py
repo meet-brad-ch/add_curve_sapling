@@ -4,6 +4,7 @@
 
 import hashlib
 import sys
+from typing import Any
 
 import bpy
 import numpy as np
@@ -33,7 +34,7 @@ def addon():
 
 def reset_scene() -> None:
     """Remove everything a tree generation creates, so data names never get .001 suffixes."""
-    for collection in (
+    collections: tuple[Any, ...] = (
         bpy.data.objects,
         bpy.data.curves,
         bpy.data.meshes,
@@ -41,7 +42,8 @@ def reset_scene() -> None:
         bpy.data.actions,
         bpy.data.materials,
         bpy.data.node_groups,
-    ):
+    )
+    for collection in collections:
         for block in list(collection):
             collection.remove(block)
     scene = bpy.context.scene
@@ -211,7 +213,7 @@ def fingerprint() -> dict:
     """A compact, order-sensitive summary of every object in the scene and its data."""
     out = {}
     for ob in sorted(bpy.data.objects, key=lambda o: o.name):
-        entry = {
+        entry: dict[str, Any] = {
             "type": ob.type,
             "parent": ob.parent.name if ob.parent else None,
             "modifiers": [m.type for m in ob.modifiers],

@@ -17,7 +17,9 @@ Blender is at `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (5.2
 `BLENDER` to use another one. `ruff` 0.11+ must be on PATH.
 
 ```
-python tools/check.py            # the full gate: ruff check, ruff format --check, manifest, tests
+py -3.13 -m venv .venv           # once: mypy needs Python 3.13 for the Blender 5.2 stubs
+.venv/Scripts/python -m pip install mypy==1.19.1 fake-bpy-module-5.2==20260730 numpy
+python tools/check.py            # the full gate: ruff, ruff format --check, mypy, manifest, tests
 python tools/run_tests.py        # tests only (-k NAME filters, --record-golden rewrites golden)
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
@@ -27,7 +29,7 @@ The tests build the extension zip and install it into a throwaway profile under
 `build/test-profile` (`BLENDER_USER_RESOURCES`), so your own Blender profile is never touched.
 
 **Prerequisites:** Blender 5.2 LTS (Python 3.13 inside Blender), Python 3.10+ to run the tools,
-`ruff` 0.11+.
+`ruff` 0.11+, Python 3.13 for the mypy venv.
 
 ## Using it
 

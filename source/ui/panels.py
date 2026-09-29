@@ -34,7 +34,10 @@ class TreePanel(Panel):
     def draw(self, context):
         root = TreeRecord.root_of(context.active_object)
         settings = TreeRecord.settings(root).values
-        col = self.layout.column()
+        layout = self.layout
+        if layout is None:
+            return
+        col = layout.column()
         col.label(text=f"Root: {root.name}")
         col.label(text=f"Levels: {settings.get('levels')}   Seed: {settings.get('seed')}")
         TreeEditButton.draw(col, context)
@@ -55,10 +58,11 @@ class Menus:
 
     @classmethod
     def register(cls):
-        bpy.types.VIEW3D_MT_curve_add.append(cls.add_curve)
-        bpy.types.VIEW3D_MT_object.append(cls.object_menu)
+        # The stubs type menu draw functions as (context); Blender calls them with (menu, context).
+        bpy.types.VIEW3D_MT_curve_add.append(cls.add_curve)  # type: ignore[arg-type]
+        bpy.types.VIEW3D_MT_object.append(cls.object_menu)  # type: ignore[arg-type]
 
     @classmethod
     def unregister(cls):
-        bpy.types.VIEW3D_MT_curve_add.remove(cls.add_curve)
-        bpy.types.VIEW3D_MT_object.remove(cls.object_menu)
+        bpy.types.VIEW3D_MT_curve_add.remove(cls.add_curve)  # type: ignore[arg-type]
+        bpy.types.VIEW3D_MT_object.remove(cls.object_menu)  # type: ignore[arg-type]
