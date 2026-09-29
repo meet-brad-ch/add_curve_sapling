@@ -41,6 +41,6 @@ disable_error_code = ["valid-type"]
 module = [
     "golden_cases", "helpers", "run",
     "test_architecture", "test_fuzz", "test_golden", "test_lifecycle", "test_materials", "test_presets", "test_regressions",
-    "test_smoke", "test_ui",
+    "test_smoke", "test_tree_record", "test_ui",
 ]
 disable_error_code = ["union-attr", "attr-defined"]

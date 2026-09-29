@@ -6,7 +6,7 @@ import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 from bpy.types import Operator
 
-from ..build.tree_record import TreeRecord
+from ..build.tree_record import TreePlacement, TreeRecord
 from ..generator import TreeGenerator
 from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
@@ -100,32 +100,45 @@ class AddTreeOperator(TreeProperties, Operator):
     def _generate(self, context):
         if self.preset_pending:
             self._load_preset()
+        old_root = self._tree_to_replace(context) if self.replace else None
         placement = None
-        collection = None
-        if self.replace:
-            root = TreeRecord.root_of(bpy.data.objects.get(self.replace))
-            if root is None:
-                raise SettingsError(f"'{self.replace}' is not a Sapling tree")
-            if self.load_stored:
-                TreeRecord.settings(root).apply_to(self, TreeProperties.stored_names())
-                self.load_stored = False
-            context.view_layer.update()  # current world matrices of the tree and the user's objects
-            placement = TreeRecord.remove(root)
-            collection = placement.collections[0] if placement.collections else None
+        collections = [context.collection]
+        if old_root is not None:
+            placement = TreePlacement(old_root, TreeRecord.owned(old_root))
+            collections = placement.collections
 
+        # The new tree is complete before the old one is touched: a failure leaves the old tree as it was
         settings = TreeSettings.from_properties(self, TreeProperties.stored_names())
-        result = TreeGenerator(self, context, collection).generate()
-        TreeRecord.store(result, settings)
+        result = TreeGenerator(self, context, collections).generate()
+        TreeRecord.tag(result, settings)
 
-        if placement:
-            TreeRecord.restore(result, placement, context.view_layer)
-        else:
+        if placement is None:
             result.root.location = context.scene.cursor.location
+        else:
+            placement.detach()
+            TreeRecord.remove(old_root)
+            result.objects.take_base_names()
+            unattached = placement.apply(result, context.view_layer)
+            if unattached:
+                self.report({"WARNING"}, f"Left unparented (their part of the tree is gone): {', '.join(unattached)}")
         for ob in context.selected_objects:
             ob.select_set(False)
         result.root.select_set(True)
         context.view_layer.objects.active = result.root
         return {"FINISHED"}
+
+    def _tree_to_replace(self, context):
+        """The root of the tree named by `replace`, with its stored settings applied (first run only)."""
+        ob = bpy.data.objects.get(self.replace)
+        if ob is None:
+            raise SettingsError(f"No object named '{self.replace}'")
+        root = TreeRecord.root_of(ob)
+        TreeRecord.claim(root)
+        if self.load_stored:
+            TreeRecord.settings(root).apply_to(self, TreeProperties.stored_names())
+            self.load_stored = False
+        context.view_layer.update()  # current world matrices of the tree and the user's objects
+        return root
 
 
 class SavePresetOperator(Operator):

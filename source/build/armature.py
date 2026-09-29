@@ -16,6 +16,9 @@ from .wind import BranchSway, WindAnimator
 class ArmatureBuilder:
     """Builds the armature that deforms the tree curve, the leaves and the skin mesh."""
 
+    ROLE = "treeArm"
+    DATA_NAME = "tree"
+
     def __init__(self, params, rng, objects, context):
         self.params = params
         self.rng = rng
@@ -24,8 +27,8 @@ class ArmatureBuilder:
 
     def build(self, tree, grown, leaves, leaves_ob):
         p = self.params
-        armature = bpy.data.armatures.new("tree")
-        armature_ob = self.objects.new("treeArm", armature)
+        armature = bpy.data.armatures.new(self.DATA_NAME)
+        armature_ob = self.objects.new(self.ROLE, armature)
         armature.display_type = "STICK"
         wind = WindAnimator(armature_ob, p.loop_frames) if p.armature_animation else None
 

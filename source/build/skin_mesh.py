@@ -12,12 +12,15 @@ from ..model.stem import BoneName
 class SkinMeshBuilder:
     """Samples every spline into skin vertices and edges, with one vertex group per bone."""
 
+    ROLE = "treemesh"
+
     def __init__(self, params, objects):
         self.params = params
         self.objects = objects
 
-    def build(self, curve, grown, armature_ob, bone_level_end):
+    def build(self, tree, grown, armature_ob, bone_level_end):
         p = self.params
+        curve = tree.data
         res = p.res_u
         links = grown.bone_map
         verts: list[Vector] = []
@@ -89,8 +92,9 @@ class SkinMeshBuilder:
 
             last_verts.append(len(verts) - 1)
 
-        mesh = bpy.data.meshes.new("treemesh")
-        ob = self.objects.new("treemesh", mesh)
+        mesh = bpy.data.meshes.new(self.ROLE)
+        # Part of the tree: under the armature that deforms it, or under the tree curve
+        ob = self.objects.new(self.ROLE, mesh, parent=armature_ob or tree)
         mesh.from_pydata(verts, edges, ())
         for name, indices in groups.items():
             ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
@@ -103,7 +107,6 @@ class SkinMeshBuilder:
             modifier.object = armature_ob
             modifier.use_bone_envelopes = False
             modifier.use_vertex_groups = True
-            ob.parent = armature_ob
 
         skin = ob.modifiers.new("Skin", "SKIN")
         skin.use_smooth_shade = True

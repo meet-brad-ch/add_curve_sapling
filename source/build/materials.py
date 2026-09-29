@@ -4,6 +4,11 @@
 
 import bpy
 
+from ..model.leaves import LeafShape
+from .leaf_object import LeafObjectBuilder
+from .skin_mesh import SkinMeshBuilder
+from .tree_curve import TreeCurveBuilder
+
 
 class MaterialLibrary:
     """Creates the Sapling materials once and reuses them, so edits made to them are kept."""
@@ -53,12 +58,13 @@ class MaterialLibrary:
     def _output(material):
         return next(n for n in material.node_tree.nodes if n.type == "OUTPUT_MATERIAL")
 
-    def assign(self, result, leaf_material):
-        """Bark on the branches (curve and skin mesh); the leaf material on mesh leaves."""
+    def assign(self, result, params):
+        """Bark on the branches (curve and skin mesh); the leaf material on mesh leaves (not instanced)."""
         bark = self.bark()
-        for ob in (result.tree, result.skin_mesh):
-            if ob and not ob.data.materials:
+        for role in (TreeCurveBuilder.ROLE, SkinMeshBuilder.ROLE):
+            ob = result.role(role)
+            if ob is not None:
                 ob.data.materials.append(bark)
-        leaves = result.leaves
-        if leaf_material and leaves and leaves.instance_type == "NONE" and not leaves.data.materials:
+        leaves = result.role(LeafObjectBuilder.ROLE)
+        if params.leaf_material and leaves is not None and params.leaf_shape in LeafShape.MESH:
             leaves.data.materials.append(self.leaf())

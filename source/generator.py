@@ -19,36 +19,52 @@ from .model.tree import TreeGrower
 
 
 class TreeResult:
-    """The objects of one generated tree; `root` is the object the others hang from."""
+    """The objects of one generated tree, by role; `root` is the object the others hang from."""
 
-    def __init__(self, tree, leaves, armature, skin_mesh, created):
-        self.tree = tree
-        self.leaves = leaves
-        self.armature = armature
-        self.skin_mesh = skin_mesh
-        self.created = created
+    def __init__(self, objects):
+        self.objects = objects
+        self.roles = objects.roles
+
+    @property
+    def tree(self):
+        return self.roles[TreeCurveBuilder.ROLE]
 
     @property
     def root(self):
-        return self.armature or self.tree
+        return self.roles.get(ArmatureBuilder.ROLE, self.tree)
+
+    def role(self, name):
+        """The object with this role, or None when this tree has none (e.g. no leaves)."""
+        return self.roles.get(name)
 
 
 class TreeGenerator:
     """Generates one tree from settings (anything with the operator's property names)."""
 
-    def __init__(self, settings, context, collection=None):
+    def __init__(self, settings, context, collections):
         self.params = TreeParams(settings)
         self.context = context
-        self.collection = collection or context.collection
+        self.collections = collections
 
     def generate(self):
+        """Build the tree; if anything fails, remove what was created and re-raise."""
         p = self.params
         if p.leaves and p.leaf_shape in LeafShape.INSTANCED:
             LeafObjectBuilder.instance_object(p)  # fail before anything is created
+        objects = ObjectFactory(self.collections)
+        try:
+            self._build(objects)
+        except BaseException:
+            objects.discard()
+            raise
+        result = TreeResult(objects)
+        MaterialLibrary().assign(result, p)
+        return result
+
+    def _build(self, objects):
+        p = self.params
         # One random stream for the whole tree: the same seed gives the same tree
         rng = random.Random(p.seed)
-        objects = ObjectFactory(self.collection)
-
         tree = TreeCurveBuilder(p, objects).build()
         scale = p.scale + rng.uniform(-p.scale_v, p.scale_v)
         scale += copysign(1e-6, scale)  # never exactly zero
@@ -73,15 +89,8 @@ class TreeGenerator:
         if p.use_armature:
             armature_ob = armatures.build(tree, grown, leaves, leaves_ob)
 
-        skin_ob = None
         if p.make_mesh:
-            skin_ob = SkinMeshBuilder(p, objects).build(
-                tree.data, grown, armature_ob, armatures.armature_level_end(grown)
-            )
+            SkinMeshBuilder(p, objects).build(tree, grown, armature_ob, armatures.armature_level_end(grown))
 
         if leaves_ob:
             leaf_builder.finish(leaves_ob, leaves)
-
-        result = TreeResult(tree, leaves_ob, armature_ob, skin_ob, objects.created)
-        MaterialLibrary().assign(result, p.leaf_material)
-        return result

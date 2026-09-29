@@ -13,6 +13,7 @@ from .tree_record import TreeRecord
 class LeafObjectBuilder:
     """Creates the leaves mesh object from a LeafSet."""
 
+    ROLE = "leaves"
     UV_LAYER = "leafUV"
 
     def __init__(self, params, objects):
@@ -21,8 +22,8 @@ class LeafObjectBuilder:
 
     def build(self, leaves, tree):
         p = self.params
-        mesh = bpy.data.meshes.new("leaves")
-        ob = self.objects.new("leaves", mesh, parent=tree)
+        mesh = bpy.data.meshes.new(self.ROLE)
+        ob = self.objects.new(self.ROLE, mesh, parent=tree)
         mesh.from_pydata(leaves.vertices, (), leaves.faces)
 
         if leaves.shape == LeafShape.INSTANCE_FACES:

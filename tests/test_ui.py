@@ -160,7 +160,7 @@ class ReEdit(unittest.TestCase):
         helpers.reset_scene()
         ob = bpy.data.objects.new("plain", None)
         bpy.context.scene.collection.objects.link(ob)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaisesRegex(RuntimeError, "'plain' is not part of a Sapling tree"):
             bpy.ops.curve.tree_add(replace="plain", do_update=True)
 
     @staticmethod

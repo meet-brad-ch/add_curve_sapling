@@ -11,14 +11,16 @@ from ..model.geometry import CrownShape
 class TreeCurveBuilder:
     """Creates the (still empty) curve that the branches grow into."""
 
+    ROLE = "tree"
+
     def __init__(self, params, objects):
         self.params = params
         self.objects = objects
 
     def build(self):
         p = self.params
-        curve = bpy.data.curves.new("tree", "CURVE")
-        tree = self.objects.new("tree", curve)
+        curve = bpy.data.curves.new(self.ROLE, "CURVE")
+        tree = self.objects.new(self.ROLE, curve)
         curve.dimensions = "3D"
         curve.fill_mode = "FULL"
         curve.bevel_depth = p.bevel_depth
@@ -36,6 +38,7 @@ class TreeCurveBuilder:
 class EnvelopeBuilder:
     """Two profile curves (in the XZ and YZ planes) that show the pruning envelope."""
 
+    ROLE = "envelope"
     POINTS = 128
 
     def __init__(self, params, objects):
@@ -45,8 +48,8 @@ class EnvelopeBuilder:
     def build(self, tree, scale):
         p = self.params
         prune_base = min(p.prune_base, p.base_size)
-        curve = bpy.data.curves.new("envelope", "CURVE")
-        self.objects.new("envelope", curve, parent=tree)
+        curve = bpy.data.curves.new(self.ROLE, "CURVE")
+        self.objects.new(self.ROLE, curve, parent=tree)
         for axis in (0, 1):
             spline = curve.splines.new("BEZIER")
             point = spline.bezier_points[-1]

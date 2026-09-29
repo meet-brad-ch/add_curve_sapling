@@ -6,16 +6,16 @@ import bpy
 from bpy.types import Panel
 
 from ..build.tree_record import TreeRecord
+from .operators import AddTreeOperator
 
 
 class TreeEditButton:
     """The "Edit Sapling Tree" button: re-opens the Add Tree operator on a tree's settings."""
 
     @staticmethod
-    def draw(layout, context, text="Edit Sapling Tree"):
-        root = TreeRecord.root_of(context.active_object)
-        if root:
-            layout.operator("curve.tree_add", text=text, icon="OUTLINER_OB_CURVE").replace = root.name
+    def draw(layout, root):
+        button = layout.operator(AddTreeOperator.bl_idname, text="Edit Sapling Tree", icon="OUTLINER_OB_CURVE")
+        button.replace = root.name
 
 
 class TreePanel(Panel):
@@ -29,18 +29,18 @@ class TreePanel(Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT" and TreeRecord.root_of(context.active_object) is not None
+        return context.mode == "OBJECT" and TreeRecord.is_tree(context.active_object)
 
     def draw(self, context):
-        root = TreeRecord.root_of(context.active_object)
-        settings = TreeRecord.settings(root).values
         layout = self.layout
         if layout is None:
-            return
+            raise RuntimeError("Panel.draw without a layout")
+        root = TreeRecord.root_of(context.active_object)
+        settings = TreeRecord.settings(root).values
         col = layout.column()
         col.label(text=f"Root: {root.name}")
-        col.label(text=f"Levels: {settings.get('levels')}   Seed: {settings.get('seed')}")
-        TreeEditButton.draw(col, context)
+        col.label(text=f"Levels: {settings['levels']}   Seed: {settings['seed']}")
+        TreeEditButton.draw(col, root)
 
 
 class Menus:
@@ -48,13 +48,13 @@ class Menus:
 
     @staticmethod
     def add_curve(menu, context):
-        menu.layout.operator("curve.tree_add", text="Sapling Tree Gen", icon="CURVE_DATA")
+        menu.layout.operator(AddTreeOperator.bl_idname, text="Sapling Tree Gen", icon="CURVE_DATA")
 
     @staticmethod
     def object_menu(menu, context):
-        if TreeRecord.root_of(context.active_object):
+        if TreeRecord.is_tree(context.active_object):
             menu.layout.separator()
-            TreeEditButton.draw(menu.layout, context)
+            TreeEditButton.draw(menu.layout, TreeRecord.root_of(context.active_object))
 
     @classmethod
     def register(cls):
