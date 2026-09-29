@@ -31,6 +31,8 @@ class SkinMeshBuilder:
     """Samples every spline into skin vertices and edges, with one vertex group per bone."""
 
     ROLE = "treemesh"
+    # A split's first vertex sits on its parent with this fraction of the split's radius
+    SPLIT_JOINT_RADIUS = 0.75
 
     def __init__(self, params, objects):
         self.params = params
@@ -55,7 +57,7 @@ class SkinMeshBuilder:
         if link.is_split:
             parent_points = curve.splines[BoneName.spline(link.bone)].bezier_points
             segment = BezierSegment.between(parent_points[link.split_point], parent_points[link.split_point + 1])
-            skeleton.add_vertex(segment.point(1 - 1 / (res + 1)), p1.radius * 0.75)
+            skeleton.add_vertex(segment.point(1 - 1 / (res + 1)), p1.radius * self.SPLIT_JOINT_RADIUS)
             skeleton.edges.append([vindex, vindex + 1])
             vindex += 1
 

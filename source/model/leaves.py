@@ -20,6 +20,8 @@ class LeafShape:
     MESH = (HEX, RECT)
     INSTANCED = (INSTANCE_FACES, INSTANCE_POINTS)
     VERTS_PER_LEAF = {HEX: 6, RECT: 4, INSTANCE_FACES: 4, INSTANCE_POINTS: 1}
+    # Face instancing scales each instance by its face size times this; leaf faces are made this much smaller
+    FACE_INSTANCE_SCALE = 10.0
 
     @staticmethod
     def template(shape):
@@ -150,7 +152,7 @@ class LeafGenerator:
             scale = p.leaf_scale * (1 - f * p.leaf_scale_t)
         scale = scale * self.rng.uniform(1 - p.leaf_scale_v, 1 + p.leaf_scale_v)
         if p.leaf_shape == LeafShape.INSTANCE_FACES:
-            scale = scale * 0.1  # the face is scaled up 10x by face instancing
+            scale = scale * (1 / LeafShape.FACE_INSTANCE_SCALE)
         return scale
 
     def _orientation(self, sprout, rotation, spin, down):

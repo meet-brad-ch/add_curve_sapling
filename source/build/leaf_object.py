@@ -29,7 +29,7 @@ class LeafObjectBuilder:
         if leaves.shape == LeafShape.INSTANCE_FACES:
             ob.instance_type = "FACES"
             ob.use_instance_faces_scale = True
-            ob.instance_faces_scale = 10.0
+            ob.instance_faces_scale = LeafShape.FACE_INSTANCE_SCALE
             self._attach_instance_object(ob)
         elif leaves.shape == LeafShape.INSTANCE_POINTS:
             self._store_rotations(mesh, leaves)

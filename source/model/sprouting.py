@@ -14,6 +14,9 @@ from .stem import BoneName, ChildPoint
 class SproutPlanner:
     """Places the sprout points of one grown stem (with its splits) for the next level."""
 
+    # Branch Rings: each ring's height varies randomly within this factor range
+    RING_JITTER = (0.995, 1.005)
+
     def __init__(self, params, rng):
         self.params = params
         self.rng = rng
@@ -33,7 +36,7 @@ class SproutPlanner:
         positions = positions[int(base_size * (len(positions) + 1)) :]
 
         if (level == 0) and (p.rings > 0):
-            positions = [(floor(t * p.rings) / p.rings) * self.rng.uniform(0.995, 1.005) for t in positions[:-1]]
+            positions = [(floor(t * p.rings) / p.rings) * self.rng.uniform(*self.RING_JITTER) for t in positions[:-1]]
             positions.append(1)
             positions = [t for t in positions if t > base_size]
 

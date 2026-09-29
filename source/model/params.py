@@ -119,6 +119,12 @@ class TreeParams:
             )
         else:
             self.taper = s.taper
+        self._frozen = True
+
+    def __setattr__(self, name, value):
+        if getattr(self, "_frozen", False):  # set at the end of __init__
+            raise AttributeError(f"TreeParams are read-only; cannot set {name}")
+        super().__setattr__(name, value)
 
     def length_product(self, level, start):
         """`start` times the relative lengths of levels 0..level."""

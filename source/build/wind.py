@@ -12,6 +12,12 @@ from ..model.geometry import Angles
 class WindModel:
     """The wind's numbers for one tree: sway frequencies and amplitudes, leaf flutter."""
 
+    # Each branch sways with two waves; the second is slower and weaker
+    SECOND_WAVE_FREQUENCY = 0.7
+    SECOND_WAVE_AMPLITUDE = 0.65
+    # Leaf flutter strength per unit of Overall Wind Strength
+    LEAF_STRENGTH = 0.25
+
     def __init__(self, params, fps):
         self.params = params
         self.anim_speed = (24 / fps) * params.frame_rate
@@ -25,7 +31,7 @@ class WindModel:
         p = self.params
         multiplier = (1 / max(spline_length**0.5, 1e-6)) * (1 / 4)
         freq1 = multiplier * self.anim_speed
-        freq2 = 0.7 * multiplier * self.anim_speed
+        freq2 = self.SECOND_WAVE_FREQUENCY * multiplier * self.anim_speed
         if p.loop_frames != 0:
             loop = 1 / (p.loop_frames / Angles.TAU)
             freq1 = max(1, round(freq1 / loop)) * loop
@@ -39,7 +45,7 @@ class WindModel:
         a0 = 2 * (spline_length / segments) * (1 - n / (segments + 1)) / max(points[n].radius, 1e-6)
         a0 = a0 * min(step, segments)
         a1 = (p.wind / 50) * a0
-        a2 = a1 * 0.65
+        a2 = a1 * self.SECOND_WAVE_AMPLITUDE
         direction = points[tail].co - points[n].co
         direction.normalize()
         gust = (p.wind * p.gust / 50) * a0
@@ -51,7 +57,7 @@ class WindModel:
         """(strength, noise scale) of the leaves' flutter."""
         p = self.params
         strength, speed, _randomness = p.leaf_wind
-        return p.wind * 0.25 * strength, (1 / self.anim_speed) * 6 * (1 / max(speed, 0.001))
+        return p.wind * self.LEAF_STRENGTH * strength, (1 / self.anim_speed) * 6 * (1 / max(speed, 0.001))
 
 
 class BranchSway:
@@ -66,6 +72,11 @@ class BranchSway:
 
 class WindAnimator:
     """Adds the sway F-curves to the armature's action."""
+
+    # The second wave's phase trails the first by this fraction of the random offset
+    SECOND_WAVE_PHASE = 0.7
+    # The gust bend oscillates around this fraction of its amplitude (it leans with the wind)
+    BEND_LEAN = 0.6
 
     def __init__(self, armature_ob, model):
         self.armature_ob = armature_ob
@@ -98,14 +109,14 @@ class WindAnimator:
             first.phase_multiplier = freq1
             second = fcurve.modifiers.new(type="FNGENERATOR")
             second.amplitude = a2
-            second.phase_offset = 0.7 * offset
+            second.phase_offset = self.SECOND_WAVE_PHASE * offset
             second.phase_multiplier = freq2
             second.use_additive = True
         for fcurve, amplitude in ((sway_z, a3), (sway_x, a4)):
             bend = fcurve.modifiers.new(type="FNGENERATOR")
             bend.amplitude = amplitude
             bend.phase_multiplier = sway.gust_frequency
-            bend.value_offset = 0.6 * amplitude
+            bend.value_offset = self.BEND_LEAN * amplitude
             bend.use_additive = True
 
     def add_leaf_flutter(self, bone, strength, scale, offsets):

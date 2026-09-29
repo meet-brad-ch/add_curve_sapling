@@ -13,6 +13,12 @@ from .stem import BoneName, Stem
 class StemGrower:
     """Adds one segment to a stem per call; splits create new stems on new splines."""
 
+    # After a segment without a split, a split is this much more likely
+    SPLIT_BOOST = 1.33
+    # Split angle of a branch pointing sideways: FLATTEN_MIN of the angle, up to 1 when it points up
+    FLATTEN_SCALE = 0.67
+    FLATTEN_MIN = 0.33
+
     def __init__(self, params, rng, scale):
         self.params = params
         self.rng = rng
@@ -24,7 +30,7 @@ class StemGrower:
         segments = p.curve_res[level]
         value = split_value
         if stem.split_last == 0:
-            value = split_value * 1.33
+            value = split_value * self.SPLIT_BOOST
         elif stem.split_last == 1:
             value = split_value * split_value
 
@@ -140,7 +146,7 @@ class StemGrower:
         angle = rng.choice([-1, 1]) * (split_angle + uniform(-split_angle_v, split_angle_v))
         if level > 0:
             # make branches flatter
-            angle *= max(1 - Angles.declination(direction) / 90, 0) * 0.67 + 0.33
+            angle *= max(1 - Angles.declination(direction) / 90, 0) * self.FLATTEN_SCALE + self.FLATTEN_MIN
         spread_angle = rng.choice([-1, 1]) * (split_angle + uniform(-split_angle_v, split_angle_v))
 
         if stem.last_rotation is None:

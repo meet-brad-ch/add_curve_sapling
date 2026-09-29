@@ -305,3 +305,16 @@ class FailFast(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "is not a Geometry Nodes group"):
             bpy.ops.curve.tree_add(**settings, leafDupliObj=card.name, do_update=True)
         self.assertEqual([ob.name for ob in bpy.data.objects], [card.name])
+
+
+class ReadOnlyParams(unittest.TestCase):
+    """Generation stages share one TreeParams; none of them may change it for the others."""
+
+    def test_params_are_read_only(self):
+        from types import SimpleNamespace
+
+        settings = SimpleNamespace(**helpers.operator_defaults(), leafDupliObj="")
+        params = helpers.module("model.params").TreeParams(settings)
+        self.assertEqual(params.levels, settings.levels)
+        with self.assertRaisesRegex(AttributeError, "read-only; cannot set levels"):
+            params.levels = 1

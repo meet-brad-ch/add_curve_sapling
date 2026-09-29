@@ -18,6 +18,10 @@ class ArmatureBuilder:
     ROLE = "treeArm"
     DATA_NAME = "tree"
     MODIFIER = "windSway"
+    # Branch bones deform the curve through their envelopes, kept tight around the bone
+    BRANCH_ENVELOPE = 0.001
+    # Leaf bones (Leaf Animation): short, pointing up from the leaf's sprout
+    LEAF_BONE_LENGTH = 0.02
 
     def __init__(self, params, rng, objects, context):
         self.params = params
@@ -128,7 +132,7 @@ class ArmatureBuilder:
                 bone.tail = points[tail].co
                 bone.head_radius = points[n].radius
                 bone.tail_radius = points[tail].radius
-                bone.envelope_distance = 0.001
+                bone.envelope_distance = self.BRANCH_ENVELOPE
                 if n == 0:
                     # the first bone hangs from the bone of the parent branch
                     if link.bone:
@@ -162,7 +166,7 @@ class ArmatureBuilder:
                 name = BoneName.leaf(i)
                 bone = armature.edit_bones.new(name)
                 bone.head = sprout.co
-                bone.tail = sprout.co + Vector((0, 0, 0.02))
+                bone.tail = sprout.co + Vector((0, 0, self.LEAF_BONE_LENGTH))
                 bone.envelope_distance = 0.0
                 bone.parent = armature.edit_bones[parent]
                 groups[name] = list(range(size * i, size * i + size))

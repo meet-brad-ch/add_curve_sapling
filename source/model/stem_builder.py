@@ -31,6 +31,11 @@ class SplineCopier:
 class PruningSearch:
     """Binary search state of the stem length scale that keeps the stem inside the envelope."""
 
+    # The search stops when the scale interval is narrower than this
+    TOLERANCE = 0.005
+    # The pass that starts with an interval narrower than this is the last one
+    LAST_PASS = 0.01
+
     def __init__(self):
         self.low = 0.0
         self.high = 1.0
@@ -39,12 +44,12 @@ class PruningSearch:
 
     @property
     def converged(self):
-        return (self.high - self.low) < 0.005
+        return (self.high - self.low) < self.TOLERANCE
 
     @property
     def last_pass(self):
         """The pass after which the search stops; it also applies the pruning ratio."""
-        return (self.high - self.low) < 0.01
+        return (self.high - self.low) < self.LAST_PASS
 
     def apply_ratio(self, ratio):
         """Prune Ratio: how much of the found shortening is applied (1 = all of it)."""
