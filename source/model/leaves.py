@@ -86,38 +86,60 @@ class LeafGenerator:
         return leaves
 
     def _add_leaf(self, leaves, sprout, rotation):
-        """Append one leaf; return the rotation the next leaf continues from."""
+        """Append one leaf; return the rotation the next leaf continues from.
+
+        Random draws, in this order: the turn around the stem, the down angle, the scale.
+        """
+        verts, faces = LeafShape.template(self.params.leaf_shape)
+        spin, rotation = self._turn(rotation)
+        down = self._down_rotation(sprout)
+        scale = self._scale(sprout, rotation)
+        turns = self._orientation(sprout, rotation, spin, down)
+
         p = self.params
-        uniform = self.rng.uniform
+        for v in verts:
+            v.z *= scale
+            v.y *= scale
+            v.x *= p.leaf_scale_x * scale
+            for turn in turns:
+                v.rotate(turn)
+        self._emit(leaves, sprout, verts, faces)
+        return rotation
+
+    def _turn(self, rotation):
+        """(the leaf's spin around its sprout, the rotation the next leaf continues from)."""
+        p = self.params
         count = p.leaves
         rotate = p.leaf_rotate
-        rotate_v = p.leaf_rotate_v
-        verts, faces = LeafShape.template(p.leaf_shape)
-        normal = Axes.z()
-
-        if count < 0:
-            rot_mat = Matrix.Rotation(rotation, 3, "Y")
-        else:
-            rot_mat = Matrix.Rotation(rotation, 3, "Z")
-
-        # A negative rotate angle puts each leaf on the other side of the stem from the last one
+        # palmate leaves (negative count) fan out around Y; ordinary leaves turn around the stem (Z)
+        spin = Matrix.Rotation(rotation, 3, "Y" if count < 0 else "Z")
         if rotate < 0.0:
-            rotation = -copysign(rotate + uniform(-rotate_v, rotate_v), rotation)
+            # a negative rotate angle puts each leaf on the other side of the stem from the last one
+            rotation = -copysign(rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v), rotation)
         elif count == -1:
-            rot_mat = Matrix.Rotation(0, 3, "Y")
+            spin = Matrix.Rotation(0, 3, "Y")
         elif count < -1:
             rotation += rotate / (-count - 1)
         else:
-            rotation += rotate + uniform(-rotate_v, rotate_v)
+            rotation += rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
+        return spin, rotation
 
-        if count >= 0:
-            if p.leaf_down_angle_v > 0.0:
-                down_v = -p.leaf_down_angle_v * sprout.offset
-            else:
-                down_v = uniform(-p.leaf_down_angle_v, p.leaf_down_angle_v)
-            down_rot = Matrix.Rotation(p.leaf_down_angle + down_v, 3, "X")
+    def _down_rotation(self, sprout):
+        """Rotation away from the stem (Leaf Down Angle); None for palmate leaves."""
+        p = self.params
+        if p.leaves < 0:
+            return None
+        if p.leaf_down_angle_v > 0.0:
+            down_v = -p.leaf_down_angle_v * sprout.offset
+        else:
+            down_v = self.rng.uniform(-p.leaf_down_angle_v, p.leaf_down_angle_v)
+        return Matrix.Rotation(p.leaf_down_angle + down_v, 3, "X")
 
-        # Scale taper along the parent, then random variation
+    def _scale(self, sprout, rotation):
+        """Leaf size: tapered along the parent (or across the fan), then randomly varied."""
+        p = self.params
+        count = p.leaves
+        rotate = p.leaf_rotate
         if (count < -1) and (rotate != 0):
             f = 1 - abs((rotation - (rotate / (-count - 1))) / (rotate / 2))
         else:
@@ -126,58 +148,46 @@ class LeafGenerator:
             scale = p.leaf_scale * (1 - (1 - f) * -p.leaf_scale_t)
         else:
             scale = p.leaf_scale * (1 - f * p.leaf_scale_t)
-        scale = scale * uniform(1 - p.leaf_scale_v, 1 + p.leaf_scale_v)
+        scale = scale * self.rng.uniform(1 - p.leaf_scale_v, 1 + p.leaf_scale_v)
         if p.leaf_shape == LeafShape.INSTANCE_FACES:
-            scale = scale * 0.1
+            scale = scale * 0.1  # the face is scaled up 10x by face instancing
+        return scale
 
-        bend = p.leaf_bend
-        if (bend != 0.0) and (count >= 0):
-            bend_rotations = self._bend_rotations(sprout, bend)
-
-        horizontal = None
+    def _orientation(self, sprout, rotation, spin, down):
+        """The rotations every vertex of this leaf gets, in order."""
+        p = self.params
+        count = p.leaves
+        rotate = p.leaf_rotate
+        turns = [self.half_turn, self.tilt]
+        if rotate < 0:
+            turns.append(self.quarter_turn)
+            if rotation < 0:
+                turns.append(self.half_turn)
         if (count > 0) and (rotate > 0) and p.horizontal_leaves:
-            horizontal = Matrix.Rotation(-rotation + rotate, 3, "Z")
+            turns.append(Matrix.Rotation(-rotation + rotate, 3, "Z"))
+        if count > 0:
+            turns.append(down)
+        turns.extend((spin, sprout.quat))
+        if (p.leaf_bend != 0.0) and (count > 0):
+            turns.extend(self._bend_rotations(sprout, p.leaf_bend))
+        return turns
 
-        for v in verts:
-            v.z *= scale
-            v.y *= scale
-            v.x *= p.leaf_scale_x * scale
-
-            v.rotate(self.half_turn)
-            v.rotate(self.tilt)
-
-            if rotate < 0:
-                v.rotate(self.quarter_turn)
-                if rotation < 0:
-                    v.rotate(self.half_turn)
-
-            if horizontal is not None:
-                v.rotate(horizontal)
-
-            if count > 0:
-                v.rotate(down_rot)
-
-            v.rotate(rot_mat)
-            v.rotate(sprout.quat)
-
-            if (bend != 0.0) and (count > 0):
-                for bend_rotation in bend_rotations:
-                    v.rotate(bend_rotation)
-
+    @staticmethod
+    def _emit(leaves, sprout, verts, faces):
+        """Add the leaf to the set: its placed mesh, or for Instance Points one point and its normal."""
         index = len(leaves.vertices)
-        if p.leaf_shape == LeafShape.INSTANCE_POINTS:
+        if leaves.shape == LeafShape.INSTANCE_POINTS:
             normal = verts[0]
             normal.normalize()
             leaves.vertices.append([sprout.co.x, sprout.co.y, sprout.co.z])
+            leaves.normals.extend(normal)
         else:
             for v in verts:
                 v += sprout.co
                 leaves.vertices.append([v.x, v.y, v.z])
             for face in faces:
                 leaves.faces.append([face[0] + index, face[1] + index, face[2] + index, face[3] + index])
-        leaves.normals.extend(normal)
         leaves.sprouts.append(sprout)
-        return rotation
 
     @staticmethod
     def _bend_rotations(sprout, bend):
