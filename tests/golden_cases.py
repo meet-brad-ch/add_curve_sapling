@@ -49,6 +49,11 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("wind_leaves", "quaking_aspen", {"showLeaves": True, "useArm": True, "armAnim": True, "leafAnim": True}),
     ("wind_loop", "quaking_aspen", {"useArm": True, "armAnim": True, "loopFrames": 48}),
     ("skin_mesh", "quaking_aspen", {"showLeaves": True, "useArm": True, "makeMesh": True}),
+    (
+        "armature_all_levels",
+        "quaking_aspen",
+        {"showLeaves": True, "useArm": True, "makeMesh": True, "armLevels": 0, "boneStep": (1, 2, 1, 1)},
+    ),
     ("skin_mesh_step", "quaking_aspen", {"useArm": True, "armAnim": True, "makeMesh": True, "boneStep": (2, 2, 1, 1)}),
     (
         "prune_armature_wind",
