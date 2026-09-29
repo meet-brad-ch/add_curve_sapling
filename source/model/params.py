@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Generation parameters derived from the operator settings (angles in radians, enums as ints)."""
+"""Generation parameters derived from the operator settings: angles in radians, shapes as numbers."""
 
 from math import radians
 
@@ -10,8 +10,8 @@ from .geometry import Angles, Bezier, CrownShape
 class TreeParams:
     """Everything the generator reads, derived once from the settings.
 
-    `settings` is any object with the operator's property names as attributes (the operator
-    itself, or a TreeSettings); vector values are indexed per level (at most 4 entries).
+    `settings` is any object with the operator's property names as attributes (in practice the
+    operator); vector values are indexed per level (at most 4 entries).
     """
 
     def __init__(self, settings):
@@ -105,6 +105,10 @@ class TreeParams:
         self.armature_levels = s.armLevels
         # Bone Step simplifies the armature for the skin mesh only
         self.bone_step = s.boneStep if s.makeMesh else [1, 1, 1, 1]
+        # Index of the last level with its own bones; -1 when every level has them (Armature Levels 0)
+        self.bone_levels = min(self.armature_levels, self.levels) - 1
+        leaf_level = self.levels - 1 if self.bone_levels == -1 else self.bone_levels
+        self.leaf_bone_step = self.bone_step[min(leaf_level, 3)]
 
         # The envelope's base cannot be above the bare trunk
         self.prune_base_clamped = min(self.prune_base, self.base_size)

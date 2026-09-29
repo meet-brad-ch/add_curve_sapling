@@ -105,7 +105,6 @@ class LeafInstancerNodes:
         socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == cls.OBJECT_INPUT)
         # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
         getattr(modifier.properties.inputs, socket.identifier).value = instance
-        return modifier
 
     @classmethod
     def node_group(cls):

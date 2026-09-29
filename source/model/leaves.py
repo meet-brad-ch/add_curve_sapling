@@ -59,9 +59,6 @@ class LeafSet:
     def verts_per_leaf(self):
         return LeafShape.VERTS_PER_LEAF[self.shape]
 
-    def __len__(self):
-        return len(self.sprouts)
-
 
 class LeafGenerator:
     """Places the leaves on the sprout points of the last branch level."""

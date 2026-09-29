@@ -2,6 +2,8 @@
 
 """The tree curve object, and the pruning envelope shown with it."""
 
+from contextlib import contextmanager
+
 import bpy
 from mathutils import Vector
 
@@ -29,11 +31,18 @@ class TreeCurveBuilder:
         return tree
 
     @staticmethod
-    def scratch_like(curve):
-        """A curve for the pruning search, which grows stems that are then thrown away."""
+    @contextmanager
+    def pruning_scratch(curve, needed):
+        """A curve for the pruning search (stems grown and thrown away), removed afterwards; None if not needed."""
+        if not needed:
+            yield None
+            return
         scratch = bpy.data.curves.new("sapling_prune_scratch", "CURVE")
         scratch.dimensions = curve.dimensions
-        return scratch
+        try:
+            yield scratch
+        finally:
+            bpy.data.curves.remove(scratch)
 
 
 class EnvelopeBuilder:

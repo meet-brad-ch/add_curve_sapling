@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Growing each stem to full length, shortened by the pruning envelope when pruning is on."""
+"""Growing each stem of a level to full length, shortened by the pruning envelope when pruning is on."""
 
 from .geometry import Bezier
 from .growth import StemGrower
@@ -41,6 +41,15 @@ class PruningSearch:
     def converged(self):
         return (self.high - self.low) < 0.005
 
+    @property
+    def last_pass(self):
+        """The pass after which the search stops; it also applies the pruning ratio."""
+        return (self.high - self.low) < 0.01
+
+    def apply_ratio(self, ratio):
+        """Prune Ratio: how much of the found shortening is applied (1 = all of it)."""
+        self.scale = (self.scale - 1) * ratio + 1
+
     def outside(self):
         self.old_high = self.high
         self.high = self.scale
@@ -55,7 +64,7 @@ class PruningSearch:
             self.low = 1
 
 
-class StemPruner:
+class StemBuilder:
     """Grows the stems of one level segment by segment and plans their sprouts.
 
     With pruning, the stem length is found by a binary search. The search passes grow in a scratch
@@ -70,13 +79,13 @@ class StemPruner:
         self.scratch = scratch
         self.scale = scale
         self.bone_map = bone_map
-        self.grower = StemGrower(params, rng)
-        self.sprouts = SproutPlanner(params, rng)
+        self.grower = StemGrower(params, rng, scale)
+        self.planner = SproutPlanner(params, rng)
 
     def grow(self, stem, level, close_tip, base_size):
         """Grow `stem` (and its splits) to full length; return the sprout points for the next level."""
         if not self.params.prune:
-            return self.sprouts.plan(self._grow_segments(stem, level, close_tip), level, base_size)
+            return self.planner.plan(self._grow_segments(stem, level, close_tip), level, base_size)
         return self._grow_pruned(stem, level, close_tip, base_size)
 
     def _grow_pruned(self, stem, level, close_tip, base_size):
@@ -94,10 +103,9 @@ class StemPruner:
         while True:
             rng.setstate(rng_state)
 
-            # The last pass also applies the pruning ratio
-            last_pass = (search.high - search.low) < 0.01
+            last_pass = search.last_pass
             if last_pass:
-                search.scale = (search.scale - 1) * p.prune_ratio + 1
+                search.apply_ratio(p.prune_ratio)
             stem.segment_length = original.segment_length * search.scale
             self._restart_in_scratch(stem, original, tree_spline, restart)
             self.bone_map.restore(bones)
@@ -106,7 +114,7 @@ class StemPruner:
             self._check_envelope(stems, level, search)
             if search.converged or last_pass:
                 self._copy_to_tree(stems, tree_spline)
-                return self.sprouts.plan(stems, level, base_size)
+                return self.planner.plan(stems, level, base_size)
             restart = True
 
     def _restart_in_scratch(self, stem, original, tree_spline, restart):
@@ -145,35 +153,11 @@ class StemPruner:
                 split_value = max(split_value, 0.0)
 
             for s in stems[:]:
-                split_count = self._split_count(s, level, k, kp, split_value)
+                split_count = self.grower.split_count(s, level, k, split_value)
                 if (k == int(segments / 2 + 0.5)) and (p.curve_back[level] != 0):
                     s.curvature += 2 * (p.curve_back[level] / segments)
                 self.grower.grow(s, level, split_count, stems, self.bone_map, close_tip, kp, base_segment_length)
         return stems
-
-    def _split_count(self, stem, level, k, kp, split_value):
-        p = self.params
-        segments = p.curve_res[level]
-        value = split_value
-        if stem.split_last == 0:
-            value = split_value * 1.33
-        elif stem.split_last == 1:
-            value = split_value * split_value
-
-        if k == 0:
-            return 0
-        if (level == 0) and (k < ((segments - 1) * p.split_height)) and (k != 1):
-            return 0
-        if (k == 1) and (level == 0):
-            return p.base_splits
-        # the trunk always splits at the split height
-        if (level == 0) and (k == int((segments - 1) * p.split_height) + 1) and (value > 0):
-            return 1
-        if (level >= 1) and p.split_by_len:
-            length = (stem.segment_length * segments) / self.scale
-            length = length / p.length_product(level, 1)
-            return self.grower.split_count(value * length)
-        return self.grower.split_count(value)
 
     def _check_envelope(self, stems, level, search):
         """Narrow the search: is every stem end inside the pruning envelope?"""

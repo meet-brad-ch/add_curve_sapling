@@ -3,14 +3,13 @@
 """The armature: one bone per curve segment (or per Bone Step segments), optional leaf bones."""
 
 from contextlib import contextmanager
-from math import radians
 
 import bpy
 from mathutils import Vector
 
 from ..model.geometry import Angles
 from ..model.stem import BoneName
-from .wind import BranchSway, WindAnimator
+from .wind import BranchSway, WindAnimator, WindModel
 
 
 class ArmatureBuilder:
@@ -31,7 +30,9 @@ class ArmatureBuilder:
         armature = bpy.data.armatures.new(self.DATA_NAME)
         armature_ob = self.objects.new(self.ROLE, armature)
         armature.display_type = "STICK"
-        wind = WindAnimator(armature_ob, p.loop_frames) if p.armature_animation else None
+        scene = self.context.scene
+        fps = scene.render.fps / scene.render.fps_base
+        wind = WindAnimator(armature_ob, WindModel(p, fps)) if p.armature_animation else None
 
         # Curves have no vertex groups: the bone envelopes deform them
         modifier = self.deform(tree, armature_ob, by_envelopes=True)
@@ -43,12 +44,10 @@ class ArmatureBuilder:
         if leaves_ob:
             self.deform(leaves_ob, armature_ob, by_envelopes=False)
 
-        scene = self.context.scene
-        fps = scene.render.fps / scene.render.fps_base
         with self._editing(armature_ob):
-            self._branch_bones(armature, tree.data, grown, wind, fps)
+            self._branch_bones(armature, tree.data, grown, wind)
             if leaves_ob:
-                self._leaf_bones(armature, grown, leaves, leaves_ob, wind, fps)
+                self._leaf_bones(armature, grown, leaves, leaves_ob, wind)
 
         for pose_bone in armature_ob.pose.bones:
             pose_bone.rotation_mode = "XYZ"
@@ -101,29 +100,12 @@ class ArmatureBuilder:
         if bpy.ops.object.mode_set(mode=mode) != {"FINISHED"}:
             raise RuntimeError(f"Could not switch the new armature to {mode} mode")
 
-    def armature_level_end(self, grown):
-        """Splines below this index get their own bones when the skin mesh simplifies the armature."""
-        return grown.level_ends[self.bone_levels()]
-
-    def bone_levels(self):
-        """Index of the last level that gets its own bones; -1 when every level does (Armature Levels 0)."""
-        return min(self.params.armature_levels, self.params.levels) - 1
-
-    def leaf_bone_step(self):
-        """Bone Step of the level whose bones the leaves hang from (at most the 4th parameter level)."""
-        level = self.bone_levels()
-        if level == -1:
-            level = self.params.levels - 1
-        return self.params.bone_step[min(level, 3)]
-
-    def _branch_bones(self, armature, curve, grown, wind, fps):
+    def _branch_bones(self, armature, curve, grown, wind):
         p = self.params
         rng = self.rng
-        bone_levels = self.bone_levels()
-        anim_speed = (24 / fps) * p.frame_rate
-        gust_frequency = self._gust_frequency(fps)
         for i, link in enumerate(grown.bone_map):
-            if not ((i < grown.level_ends[bone_levels]) or (bone_levels == -1) or (not p.make_mesh)):
+            # Make Mesh simplifies the armature: deeper levels use their parent's bones
+            if p.make_mesh and i >= grown.level_ends[p.bone_levels]:
                 continue
             spline = curve.splines[i]
             points = spline.bezier_points
@@ -132,15 +114,8 @@ class ArmatureBuilder:
 
             if wind:
                 spline_length = segments * ((points[0].co - points[1].co).length)
-                x_offset = rng.uniform(0, Angles.TAU)
-                y_offset = rng.uniform(0, Angles.TAU)
-                multiplier = (1 / max(spline_length**0.5, 1e-6)) * (1 / 4)
-                freq1 = multiplier * anim_speed
-                freq2 = 0.7 * multiplier * anim_speed
-                if p.loop_frames != 0:
-                    loop = 1 / (p.loop_frames / Angles.TAU)
-                    freq1 = max(1, round(freq1 / loop)) * loop
-                    freq2 = max(1, round(freq2 / loop)) * loop
+                offsets = (rng.uniform(0, Angles.TAU), rng.uniform(0, Angles.TAU))
+                frequencies = wind.model.branch_frequencies(spline_length)
 
             bone = None
             tail = 0
@@ -163,41 +138,20 @@ class ArmatureBuilder:
                     bone.use_connect = True
 
                 if wind:
-                    sway = self._branch_sway(points, segments, n, tail, step, spline_length)
+                    sway = wind.model.branch_amplitudes(points, n, tail, step, spline_length)
                     # the first two trunk bones hold the tree base still
                     if (i == 0) and (n <= step):
                         sway = (0, 0, 0, 0)
-                    wind.add_branch_sway(name, BranchSway(sway, (x_offset, y_offset), (freq1, freq2), gust_frequency))
+                    wind.add_branch_sway(name, BranchSway(sway, offsets, frequencies, wind.model.gust_frequency))
 
-    def _branch_sway(self, points, segments, n, tail, step, spline_length):
-        """Sway amplitudes (radians) of one bone: stronger for thin bones far up the branch."""
-        p = self.params
-        a0 = 2 * (spline_length / segments) * (1 - n / (segments + 1)) / max(points[n].radius, 1e-6)
-        a0 = a0 * min(step, segments)
-        a1 = (p.wind / 50) * a0
-        a2 = a1 * 0.65
-        direction = points[tail].co - points[n].co
-        direction.normalize()
-        gust = (p.wind * p.gust / 50) * a0
-        a3 = -direction[0] * gust
-        a4 = direction[2] * gust
-        return (radians(a1), radians(a2), radians(a3), radians(a4))
-
-    def _gust_frequency(self, fps):
-        p = self.params
-        if p.loop_frames == 0:
-            return p.gust_f * (Angles.TAU / fps) * p.frame_rate
-        return 1 / (p.loop_frames / Angles.TAU)
-
-    def _leaf_bones(self, armature, grown, leaves, leaves_ob, wind, fps):
+    def _leaf_bones(self, armature, grown, leaves, leaves_ob, wind):
         """Leaves follow the nearest existing branch bone; with Leaf Animation each gets its own bone."""
         p = self.params
         rng = self.rng
         bones = set(armature.edit_bones.keys())
         bone_names = grown.bone_map.bones()
         size = leaves.verts_per_leaf
-        anim_speed = (24 / fps) * p.frame_rate
-        step = self.leaf_bone_step()
+        step = p.leaf_bone_step
         groups = {}
         for i, sprout in enumerate(leaves.sprouts):
             parent = BoneName.rounded(sprout.parent_bone, step)
@@ -214,10 +168,10 @@ class ArmatureBuilder:
                 groups[name] = list(range(size * i, size * i + size))
 
                 if wind:
-                    strength, speed, offset = p.leaf_wind
-                    scale = (1 / anim_speed) * 6 * (1 / max(speed, 0.001))
-                    offsets = (rng.uniform(-offset, offset), rng.uniform(-offset, offset))
-                    wind.add_leaf_flutter(name, p.wind * 0.25 * strength, scale, offsets)
+                    strength, scale = wind.model.leaf_flutter()
+                    randomness = p.leaf_wind[2]
+                    offsets = (rng.uniform(-randomness, randomness), rng.uniform(-randomness, randomness))
+                    wind.add_leaf_flutter(name, strength, scale, offsets)
             else:
                 groups.setdefault(parent, []).extend(range(size * i, size * i + size))
 

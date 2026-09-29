@@ -29,7 +29,7 @@ class Axes:
 
 
 class Angles:
-    """Angle arithmetic used by stem growth."""
+    """Angle arithmetic of the tree model (growth directions, wind phases)."""
 
     TAU = 2 * pi
 

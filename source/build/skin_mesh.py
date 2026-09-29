@@ -19,7 +19,7 @@ class SkinMeshBuilder:
         self.params = params
         self.objects = objects
 
-    def build(self, tree, grown, armature_ob, bone_level_end):
+    def build(self, tree, grown, armature_ob):
         p = self.params
         curve = tree.data
         res = p.res_u
@@ -58,7 +58,7 @@ class SkinMeshBuilder:
                 radii.append((p1.radius, p1.radius))
 
             # Above the armature levels, vertices join the group of the nearest bone below
-            inherited = i >= bone_level_end
+            inherited = i >= grown.level_ends[p.bone_levels]
             if inherited:
                 index = i
                 group = links[index].bone

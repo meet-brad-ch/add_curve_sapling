@@ -5,8 +5,6 @@
 import random
 from math import copysign
 
-import bpy
-
 from .build.armature import ArmatureBuilder
 from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
@@ -58,7 +56,7 @@ class TreeGenerator:
             objects.discard()
             raise
         result = TreeResult(objects)
-        MaterialLibrary().assign(result, p)
+        MaterialLibrary.assign(result, p)
         return result
 
     def _build(self, objects):
@@ -71,28 +69,23 @@ class TreeGenerator:
         if p.prune:
             EnvelopeBuilder(p, objects).build(tree, scale)
 
-        scratch = TreeCurveBuilder.scratch_like(tree.data) if p.prune else None
-        try:
+        with TreeCurveBuilder.pruning_scratch(tree.data, p.prune) as scratch:
             grown = TreeGrower(p, rng).grow(tree.data, scratch, scale)
-        finally:
-            if scratch:
-                bpy.data.curves.remove(scratch)
 
-        leaves = leaves_ob = None
+        leaf_set = leaves_ob = None
         leaf_builder = LeafObjectBuilder(p, objects)
         if p.leaves:
-            leaves = LeafGenerator(p, rng).generate(grown.sprouts)
-            leaves_ob = leaf_builder.build(leaves, tree)
+            leaf_set = LeafGenerator(p, rng).generate(grown.sprouts)
+            leaves_ob = leaf_builder.build(leaf_set, tree)
 
         armature_ob = None
-        armatures = ArmatureBuilder(p, rng, objects, self.context)
         if p.use_armature:
-            armature_ob = armatures.build(tree, grown, leaves, leaves_ob)
+            armature_ob = ArmatureBuilder(p, rng, objects, self.context).build(tree, grown, leaf_set, leaves_ob)
 
         if p.make_mesh:
-            SkinMeshBuilder(p, objects).build(tree, grown, armature_ob, armatures.armature_level_end(grown))
+            SkinMeshBuilder(p, objects).build(tree, grown, armature_ob)
             if armature_ob and p.preview_armature:
                 ArmatureBuilder.preview_with_skin_mesh(armature_ob)
 
         if leaves_ob:
-            leaf_builder.finish(leaves_ob, leaves)
+            leaf_builder.finish(leaves_ob, leaf_set)

@@ -3,8 +3,8 @@
 """Growing the whole branch structure, level by level, on the tree curve."""
 
 from .branching import BranchSpawner
-from .pruning import StemPruner
 from .stem import BoneMap, ChildPoint
+from .stem_builder import StemBuilder
 
 
 class GrownTree:
@@ -40,7 +40,7 @@ class TreeGrower:
         p = self.params
         bone_map = BoneMap()
         spawner = BranchSpawner(p, self.rng, curve)
-        pruner = StemPruner(p, self.rng, curve, scratch, scale, bone_map)
+        builder = StemBuilder(p, self.rng, curve, scratch, scale, bone_map)
         base_size = p.base_size
         sprouts: list[ChildPoint] = []
         level_ends: list[int] = []
@@ -63,7 +63,7 @@ class TreeGrower:
 
             sprouts = []
             for stem in stems:
-                sprouts.extend(pruner.grow(stem, level, close_tip, base_size))
+                sprouts.extend(builder.grow(stem, level, close_tip, base_size))
             level_ends.append(bone_map.next_index())
 
         if len(bone_map) != len(curve.splines):

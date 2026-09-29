@@ -13,11 +13,37 @@ from .stem import BoneName, Stem
 class StemGrower:
     """Adds one segment to a stem per call; splits create new stems on new splines."""
 
-    def __init__(self, params, rng):
+    def __init__(self, params, rng, scale):
         self.params = params
         self.rng = rng
+        self.scale = scale
 
-    def split_count(self, probability):
+    def split_count(self, stem, level, k, split_value):
+        """How many stems split off at segment k of `stem` (0, 1, or the trunk's base splits)."""
+        p = self.params
+        segments = p.curve_res[level]
+        value = split_value
+        if stem.split_last == 0:
+            value = split_value * 1.33
+        elif stem.split_last == 1:
+            value = split_value * split_value
+
+        if k == 0:
+            return 0
+        if (level == 0) and (k < ((segments - 1) * p.split_height)) and (k != 1):
+            return 0
+        if (k == 1) and (level == 0):
+            return p.base_splits
+        # the trunk always splits at the split height
+        if (level == 0) and (k == int((segments - 1) * p.split_height) + 1) and (value > 0):
+            return 1
+        if (level >= 1) and p.split_by_len:
+            length = (stem.segment_length * segments) / self.scale
+            length = length / p.length_product(level, 1)
+            return self.draw_split(value * length)
+        return self.draw_split(value)
+
+    def draw_split(self, probability):
         """0 or 1 split, with the given probability."""
         return 1 if self.rng.random() < probability else 0
 
