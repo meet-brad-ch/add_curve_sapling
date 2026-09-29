@@ -2,7 +2,14 @@
 
 """Stems, sprout points and the map from splines to the bones they hang from."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+from mathutils import Quaternion, Vector
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class BoneName:
@@ -12,22 +19,23 @@ class BoneName:
     LEAF_PREFIX = "leaf"
 
     @classmethod
-    def of(cls, spline_index, point_index):
+    def of(cls, spline_index: int, point_index: int) -> str:
+        """Name of the bone that starts at point `point_index` of spline `spline_index` (bone007.012)."""
         return cls.PREFIX + str(spline_index).rjust(3, "0") + "." + str(point_index).rjust(3, "0")
 
     @classmethod
-    def leaf(cls, leaf_index):
+    def leaf(cls, leaf_index: int) -> str:
         """Name of the bone of one leaf (Leaf Animation)."""
         return cls.LEAF_PREFIX + str(leaf_index)
 
     @staticmethod
-    def rounded(bone, step):
+    def rounded(bone: str, step: int) -> str:
         """Round the point index down to a multiple of step (armature simplification)."""
         point = int(int(bone[-3:]) / step) * step
         return bone[:-3] + str(point).rjust(3, "0")
 
     @staticmethod
-    def spline(bone):
+    def spline(bone: str) -> int:
         """Spline index of a bone name."""
         return int(bone[4:-4])
 
@@ -37,19 +45,19 @@ class Stem:
 
     def __init__(
         self,
-        spline,
-        curvature,
-        curvature_v,
-        attract_up,
-        segment,
-        segments,
-        segment_length,
-        children,
-        radius_start,
-        radius_end,
-        index,
-        offset_length,
-    ):
+        spline: "bpy.types.Spline",
+        curvature: float,
+        curvature_v: float,
+        attract_up: float,
+        segment: int,
+        segments: int,
+        segment_length: float,
+        children: float,
+        radius_start: float,
+        radius_end: float,
+        index: int,
+        offset_length: float,
+    ) -> None:
         self.spline = spline
         self.point = spline.bezier_points[-1]
         self.curvature = curvature
@@ -67,20 +75,20 @@ class Stem:
         self.curve_sign = 1
         self.split_last = 0
         # None until the first split, which then draws a random start rotation
-        self.last_rotation = None
+        self.last_rotation: float | None = None
 
-    def quat(self):
+    def quat(self) -> Quaternion:
         """Direction of the end of the stem."""
         points = self.spline.bezier_points
         if len(points) == 1:
             return ((points[-1].handle_right - points[-1].co).normalized()).to_track_quat("Z", "Y")
         return ((points[-1].co - points[-2].co).normalized()).to_track_quat("Z", "Y")
 
-    def radius_at(self, segment):
+    def radius_at(self, segment: int) -> float:
         """Radius at a segment boundary, tapering from the start radius to the end radius."""
         return self.radius_start * (1 - segment / self.segments) + self.radius_end * (segment / self.segments)
 
-    def update_end(self):
+    def update_end(self) -> None:
         """The newly added point becomes the end of the stem."""
         self.point = self.spline.bezier_points[-1]
         self.segment += 1
@@ -91,7 +99,16 @@ class ChildPoint:
 
     __slots__ = ("co", "length_parent", "offset", "parent_bone", "quat", "radius_parent", "stem_offset")
 
-    def __init__(self, co, quat, radius_parent, offset, stem_offset, length_parent, parent_bone):
+    def __init__(
+        self,
+        co: Vector,
+        quat: Quaternion,
+        radius_parent: tuple[float, float],
+        offset: float,
+        stem_offset: float,
+        length_parent: float,
+        parent_bone: str,
+    ) -> None:
         self.co = co
         self.quat = quat
         self.radius_parent = radius_parent
@@ -119,33 +136,38 @@ class BoneLink:
 class BoneMap:
     """One BoneLink per curve spline, in spline order."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._links = [BoneLink("")]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._links)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> BoneLink:
         return self._links[index]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[BoneLink]:
         return iter(self._links)
 
-    def add_stem(self, bone, is_end):
+    def add_stem(self, bone: str, is_end: bool) -> None:
+        """Link the next spline, a new child stem, to its parent bone; `is_end` when it continues the parent's tip."""
         self._links.append(BoneLink(bone, is_end))
 
-    def add_split(self, bone, split_point):
+    def add_split(self, bone: str, split_point: int) -> None:
+        """Link the next spline, a split of its parent at parent point `split_point`."""
         self._links.append(BoneLink(bone, False, True, split_point))
 
-    def next_index(self):
+    def next_index(self) -> int:
         """Index of the next tree spline: there is one link per spline (len(curve.splines) is O(n))."""
         return len(self._links)
 
-    def snapshot(self):
+    def snapshot(self) -> list[BoneLink]:
+        """A copy of the links for restore(): the pruning search regrows a stem, and its splits, several times."""
         return list(self._links)
 
-    def restore(self, snapshot):
+    def restore(self, snapshot: list[BoneLink]) -> None:
+        """Roll the links back, in place, to a snapshot()."""
         self._links[:] = snapshot
 
-    def bones(self):
+    def bones(self) -> list[str]:
+        """Parent bone name of every spline, in spline order ("" for the trunk)."""
         return [link.bone for link in self._links]

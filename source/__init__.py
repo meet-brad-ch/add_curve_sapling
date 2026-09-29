@@ -19,7 +19,8 @@ class Registration:
     CLASSES: tuple[type[Operator] | type[Panel], ...] = (AddTreeOperator, SavePresetOperator, TreePanel)
 
     @classmethod
-    def register(cls):
+    def register(cls) -> None:
+        """Register the classes and menu entries; raises RuntimeError when the built-in presets are missing."""
         builtin = [e.name for e in PresetStore.for_addon().entries() if e.builtin]
         if AddTreeOperator.DEFAULT_PRESET not in builtin:
             raise RuntimeError(f"Sapling built-in presets are missing ({builtin}); reinstall the extension")
@@ -28,15 +29,18 @@ class Registration:
         Menus.register()
 
     @classmethod
-    def unregister(cls):
+    def unregister(cls) -> None:
+        """Remove the menu entries and unregister the classes, in reverse order of registration."""
         Menus.unregister()
         for klass in reversed(cls.CLASSES):
             bpy.utils.unregister_class(klass)
 
 
-def register():
+def register() -> None:
+    """Blender's entry point when the add-on is enabled."""
     Registration.register()
 
 
-def unregister():
+def unregister() -> None:
+    """Blender's entry point when the add-on is disabled."""
     Registration.unregister()

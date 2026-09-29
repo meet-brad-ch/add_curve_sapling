@@ -2,11 +2,16 @@
 
 """Saving the panel's settings as a user preset."""
 
+from typing import TYPE_CHECKING, override
+
 from bpy.props import BoolProperty, StringProperty
-from bpy.types import Operator
+from bpy.types import Context, Operator
 
 from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
+
+if TYPE_CHECKING:
+    from bpy.stub_internal.rna_enums import OperatorReturnItems
 
 
 class SavePresetOperator(Operator):
@@ -20,7 +25,8 @@ class SavePresetOperator(Operator):
     overwrite: BoolProperty(name="Overwrite")
     settings: StringProperty(name="Settings", options={"HIDDEN"})
 
-    def execute(self, context):
+    @override
+    def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]
         try:
             path = PresetStore.for_addon().save(self.name, TreeSettings.from_json(self.settings), self.overwrite)
         except SettingsError as error:

@@ -2,9 +2,17 @@
 
 """Growing each stem of a level to full length, shortened by the pruning envelope when pruning is on."""
 
+from random import Random
+from typing import TYPE_CHECKING
+
 from .geometry import Bezier
 from .growth import StemGrower
+from .params import TreeParams
 from .sprouting import SproutPlanner
+from .stem import BoneMap, ChildPoint, Stem
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class SplineCopier:
@@ -13,7 +21,7 @@ class SplineCopier:
     ATTRIBUTES = (("co", 3), ("handle_left", 3), ("handle_right", 3), ("radius", 1), ("tilt", 1))
 
     @staticmethod
-    def copy_points(source, target):
+    def copy_points(source: "bpy.types.Spline", target: "bpy.types.Spline") -> None:
         """Make the points of target (at least one) an exact copy of the points of source."""
         count = len(source.bezier_points)
         if count > len(target.bezier_points):
@@ -36,31 +44,34 @@ class PruningSearch:
     # The pass that starts with an interval narrower than this is the last one
     LAST_PASS = 0.01
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.low = 0.0
         self.high = 1.0
         self.scale = 1.0
         self.old_high = 1.0
 
     @property
-    def converged(self):
+    def converged(self) -> bool:
+        """Whether the scale interval is narrower than TOLERANCE, so the search stops."""
         return (self.high - self.low) < self.TOLERANCE
 
     @property
-    def last_pass(self):
+    def last_pass(self) -> bool:
         """The pass after which the search stops; it also applies the pruning ratio."""
         return (self.high - self.low) < self.LAST_PASS
 
-    def apply_ratio(self, ratio):
+    def apply_ratio(self, ratio: float) -> None:
         """Prune Ratio: how much of the found shortening is applied (1 = all of it)."""
         self.scale = (self.scale - 1) * ratio + 1
 
-    def outside(self):
+    def outside(self) -> None:
+        """A stem end left the envelope: the scale becomes the upper bound; try halfway down to the lower bound."""
         self.old_high = self.high
         self.high = self.scale
         self.scale = 0.5 * (self.high + self.low)
 
-    def inside(self):
+    def inside(self) -> None:
+        """Every stem end stayed inside: search between this scale and the previous upper bound; full length ends it."""
         if self.scale != 1:
             self.low = self.scale
             self.high = self.old_high
@@ -77,7 +88,15 @@ class StemBuilder:
     splits are appended at the end. So spline indices, stem indices and the bone map stay aligned.
     """
 
-    def __init__(self, params, rng, curve, scratch, scale, bone_map):
+    def __init__(
+        self,
+        params: TreeParams,
+        rng: Random,
+        curve: "bpy.types.Curve",
+        scratch: "bpy.types.Curve | None",
+        scale: float,
+        bone_map: BoneMap,
+    ) -> None:
         self.params = params
         self.rng = rng
         self.curve = curve
@@ -87,13 +106,13 @@ class StemBuilder:
         self.grower = StemGrower(params, rng, scale)
         self.planner = SproutPlanner(params, rng)
 
-    def grow(self, stem, level, close_tip, base_size):
+    def grow(self, stem: Stem, level: int, close_tip: bool, base_size: float) -> list[ChildPoint]:
         """Grow `stem` (and its splits) to full length; return the sprout points for the next level."""
         if not self.params.prune:
             return self.planner.plan(self._grow_segments(stem, level, close_tip), level, base_size)
         return self._grow_pruned(stem, level, close_tip, base_size)
 
-    def _grow_pruned(self, stem, level, close_tip, base_size):
+    def _grow_pruned(self, stem: Stem, level: int, close_tip: bool, base_size: float) -> list[ChildPoint]:
         """Binary search of the stem length: every pass restarts from the same state in the scratch curve."""
         p = self.params
         rng = self.rng
@@ -122,10 +141,15 @@ class StemBuilder:
                 return self.planner.plan(stems, level, base_size)
             restart = True
 
-    def _restart_in_scratch(self, stem, original, tree_spline, restart):
+    def _restart_in_scratch(
+        self, stem: Stem, original: "_StemStart", tree_spline: "bpy.types.Spline", restart: bool
+    ) -> None:
         """Start the stem again from its first point, in the scratch curve."""
-        self.scratch.splines.clear()
-        spline = self.scratch.splines.new(Bezier.SPLINE)
+        scratch = self.scratch
+        if scratch is None:
+            raise RuntimeError("Pruning needs a scratch curve")
+        scratch.splines.clear()
+        spline = scratch.splines.new(Bezier.SPLINE)
         point = spline.bezier_points[-1]
         if restart:
             point.co = original.co
@@ -141,7 +165,7 @@ class StemBuilder:
         stem.spline = spline
         stem.point = spline.bezier_points[-1]
 
-    def _grow_segments(self, stem, level, close_tip):
+    def _grow_segments(self, stem: Stem, level: int, close_tip: bool) -> list[Stem]:
         """Grow the stem segment by segment; return it followed by the stems split off it."""
         p = self.params
         stems = [stem]
@@ -164,7 +188,7 @@ class StemBuilder:
                 self.grower.grow(s, level, split_count, stems, self.bone_map, close_tip, kp, base_segment_length)
         return stems
 
-    def _check_envelope(self, stems, level, search):
+    def _check_envelope(self, stems: list[Stem], level: int, search: PruningSearch) -> None:
         """Narrow the search: is every stem end inside the pruning envelope?"""
         p = self.params
         scale = self.scale
@@ -183,7 +207,7 @@ class StemBuilder:
         if inside:
             search.inside()
 
-    def _copy_to_tree(self, stems, tree_spline):
+    def _copy_to_tree(self, stems: list[Stem], tree_spline: "bpy.types.Spline") -> None:
         """Move the final pass from the scratch curve into the tree curve."""
         stem = stems[0]
         SplineCopier.copy_points(stem.spline, tree_spline)
@@ -199,7 +223,7 @@ class StemBuilder:
 class _StemStart:
     """The state a stem starts every pruning pass from."""
 
-    def __init__(self, stem):
+    def __init__(self, stem: Stem) -> None:
         self.segment_length = stem.segment_length
         self.curvature = stem.curvature
         self.curvature_v = stem.curvature_v

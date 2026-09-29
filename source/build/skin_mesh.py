@@ -3,17 +3,21 @@
 """Make Mesh: the branches as a vertex skeleton with a Skin modifier, weighted to the armature."""
 
 import bpy
+from bpy.types import Curve, Object, SkinModifier, Spline
 from mathutils import Vector
 
 from ..model.geometry import BezierSegment
-from ..model.stem import BoneName
+from ..model.params import TreeParams
+from ..model.stem import BoneMap, BoneName
+from ..model.tree import GrownTree
 from .armature import ArmatureBuilder
+from .objects import ObjectFactory
 
 
 class SkinSkeleton:
     """Vertices, edges and bone vertex groups of the skin mesh, filled spline by spline."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.verts: list[Vector] = []
         self.edges: list[list[int]] = []
         self.roots: list[bool] = []
@@ -21,7 +25,8 @@ class SkinSkeleton:
         self.groups: dict[str, list[int]] = {}
         self.last_verts: list[int] = []  # per spline, its last vertex
 
-    def add_vertex(self, co, radius, root=False):
+    def add_vertex(self, co: Vector, radius: float, root: bool = False) -> None:
+        """Append a vertex with its skin radius; `root` marks the first vertex of a branch as a skin root."""
         self.verts.append(co)
         self.roots.append(root)
         self.radii.append((radius, radius))
@@ -34,17 +39,19 @@ class SkinMeshBuilder:
     # A split's first vertex sits on its parent with this fraction of the split's radius
     SPLIT_JOINT_RADIUS = 0.75
 
-    def __init__(self, params, objects):
+    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
-    def build(self, tree, grown, armature_ob):
+    def build(self, tree: Object, grown: GrownTree, armature_ob: Object | None) -> Object:
+        """The skin mesh object, under the armature (deformed by it) or else under the tree curve."""
         skeleton = SkinSkeleton()
-        for i, spline in enumerate(tree.data.splines):
-            self._add_spline(skeleton, tree.data, grown, i, spline)
+        for i, spline in enumerate(tree.data.splines):  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
+            self._add_spline(skeleton, tree.data, grown, i, spline)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
         return self._object(skeleton, tree, armature_ob)
 
-    def _add_spline(self, skeleton, curve, grown, i, spline):
+    def _add_spline(self, skeleton: SkinSkeleton, curve: Curve, grown: GrownTree, i: int, spline: Spline) -> None:
+        """Vertices along spline i (Resolution U per segment), their edges and bone vertex groups."""
         p = self.params
         res = p.res_u
         link = grown.bone_map[i]
@@ -98,7 +105,7 @@ class SkinMeshBuilder:
         skeleton.last_verts.append(len(skeleton.verts) - 1)
 
     @staticmethod
-    def _nearest_group(skeleton, links, index):
+    def _nearest_group(skeleton: SkinSkeleton, links: BoneMap, index: int) -> str:
         """The vertex group of the nearest spline down the tree that has its own bones."""
         group = links[index].bone
         while group not in skeleton.groups:
@@ -106,7 +113,8 @@ class SkinMeshBuilder:
             group = links[index].bone
         return group
 
-    def _object(self, skeleton, tree, armature_ob):
+    def _object(self, skeleton: SkinSkeleton, tree: Object, armature_ob: Object | None) -> Object:
+        """The mesh object from the skeleton, with vertex groups, the Armature modifier and the Skin modifier."""
         mesh = bpy.data.meshes.new(self.ROLE)
         # Part of the tree: under the armature that deforms it, or under the tree curve
         ob = self.objects.new(self.ROLE, mesh, parent=armature_ob or tree)
@@ -117,7 +125,7 @@ class SkinMeshBuilder:
         if armature_ob:
             ArmatureBuilder.deform(ob, armature_ob, by_envelopes=False)
 
-        skin = ob.modifiers.new("Skin", "SKIN")
+        skin: SkinModifier = ob.modifiers.new("Skin", "SKIN")  # type: ignore[assignment]
         skin.use_smooth_shade = True
         if self.params.preview_armature:
             skin.show_viewport = False

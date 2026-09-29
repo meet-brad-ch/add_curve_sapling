@@ -59,7 +59,19 @@ class Architecture(unittest.TestCase):
                     else:
                         docstring = isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
                         allowed = (ast.Import, ast.ImportFrom, ast.ClassDef)
-                        self.assertTrue(docstring or isinstance(node, allowed), ast.dump(node)[:80])
+                        type_only = self.is_type_checking_block(node)
+                        self.assertTrue(docstring or type_only or isinstance(node, allowed), ast.dump(node)[:80])
+
+    @staticmethod
+    def is_type_checking_block(node):
+        """`if TYPE_CHECKING:` holding only imports (type-only imports, which avoid import cycles)."""
+        return (
+            isinstance(node, ast.If)
+            and isinstance(node.test, ast.Name)
+            and node.test.id == "TYPE_CHECKING"
+            and not node.orelse
+            and all(isinstance(child, ast.Import | ast.ImportFrom) for child in node.body)
+        )
 
     def test_no_print(self):
         for path in modules():

@@ -10,18 +10,21 @@ line-length = 120
 extend-exclude = ["source/presets"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "N", "C901"]
-# Long if/else assignments read better than one-line ternaries.
-ignore = ["SIM108"]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "N", "C901", "D1", "ANN"]
+# Long if/else assignments read better than one-line ternaries. The class docstring documents
+# __init__, magic methods need none, and Any is right where Blender passes "an object with these
+# properties" (the operator or a namespace).
+ignore = ["SIM108", "D105", "D107", "ANN401"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
+# Docstrings and annotations are required in the add-on, not in tests and tools.
+"tests/*" = ["N802", "D1", "ANN"]
+"tools/*" = ["D1", "ANN"]
 # Operator property names are the public operator API and the preset keys, so they stay camelCase.
 "source/ui/properties.py" = ["N815"]
-# Test methods follow unittest's camelCase API (setUp, assertEqual, ...).
-"tests/*" = ["N802"]
 
 [tool.mypy]
 python_version = "3.13"  # Blender 5.2 bundles Python 3.13.
@@ -34,6 +37,11 @@ warn_redundant_casts = true
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
+# Every function of the add-on has a typed signature.
+module = ["source.*"]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
 # Blender declares operator properties as annotations (seed: IntProperty(...)), which are not types.
 module = ["source.ui.properties", "source.ui.operators", "source.ui.preset_save"]
 disable_error_code = ["valid-type"]
@@ -43,7 +51,7 @@ disable_error_code = ["valid-type"]
 # union of every data type; the operator bpy.ops.curve.tree_add only exists once the add-on runs.
 module = [
     "bench_in_blender", "golden_cases", "helpers", "run",
-    "test_architecture", "test_fuzz", "test_golden", "test_lifecycle", "test_materials", "test_presets", "test_regressions",
+    "test_architecture", "test_fuzz", "test_golden", "test_lifecycle", "test_materials", "test_pages", "test_presets", "test_regressions",
     "test_smoke", "test_tree_record", "test_ui",
 ]
 disable_error_code = ["union-attr", "attr-defined"]

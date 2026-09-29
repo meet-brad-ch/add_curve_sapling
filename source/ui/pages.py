@@ -2,7 +2,10 @@
 
 """The settings pages of the Add Tree operator panel."""
 
+from typing import Any
+
 import bpy
+from bpy.types import UILayout
 
 from ..model.geometry import CrownShape
 from ..model.leaves import LeafShape
@@ -20,13 +23,15 @@ class SettingsPages:
     )  # fmt: skip
 
     @classmethod
-    def draw(cls, props, layout):
+    def draw(cls, props: Any, layout: UILayout) -> None:
+        """Draw the page selector and the chosen page in a box; props is the Add Tree operator."""
         layout.prop(props, "chooseSet")
         page = getattr(cls, cls.ORDER[int(props.chooseSet)])
         page(props, layout.box())
 
     @staticmethod
-    def geometry(props, box):
+    def geometry(props: Any, box: UILayout) -> None:
+        """Tree shape, scale and curve resolution, plus loading and saving presets."""
         box.prop(props, "bevel")
         row = box.row()
         row.prop(props, "bevelRes")
@@ -57,7 +62,8 @@ class SettingsPages:
         row.prop(props, "overwrite")
 
     @staticmethod
-    def branch_radius(props, box):
+    def branch_radius(props: Any, box: UILayout) -> None:
+        """Bevel, radius ratio and scale, taper and root flare."""
         row = box.row()
         row.prop(props, "bevel")
         row.prop(props, "bevelRes")
@@ -75,7 +81,8 @@ class SettingsPages:
         split.column().prop(props, "radiusTweak")
 
     @staticmethod
-    def branch_splitting(props, box):
+    def branch_splitting(props: Any, box: UILayout) -> None:
+        """Levels, base and segment splits, branch counts, angles and branching mode."""
         box.prop(props, "levels")
         box.prop(props, "baseSplits")
         row = box.row()
@@ -98,7 +105,8 @@ class SettingsPages:
         box.column().prop(props, "curveRes")
 
     @staticmethod
-    def branch_growth(props, box):
+    def branch_growth(props: Any, box: UILayout) -> None:
+        """Branch lengths, down angles, curvature and attraction."""
         box.prop(props, "taperCrown")
         split = box.split()
         col = split.column()
@@ -115,7 +123,8 @@ class SettingsPages:
         box.prop(props, "useParentAngle")
 
     @staticmethod
-    def pruning(props, box):
+    def pruning(props: Any, box: UILayout) -> None:
+        """The pruning envelope."""
         box.prop(props, "prune")
         box.prop(props, "pruneRatio")
         row = box.row()
@@ -127,7 +136,8 @@ class SettingsPages:
         row.prop(props, "prunePowerLow")
 
     @staticmethod
-    def leaves(props, box):
+    def leaves(props: Any, box: UILayout) -> None:
+        """Leaf shape, count, angles and scale; the leaf object for instanced shapes, the material for meshes."""
         box.prop(props, "showLeaves")
         box.prop(props, "leafShape")
         if props.leafShape in LeafShape.INSTANCED:
@@ -152,7 +162,8 @@ class SettingsPages:
         box.prop(props, "leafangle")
 
     @staticmethod
-    def armature(props, box):
+    def armature(props: Any, box: UILayout) -> None:
+        """Armature, skin mesh and armature simplification."""
         box.prop(props, "useArm")
         box.prop(props, "makeMesh")
         box.label(text="Armature Simplification:")
@@ -160,7 +171,8 @@ class SettingsPages:
         box.prop(props, "boneStep")
 
     @staticmethod
-    def animation(props, box):
+    def animation(props: Any, box: UILayout) -> None:
+        """Armature and leaf wind animation."""
         box.label(text="Finalize All Other Settings First!")
         box.prop(props, "armAnim")
         box.prop(props, "leafAnim")

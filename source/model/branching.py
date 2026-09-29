@@ -3,11 +3,17 @@
 """Starting new stems: the trunk, and one child stem per sprout point of the level above."""
 
 from math import atan2, copysign, cos, pi, radians, sin
+from random import Random
+from typing import TYPE_CHECKING
 
 from mathutils import Euler, Matrix, Vector
 
 from .geometry import Angles, Axes, Bezier, CrownShape
-from .stem import BoneName, ChildPoint, Stem
+from .params import TreeParams
+from .stem import BoneMap, BoneName, ChildPoint, Stem
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class BranchingMode:
@@ -26,13 +32,13 @@ class BranchSpawner:
     # Keeps (1 - base_size) away from zero
     MAX_BASE_SIZE = 0.999
 
-    def __init__(self, params, rng, curve):
+    def __init__(self, params: TreeParams, rng: Random, curve: "bpy.types.Curve") -> None:
         self.params = params
         self.rng = rng
         self.curve = curve
 
-    def start_trunk(self, scale):
-        """The trunk stem, standing at the origin."""
+    def start_trunk(self, scale: float) -> Stem:
+        """The trunk stem, standing at the origin; draws one random number (the radius variation)."""
         p = self.params
         spline = self.curve.splines.new(Bezier.SPLINE)
         point = spline.bezier_points[-1]
@@ -46,7 +52,9 @@ class BranchSpawner:
         point.radius = radius_start * p.root_flare
         return self._stem(spline, 0, length, children, radius_start, radius_end, index=0)
 
-    def start_children(self, sprouts, level, depth, base_size, scale, bone_map):
+    def start_children(
+        self, sprouts: list[ChildPoint], level: int, depth: int, base_size: float, scale: float, bone_map: BoneMap
+    ) -> list[Stem]:
         """One new stem per sprout point; returns the stems and records their parent bones.
 
         level: the parameter level (at most 3); depth: the real level, which may be deeper.
@@ -83,7 +91,16 @@ class BranchSpawner:
             bone_map.add_stem(BoneName.rounded(sprout.parent_bone, p.bone_step[level - 1]), sprout.offset == 1)
         return stems
 
-    def _stem(self, spline, level, length, children, radius_start, radius_end, index):
+    def _stem(
+        self,
+        spline: "bpy.types.Spline",
+        level: int,
+        length: float,
+        children: float,
+        radius_start: float,
+        radius_end: float,
+        index: int,
+    ) -> Stem:
         p = self.params
         return Stem(
             spline,
@@ -100,13 +117,13 @@ class BranchSpawner:
             offset_length=0,
         )
 
-    def _radii(self, level, radius_start):
+    def _radii(self, level: int, radius_start: float) -> tuple[float, float]:
         """Start and end radius of a stem, tapered, and at least the minimum radius."""
         p = self.params
         radius_end = (radius_start * (1 - p.taper[level])) ** p.ratio_power
         return max(radius_start, p.min_radius), max(radius_end, p.min_radius)
 
-    def _down_rotation(self, sprout, level, base_size):
+    def _down_rotation(self, sprout: ChildPoint, level: int, base_size: float) -> Matrix:
         """Rotation away from the parent (Down Angle with its variation)."""
         p = self.params
         down_angle_v = p.down_angle_v[level]
@@ -124,7 +141,7 @@ class BranchSpawner:
             return Matrix.Rotation(0, 3, "X")
         return Matrix.Rotation(p.down_angle[level] + down_v, 3, "X")
 
-    def _next_rotation(self, level, old_rotate):
+    def _next_rotation(self, level: int, old_rotate: float) -> tuple[float, float]:
         """(the running rotate angle, this stem's angle): a negative Rotate alternates sides."""
         p = self.params
         if p.rotate[level] < 0.0:
@@ -133,7 +150,7 @@ class BranchSpawner:
             old_rotate += p.rotate[level]
         return old_rotate, old_rotate + self.rng.uniform(-p.rotate_v[level], p.rotate_v[level])
 
-    def _direction(self, sprout, level, down_rot, rotate):
+    def _direction(self, sprout: ChildPoint, level: int, down_rot: Matrix, rotate: float) -> Vector:
         """The new stem's first direction, relative to its sprout point."""
         p = self.params
         direction = Axes.z()
@@ -153,7 +170,9 @@ class BranchSpawner:
             direction.rotate(sprout.quat)
         return direction
 
-    def _length_and_children(self, sprout, level, depth, base_size, scale):
+    def _length_and_children(
+        self, sprout: ChildPoint, level: int, depth: int, base_size: float, scale: float
+    ) -> tuple[float, float]:
         """The stem's length, and how many children (branches, or leaves on the last level) it gets."""
         p = self.params
         max_length = p.length_product(level, scale)
@@ -170,14 +189,14 @@ class BranchSpawner:
                 )
         return length, children
 
-    def _shape(self, level, ratio):
+    def _shape(self, level: int, ratio: float) -> float:
         """Crown shape ratio: the tree's shape for the first branch level, the secondary shape deeper."""
         p = self.params
         if level == self.TRUNK_BRANCHES:
             return CrownShape.ratio(p.shape, ratio, custom=p.custom_shape)
         return CrownShape.ratio(p.shape_s, ratio)
 
-    def _pick_trunk_sprouts(self, sprouts, base_size):
+    def _pick_trunk_sprouts(self, sprouts: list[ChildPoint], base_size: float) -> list[tuple[ChildPoint, float]]:
         """Rotate/random modes: one branch per height on the trunk, picked around the trunk.
 
         Returns (sprout, growth angle) pairs, tips last; the angle is only used by ROTATE.

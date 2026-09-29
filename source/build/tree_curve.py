@@ -2,12 +2,16 @@
 
 """The tree curve object, and the pruning envelope shown with it."""
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 import bpy
+from bpy.types import Curve, Object
 from mathutils import Vector
 
 from ..model.geometry import Bezier
+from ..model.params import TreeParams
+from .objects import ObjectFactory
 
 
 class TreeCurveBuilder:
@@ -15,11 +19,12 @@ class TreeCurveBuilder:
 
     ROLE = "tree"
 
-    def __init__(self, params, objects):
+    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
-    def build(self):
+    def build(self) -> Object:
+        """The tree object: a 3D curve with the bevel and resolution of the params, no splines yet."""
         p = self.params
         curve = bpy.data.curves.new(self.ROLE, "CURVE")
         tree = self.objects.new(self.ROLE, curve)
@@ -32,7 +37,7 @@ class TreeCurveBuilder:
 
     @staticmethod
     @contextmanager
-    def pruning_scratch(curve, needed):
+    def pruning_scratch(curve: Curve, needed: bool) -> Iterator[Curve | None]:
         """A curve for the pruning search (stems grown and thrown away), removed afterwards; None if not needed."""
         if not needed:
             yield None
@@ -51,11 +56,12 @@ class EnvelopeBuilder:
     ROLE = "envelope"
     POINTS = 128
 
-    def __init__(self, params, objects):
+    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
-    def build(self, tree, scale):
+    def build(self, tree: Object, scale: float) -> None:
+        """The envelope object under the tree: two profiles from the tree top (at `scale`) down to the prune base."""
         p = self.params
         prune_base = p.prune_base_clamped
         curve = bpy.data.curves.new(self.ROLE, "CURVE")

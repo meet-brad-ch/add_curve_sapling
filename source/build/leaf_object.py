@@ -3,10 +3,13 @@
 """The leaves object: a mesh of leaf quads, or points/faces that instance a leaf object."""
 
 import bpy
+from bpy.types import Mesh, NodesModifier, NodeTree, Object, QuaternionAttribute
 from mathutils import Vector
 
-from ..model.leaves import LeafShape
+from ..model.leaves import LeafSet, LeafShape
+from ..model.params import TreeParams
 from ..settings import SettingsError
+from .objects import ObjectFactory
 from .tree_record import TreeRecord
 
 
@@ -16,11 +19,16 @@ class LeafObjectBuilder:
     ROLE = "leaves"
     UV_LAYER = "leafUV"
 
-    def __init__(self, params, objects):
+    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
-    def build(self, leaves, tree):
+    def build(self, leaves: LeafSet, tree: Object) -> Object:
+        """The leaves object under the tree, before any armature; instanced leaves also get their instance set up.
+
+        Face instancing parents the leaf object to the leaves; point instancing stores each leaf's rotation
+        (the node modifier comes in finish()); hex and rect leaves get UVs.
+        """
         p = self.params
         mesh = bpy.data.meshes.new(self.ROLE)
         ob = self.objects.new(self.ROLE, mesh, parent=tree)
@@ -39,13 +47,13 @@ class LeafObjectBuilder:
         mesh.validate()
         return ob
 
-    def finish(self, leaves_ob, leaves):
+    def finish(self, leaves_ob: Object, leaves: LeafSet) -> None:
         """Last modifier on the leaves: instance the leaf object on the points (after the armature)."""
         if leaves.shape == LeafShape.INSTANCE_POINTS:
             LeafInstancerNodes.add_modifier(leaves_ob, self.instance_object(self.params))
 
     @staticmethod
-    def instance_object(params):
+    def instance_object(params: TreeParams) -> Object:
         """The object instanced as the leaf; raises SettingsError when instanced leaves have none."""
         name = params.leaf_instance_name
         instance = bpy.data.objects.get(name)
@@ -59,11 +67,11 @@ class LeafObjectBuilder:
             raise SettingsError(f"Leaf Object '{name}' is part of a Sapling tree; choose your own leaf object")
         return instance
 
-    def _attach_instance_object(self, leaves_ob):
+    def _attach_instance_object(self, leaves_ob: Object) -> None:
         self.instance_object(self.params).parent = leaves_ob
 
     @staticmethod
-    def _store_rotations(mesh, leaves):
+    def _store_rotations(mesh: Mesh, leaves: LeafSet) -> None:
         """Per leaf, the rotation Blender's vertex instancing used to derive from the vertex normal.
 
         Vertex normals cannot be set since Blender 4.1, so the instancer reads this attribute instead.
@@ -73,10 +81,10 @@ class LeafObjectBuilder:
         for i in range(0, len(normals), 3):
             q = Vector(normals[i : i + 3]).to_track_quat("Y", "Z")
             rotations.extend((q.w, q.x, q.y, q.z))
-        attribute = mesh.attributes.new(LeafInstancerNodes.ROTATION, "QUATERNION", "POINT")
+        attribute: QuaternionAttribute = mesh.attributes.new(LeafInstancerNodes.ROTATION, "QUATERNION", "POINT")  # type: ignore[assignment]  # stub: new() returns the base class
         attribute.data.foreach_set("value", rotations)
 
-    def _add_uvs(self, mesh, shape, scale_x):
+    def _add_uvs(self, mesh: Mesh, shape: str, scale_x: float) -> None:
         """Each leaf maps onto the full 0..1 UV square, narrowed by Leaf Scale X."""
         u1 = 0.5 * (1 - scale_x)
         u2 = 1 - u1
@@ -98,16 +106,17 @@ class LeafInstancerNodes:
     VERSION_KEY = "sapling_version"
 
     @classmethod
-    def add_modifier(cls, leaves_ob, instance):
+    def add_modifier(cls, leaves_ob: Object, instance: Object) -> None:
+        """A Geometry Nodes modifier on the leaves that instances `instance` on each point."""
         group = cls.node_group()
-        modifier = leaves_ob.modifiers.new("Leaf Instances", "NODES")
+        modifier: NodesModifier = leaves_ob.modifiers.new("Leaf Instances", "NODES")  # type: ignore[assignment]  # stub: new() returns the base class
         modifier.node_group = group
-        socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == cls.OBJECT_INPUT)
+        socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == cls.OBJECT_INPUT)  # type: ignore[union-attr]  # a node group has an interface
         # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
-        getattr(modifier.properties.inputs, socket.identifier).value = instance
+        getattr(modifier.properties.inputs, socket.identifier).value = instance  # type: ignore[union-attr]  # stub: optional properties; socket items
 
     @classmethod
-    def node_group(cls):
+    def node_group(cls) -> NodeTree:
         """The shared node group, rebuilt if it is missing or from another version."""
         group = bpy.data.node_groups.get(cls.GROUP)
         if group is not None and group.bl_idname != "GeometryNodeTree":
@@ -121,23 +130,25 @@ class LeafInstancerNodes:
         return group
 
     @classmethod
-    def _build(cls, group):
+    def _build(cls, group: NodeTree) -> None:
+        """Rebuild the group: Group Input -> Instance on Points (Object Info, rotation attribute) -> Output."""
         group.nodes.clear()
-        group.interface.clear()
-        group.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-        group.interface.new_socket(cls.OBJECT_INPUT, in_out="INPUT", socket_type="NodeSocketObject")
-        group.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+        group.interface.clear()  # type: ignore[union-attr]  # a node group has an interface
+        # stub: the interface is optional, and socket_type is typed as 'DEFAULT' only (it takes socket idnames)
+        group.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]
+        group.interface.new_socket(cls.OBJECT_INPUT, in_out="INPUT", socket_type="NodeSocketObject")  # type: ignore[union-attr, arg-type]
+        group.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]
 
         nodes = group.nodes
         links = group.links
         inputs = nodes.new("NodeGroupInput")
         output = nodes.new("NodeGroupOutput")
         info = nodes.new("GeometryNodeObjectInfo")
-        info.transform_space = "ORIGINAL"  # the leaf object's own geometry, around its origin
-        info.inputs["As Instance"].default_value = True
+        info.transform_space = "ORIGINAL"  # type: ignore[attr-defined]  # the leaf object's own geometry, around its origin
+        info.inputs["As Instance"].default_value = True  # type: ignore[attr-defined]  # stub: NodeSocket base class
         rotation = nodes.new("GeometryNodeInputNamedAttribute")
-        rotation.data_type = "QUATERNION"
-        rotation.inputs["Name"].default_value = cls.ROTATION
+        rotation.data_type = "QUATERNION"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        rotation.inputs["Name"].default_value = cls.ROTATION  # type: ignore[attr-defined]  # stub: NodeSocket base class
         instancer = nodes.new("GeometryNodeInstanceOnPoints")
 
         links.new(inputs.outputs["Geometry"], instancer.inputs["Points"])

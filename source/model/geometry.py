@@ -6,25 +6,32 @@ Expression shapes are kept exactly as in the original add-on: mathutils works in
 reordering an expression changes the generated trees.
 """
 
+from collections.abc import Iterable, Sequence
 from math import acos, atan2, cos, degrees, pi, radians, sin
-from typing import Final
+from typing import TYPE_CHECKING, Final, Self
 
-from mathutils import Vector
+from mathutils import Euler, Quaternion, Vector
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class Axes:
     """Unit axes; each call returns a new vector, so callers may rotate it in place."""
 
     @staticmethod
-    def x():
+    def x() -> Vector:
+        """(1, 0, 0)."""
         return Vector((1, 0, 0))
 
     @staticmethod
-    def y():
+    def y() -> Vector:
+        """(0, 1, 0)."""
         return Vector((0, 1, 0))
 
     @staticmethod
-    def z():
+    def z() -> Vector:
+        """(0, 0, 1): the direction a stem or leaf grows in, in its own space."""
         return Vector((0, 0, 1))
 
 
@@ -34,11 +41,12 @@ class Angles:
     TAU = 2 * pi
 
     @staticmethod
-    def to_radians(values):
+    def to_radians(values: Iterable[float]) -> list[float]:
+        """Per-level angles from degrees (as the settings hold them) to radians, as a new list."""
         return [radians(a) for a in values]
 
     @staticmethod
-    def declination(quat):
+    def declination(quat: Quaternion | Euler) -> float:
         """Angle in degrees between the z axis and the z axis rotated by quat."""
         direction = Axes.z()
         direction.rotate(quat)
@@ -47,8 +55,8 @@ class Angles:
         return degrees(acos(max(-1.0, min(1.0, direction.z))))
 
     @staticmethod
-    def curve_up(attract_up, quat, curve_res):
-        """Angle of upward rotation of one segment due to attractUp."""
+    def curve_up(attract_up: float, quat: Quaternion, curve_res: int) -> float:
+        """Angle of upward rotation (radians) of one segment due to attractUp, for a stem of `curve_res` segments."""
         side = Axes.y()
         side.rotate(quat)
         side.normalize()
@@ -62,8 +70,8 @@ class Angles:
         return angle
 
     @staticmethod
-    def mean(a1, a2, fac):
-        """Interpolate between two angles through their unit vectors."""
+    def mean(a1: float, a2: float, fac: float) -> float:
+        """Interpolate between two angles (radians) through their unit vectors; fac 0 gives a1, 1 gives a2."""
         x1 = sin(a1)
         y1 = cos(a1)
         x2 = sin(a2)
@@ -96,16 +104,16 @@ class CrownShape:
     INVERSE_TAPERED_CYLINDRICAL = 10
 
     @staticmethod
-    def ratio(shape, ratio, custom=None):
+    def ratio(shape: int, ratio: float, custom: Sequence[float] | None = None) -> float:
         """The shape's factor at `ratio` (0..1); CUSTOM takes its four control values in `custom`."""
         if shape == CrownShape.CUSTOM:
-            return CrownShape._custom(ratio, custom)
+            return CrownShape._custom(ratio, custom)  # type: ignore[arg-type]
         if shape not in CrownShape._SHAPES:
             raise ValueError(f"unknown crown shape {shape}")
         return CrownShape._SHAPES[shape](ratio)
 
     @staticmethod
-    def envelope(ratio, peak, power_high, power_low):
+    def envelope(ratio: float, peak: float, power_high: float, power_low: float) -> float:
         """Pruning envelope width factor: rises to 1 at `peak` from the top, then falls to 0 at both ends."""
         if (ratio < (1 - peak)) and (ratio > 0.0):
             return (ratio / (1 - peak)) ** power_high
@@ -114,13 +122,13 @@ class CrownShape:
         return 0.0
 
     @staticmethod
-    def _flame(ratio):
+    def _flame(ratio: float) -> float:
         if ratio <= 0.7:
             return 0.05 + 0.95 * ratio / 0.7
         return 0.05 + 0.95 * (1.0 - ratio) / 0.3
 
     @staticmethod
-    def _tend_flame(ratio):
+    def _tend_flame(ratio: float) -> float:
         if ratio <= 0.7:
             return 0.5 + 0.5 * ratio / 0.7
         return 0.5 + 0.5 * (1.0 - ratio) / 0.3
@@ -138,7 +146,7 @@ class CrownShape:
     }
 
     @staticmethod
-    def _custom(ratio, custom):
+    def _custom(ratio: float, custom: Sequence[float]) -> float:
         """Two eased segments through (base, custom[0]), (custom[2], custom[1]) and (top, custom[3])."""
         r = 1 - ratio
         if r == 1:
@@ -152,7 +160,14 @@ class CrownShape:
         return (pos * (custom[1] - custom[0])) + custom[0]
 
     @staticmethod
-    def auto_taper(length, taper, shape, shape_s, levels, custom_shape):
+    def auto_taper(
+        length: Sequence[float],
+        taper: Sequence[float],
+        shape: int,
+        shape_s: int,
+        levels: int,
+        custom_shape: Sequence[float],
+    ) -> list[float]:
         """Taper per level so that stems end at the radius their children start with."""
         taper_s = []
         for i, t in enumerate(length):
@@ -166,7 +181,7 @@ class CrownShape:
 
         taper_p = []
         for i in range(len(taper_s)):
-            pm = 1
+            pm: float = 1
             for x in range(i + 1):
                 pm *= taper_s[x]
             taper_p.append(pm)
@@ -186,17 +201,19 @@ class BezierSegment:
 
     __slots__ = ("h1", "h2", "p1", "p2")
 
-    def __init__(self, p1, h1, h2, p2):
+    def __init__(self, p1: Vector, h1: Vector, h2: Vector, p2: Vector) -> None:
         self.p1 = p1
         self.h1 = h1
         self.h2 = h2
         self.p2 = p2
 
     @classmethod
-    def between(cls, point_a, point_b):
+    def between(cls, point_a: "bpy.types.BezierSplinePoint", point_b: "bpy.types.BezierSplinePoint") -> Self:
+        """The segment from `point_a` to the next point `point_b` of a spline, through their facing handles."""
         return cls(point_a.co, point_a.handle_right, point_b.handle_left, point_b.co)
 
-    def point(self, t):
+    def point(self, t: float) -> Vector:
+        """Position at curve parameter t (0 = p1, 1 = p2; not proportional to arc length)."""
         return (
             ((1 - t) ** 3) * self.p1
             + (3 * t * (1 - t) ** 2) * self.h1
@@ -204,7 +221,7 @@ class BezierSegment:
             + (t**3) * self.p2
         )
 
-    def tangent(self, t):
+    def tangent(self, t: float) -> Vector:
         """Unit tangent at t."""
         return (
             (-3 * (1 - t) ** 2) * self.p1

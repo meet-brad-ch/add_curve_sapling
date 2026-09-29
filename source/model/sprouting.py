@@ -3,12 +3,14 @@
 """Where child stems and leaves sprout along a grown stem."""
 
 from math import floor
+from random import Random
 
 from mathutils import Vector
 
 from .branching import BranchingMode
 from .geometry import BezierSegment
-from .stem import BoneName, ChildPoint
+from .params import TreeParams
+from .stem import BoneName, ChildPoint, Stem
 
 
 class SproutPlanner:
@@ -17,12 +19,15 @@ class SproutPlanner:
     # Branch Rings: each ring's height varies randomly within this factor range
     RING_JITTER = (0.995, 1.005)
 
-    def __init__(self, params, rng):
+    def __init__(self, params: TreeParams, rng: Random) -> None:
         self.params = params
         self.rng = rng
 
-    def plan(self, stems, level, base_size):
-        """Sprout points of a stem and its splits, in order: along each stem, then its tip."""
+    def plan(self, stems: list[Stem], level: int, base_size: float) -> list[ChildPoint]:
+        """Sprout points of a stem and its splits, in order: along each stem, then its tip.
+
+        `stems` is the grown stem followed by its splits; `base_size` (0..1) is the bare part of the stem.
+        """
         p = self.params
         stem = stems[0]
         if (level == 0) and (p.rotate_mode != BranchingMode.ORIGINAL):
@@ -50,7 +55,7 @@ class SproutPlanner:
         return points
 
     @staticmethod
-    def _positions_per_segment(stems, children):
+    def _positions_per_segment(stems: list[Stem], children: float) -> list[float]:
         points = sum([len(s.spline.bezier_points) for s in stems])
         segments = points - len(stems)
         per_segment = children / segments
@@ -58,10 +63,10 @@ class SproutPlanner:
         return [(a + 1) / count for a in range(int(count))]
 
     @staticmethod
-    def _even_positions(children):
+    def _even_positions(children: float) -> list[float]:
         return [(a + 1) / children for a in range(int(children))]
 
-    def _distribute(self, positions, base_size):
+    def _distribute(self, positions: list[float], base_size: float) -> list[float]:
         """Branch Distribution: crowd trunk branches towards the base (< 1) or the top (> 1)."""
         dist = self.params.branch_dist
         positions = [((t - base_size) / (1 - base_size)) for t in positions]
@@ -72,7 +77,9 @@ class SproutPlanner:
         return [t * (1 - base_size) + base_size for t in positions]
 
     @staticmethod
-    def _sample(stem, positions, length_parent, max_offset, base_size):
+    def _sample(
+        stem: Stem, positions: list[float], length_parent: float, max_offset: float, base_size: float
+    ) -> list[ChildPoint]:
         """A ChildPoint at each position that falls on this stem, plus one at its tip."""
         points = stem.spline.bezier_points
         segments = len(points) - 1
@@ -111,7 +118,7 @@ class SproutPlanner:
         tip = points[-1]
         sprouts.append(
             ChildPoint(
-                Vector(tip.co),
+                Vector(tip.co),  # type: ignore[arg-type]
                 (tip.handle_right - tip.co).to_track_quat("Z", "Y"),
                 (stem.radius_start, tip.radius),
                 1,

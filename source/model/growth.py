@@ -3,11 +3,17 @@
 """Growing a stem by one segment, including splitting it into several stems."""
 
 from math import atan2, pi, radians
+from random import Random
+from typing import TYPE_CHECKING
 
-from mathutils import Euler, Matrix
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 from .geometry import Angles, Axes, Bezier
-from .stem import BoneName, Stem
+from .params import TreeParams
+from .stem import BoneMap, BoneName, Stem
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class StemGrower:
@@ -19,13 +25,16 @@ class StemGrower:
     FLATTEN_SCALE = 0.67
     FLATTEN_MIN = 0.33
 
-    def __init__(self, params, rng, scale):
+    def __init__(self, params: TreeParams, rng: Random, scale: float) -> None:
         self.params = params
         self.rng = rng
         self.scale = scale
 
-    def split_count(self, stem, level, k, split_value):
-        """How many stems split off at segment k of `stem` (0, 1, or the trunk's base splits)."""
+    def split_count(self, stem: Stem, level: int, k: int, split_value: float) -> int:
+        """How many stems split off at segment k of `stem` (0, 1, or the trunk's base splits).
+
+        Draws one random number only when the count is left to chance (draw_split).
+        """
         p = self.params
         segments = p.curve_res[level]
         value = split_value
@@ -49,11 +58,21 @@ class StemGrower:
             return self.draw_split(value * length)
         return self.draw_split(value)
 
-    def draw_split(self, probability):
+    def draw_split(self, probability: float) -> int:
         """0 or 1 split, with the given probability."""
         return 1 if self.rng.random() < probability else 0
 
-    def grow(self, stem, level, split_count, stems, bone_map, close_tip, kp, base_segment_length):
+    def grow(
+        self,
+        stem: Stem,
+        level: int,
+        split_count: int,
+        stems: list[Stem],
+        bone_map: BoneMap,
+        close_tip: bool,
+        kp: float,
+        base_segment_length: float,
+    ) -> None:
         """Grow `stem` by one segment on its spline.
 
         level: the parameter level (0 = trunk, at most 3).
@@ -75,7 +94,7 @@ class StemGrower:
         curve_var_mat = Matrix.Rotation(curve_var, 3, "Y")
 
         # First find the current direction of the stem
-        direction = stem.quat()
+        direction: Quaternion | Euler = stem.quat()
 
         if level == 0:
             adir = Axes.z()
@@ -101,7 +120,7 @@ class StemGrower:
         if (level > 0) and (kp > 0) and (attract_out > 0):
             co = stem.point.co.copy()
             d = atan2(co[0], -co[1]) + Angles.TAU
-            edir = direction.to_euler("XYZ", Euler((0, 0, d), "XYZ"))
+            edir = direction.to_euler("XYZ", Euler((0, 0, d), "XYZ"))  # type: ignore[union-attr]
             d = Angles.mean(edir[2], d, (kp * attract_out))
             direction = Euler((edir[0], edir[1], d), "XYZ").to_quaternion()
 
@@ -132,14 +151,15 @@ class StemGrower:
         stem.update_end()
 
     def _split(
-        self, stem, level, split_count, stems, bone_map, close_tip, base_segment_length,
-        direction, curve_angle, curve_var_mat, taper_factor,
-    ):  # fmt: skip
+        self, stem: Stem, level: int, split_count: int, stems: list[Stem], bone_map: BoneMap, close_tip: bool,
+        base_segment_length: float, direction: Quaternion | Euler, curve_angle: float, curve_var_mat: Matrix,
+        taper_factor: float,
+    ) -> Vector:  # fmt: skip
         """Start `split_count` new stems at the end of `stem`; return the direction `stem` continues in."""
         p = self.params
         rng = self.rng
         uniform = rng.uniform
-        cu = stem.spline.id_data
+        cu: bpy.types.Curve = stem.spline.id_data  # type: ignore[assignment]
 
         split_angle = p.split_angle[level]
         split_angle_v = p.split_angle_v[level]
@@ -228,7 +248,9 @@ class StemGrower:
         stem.split_last = 1
         return direction_vec
 
-    def _append_point(self, spline, from_point, direction_vec):
+    def _append_point(
+        self, spline: "bpy.types.Spline", from_point: "bpy.types.BezierSplinePoint", direction_vec: Vector
+    ) -> "bpy.types.BezierSplinePoint":
         """A new last point on `spline`, `direction_vec` away from `from_point`, with the tree's handles."""
         end_co = from_point.co.copy()  # before add(): adding points can move the point array
         spline.bezier_points.add(1)
@@ -238,15 +260,15 @@ class StemGrower:
         return point
 
     @staticmethod
-    def _closes_tip(stem, close_tip):
+    def _closes_tip(stem: Stem, close_tip: bool) -> bool:
         """Whether this segment ends the stem and Close Tip makes its radius 0."""
         return close_tip and stem.segment == stem.segments - 1
 
     @staticmethod
-    def _attract_up(stem, direction_vec):
+    def _attract_up(stem: Stem, direction_vec: Vector) -> None:
         """Bend the growth direction up (attractUp > 0) or down."""
         track = direction_vec.to_track_quat("Z", "Y")
         up_axis = Axes.x()
         up_axis.rotate(track)
         angle = Angles.curve_up(stem.attract_up, track, stem.segments)
-        direction_vec.rotate(Matrix.Rotation(-angle, 3, up_axis))
+        direction_vec.rotate(Matrix.Rotation(-angle, 3, up_axis))  # type: ignore[arg-type]

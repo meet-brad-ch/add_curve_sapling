@@ -2,8 +2,10 @@
 
 """Where the add-on shows up: Add > Curve, Object menu and the Sapling sidebar tab."""
 
+from typing import override
+
 import bpy
-from bpy.types import Panel
+from bpy.types import Context, Menu, Object, Panel, UILayout
 
 from ..build.tree_record import TreeRecord
 from .operators import AddTreeOperator
@@ -13,7 +15,8 @@ class TreeEditButton:
     """The "Edit Sapling Tree" button: re-opens the Add Tree operator on a tree's settings."""
 
     @staticmethod
-    def draw(layout, root):
+    def draw(layout: UILayout, root: Object) -> None:
+        """Add the button to layout, set to replace the tree whose root is `root`."""
         button = layout.operator(AddTreeOperator.bl_idname, text="Edit Sapling Tree", icon="OUTLINER_OB_CURVE")
         button.replace = root.name
 
@@ -27,15 +30,17 @@ class TreePanel(Panel):
     bl_region_type = "UI"
     bl_category = "Sapling"
 
+    @override
     @classmethod
-    def poll(cls, context):
+    def poll(cls, context: Context) -> bool:  # type: ignore[override]
         return context.mode == "OBJECT" and TreeRecord.is_tree(context.active_object)
 
-    def draw(self, context):
+    @override
+    def draw(self, context: Context) -> None:  # type: ignore[override]
         layout = self.layout
         if layout is None:
             raise RuntimeError("Panel.draw without a layout")
-        root = TreeRecord.root_of(context.active_object)
+        root = TreeRecord.root_of(context.active_object)  # type: ignore[arg-type]  # poll: the active object is a tree
         settings = TreeRecord.settings(root).values
         col = layout.column()
         col.label(text=f"Root: {root.name}")
@@ -47,22 +52,26 @@ class Menus:
     """Menu entries, appended to Blender's menus on register."""
 
     @staticmethod
-    def add_curve(menu, context):
-        menu.layout.operator(AddTreeOperator.bl_idname, text="Sapling Tree Gen", icon="CURVE_DATA")
+    def add_curve(menu: Menu, context: Context) -> None:
+        """Add > Curve entry: add a new tree."""
+        menu.layout.operator(AddTreeOperator.bl_idname, text="Sapling Tree Gen", icon="CURVE_DATA")  # type: ignore[union-attr]
 
     @staticmethod
-    def object_menu(menu, context):
+    def object_menu(menu: Menu, context: Context) -> None:
+        """Object menu entry, only when the active object belongs to a Sapling tree: edit that tree."""
         if TreeRecord.is_tree(context.active_object):
-            menu.layout.separator()
-            TreeEditButton.draw(menu.layout, TreeRecord.root_of(context.active_object))
+            menu.layout.separator()  # type: ignore[union-attr]
+            TreeEditButton.draw(menu.layout, TreeRecord.root_of(context.active_object))  # type: ignore[arg-type]
 
     @classmethod
-    def register(cls):
+    def register(cls) -> None:
+        """Append the entries to Blender's menus (on add-on register)."""
         # The stubs type menu draw functions as (context); Blender calls them with (menu, context).
         bpy.types.VIEW3D_MT_curve_add.append(cls.add_curve)  # type: ignore[arg-type]
         bpy.types.VIEW3D_MT_object.append(cls.object_menu)  # type: ignore[arg-type]
 
     @classmethod
-    def unregister(cls):
+    def unregister(cls) -> None:
+        """Remove the entries from Blender's menus (on add-on unregister)."""
         bpy.types.VIEW3D_MT_curve_add.remove(cls.add_curve)  # type: ignore[arg-type]
         bpy.types.VIEW3D_MT_object.remove(cls.object_menu)  # type: ignore[arg-type]

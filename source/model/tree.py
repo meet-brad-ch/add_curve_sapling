@@ -2,9 +2,16 @@
 
 """Growing the whole branch structure, level by level, on the tree curve."""
 
+from random import Random
+from typing import TYPE_CHECKING
+
 from .branching import BranchSpawner
+from .params import TreeParams
 from .stem import BoneMap, ChildPoint
 from .stem_builder import StemBuilder
+
+if TYPE_CHECKING:
+    import bpy
 
 
 class GrownTree:
@@ -15,12 +22,12 @@ class GrownTree:
     bone_map: for each spline, where it hangs in the armature.
     """
 
-    def __init__(self, sprouts, level_ends, bone_map):
+    def __init__(self, sprouts: list[ChildPoint], level_ends: list[int], bone_map: BoneMap) -> None:
         self.sprouts = sprouts
         self.level_ends = level_ends
         self.bone_map = bone_map
 
-    def level_of(self, spline_index):
+    def level_of(self, spline_index: int) -> int:
         """Parameter level (at most 3) of a spline."""
         for level, end in enumerate(self.level_ends):
             if spline_index < end:
@@ -31,12 +38,15 @@ class GrownTree:
 class TreeGrower:
     """Grows the trunk and all branch levels into a curve."""
 
-    def __init__(self, params, rng):
+    def __init__(self, params: TreeParams, rng: Random) -> None:
         self.params = params
         self.rng = rng
 
-    def grow(self, curve, scratch, scale):
-        """Fill `curve` with the tree's splines; `scratch` is a curve for the pruning search."""
+    def grow(self, curve: "bpy.types.Curve", scratch: "bpy.types.Curve | None", scale: float) -> GrownTree:
+        """Fill `curve` with the tree's splines; `scratch` is a curve for the pruning search (None without pruning).
+
+        `scale` is the tree's overall size (Scale with its random variation), in Blender units.
+        """
         p = self.params
         bone_map = BoneMap()
         spawner = BranchSpawner(p, self.rng, curve)

@@ -3,10 +3,13 @@
 """Leaf geometry: one small mesh (or one instancing point) per leaf sprout."""
 
 from math import atan2, copysign, radians
+from random import Random
 
-from mathutils import Euler, Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 from .geometry import Axes
+from .params import TreeParams
+from .stem import ChildPoint
 
 
 class LeafShape:
@@ -24,7 +27,7 @@ class LeafShape:
     FACE_INSTANCE_SCALE = 10.0
 
     @staticmethod
-    def template(shape):
+    def template(shape: str) -> tuple[list[Vector], list[list[int]]]:
         """(vertices, faces) of a new leaf of the given shape."""
         if shape == LeafShape.HEX:
             verts = [
@@ -50,22 +53,23 @@ class LeafShape:
 class LeafSet:
     """The generated leaves: mesh data plus, per leaf, the sprout it grows from and its normal."""
 
-    def __init__(self, shape):
+    def __init__(self, shape: str) -> None:
         self.shape = shape
-        self.vertices = []
-        self.faces = []
-        self.normals = []
-        self.sprouts = []
+        self.vertices: list[list[float]] = []
+        self.faces: list[list[int]] = []
+        self.normals: list[float] = []
+        self.sprouts: list[ChildPoint] = []
 
     @property
-    def verts_per_leaf(self):
+    def verts_per_leaf(self) -> int:
+        """How many vertices each leaf adds to `vertices` (1 for Instance Points), for per-leaf indexing."""
         return LeafShape.VERTS_PER_LEAF[self.shape]
 
 
 class LeafGenerator:
     """Places the leaves on the sprout points of the last branch level."""
 
-    def __init__(self, params, rng):
+    def __init__(self, params: TreeParams, rng: Random) -> None:
         self.params = params
         self.rng = rng
         # Rotations that are the same for every vertex of every leaf, built once
@@ -73,7 +77,11 @@ class LeafGenerator:
         self.quarter_turn = Euler((0, 0, radians(90)))
         self.tilt = Matrix.Rotation(radians(-params.leaf_angle), 3, "X")
 
-    def generate(self, sprouts):
+    def generate(self, sprouts: list[ChildPoint]) -> LeafSet:
+        """The leaves of all sprouts, in sprout order: one per sprout, or a fan of |leaves| for a negative count.
+
+        The leaf rotation carries over from one sprout to the next (a fan restarts it).
+        """
         p = self.params
         leaves = LeafSet(p.leaf_shape)
         rotation = 0.0
@@ -87,7 +95,7 @@ class LeafGenerator:
                 rotation = self._add_leaf(leaves, sprout, rotation)
         return leaves
 
-    def _add_leaf(self, leaves, sprout, rotation):
+    def _add_leaf(self, leaves: LeafSet, sprout: ChildPoint, rotation: float) -> float:
         """Append one leaf; return the rotation the next leaf continues from.
 
         Random draws, in this order: the turn around the stem, the down angle, the scale.
@@ -108,7 +116,7 @@ class LeafGenerator:
         self._emit(leaves, sprout, verts, faces)
         return rotation
 
-    def _turn(self, rotation):
+    def _turn(self, rotation: float) -> tuple[Matrix, float]:
         """(the leaf's spin around its sprout, the rotation the next leaf continues from)."""
         p = self.params
         count = p.leaves
@@ -126,7 +134,7 @@ class LeafGenerator:
             rotation += rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
         return spin, rotation
 
-    def _down_rotation(self, sprout):
+    def _down_rotation(self, sprout: ChildPoint) -> Matrix | None:
         """Rotation away from the stem (Leaf Down Angle); None for palmate leaves."""
         p = self.params
         if p.leaves < 0:
@@ -137,7 +145,7 @@ class LeafGenerator:
             down_v = self.rng.uniform(-p.leaf_down_angle_v, p.leaf_down_angle_v)
         return Matrix.Rotation(p.leaf_down_angle + down_v, 3, "X")
 
-    def _scale(self, sprout, rotation):
+    def _scale(self, sprout: ChildPoint, rotation: float) -> float:
         """Leaf size: tapered along the parent (or across the fan), then randomly varied."""
         p = self.params
         count = p.leaves
@@ -155,12 +163,14 @@ class LeafGenerator:
             scale = scale * (1 / LeafShape.FACE_INSTANCE_SCALE)
         return scale
 
-    def _orientation(self, sprout, rotation, spin, down):
+    def _orientation(
+        self, sprout: ChildPoint, rotation: float, spin: Matrix, down: Matrix | None
+    ) -> list[Euler | Matrix | Quaternion]:
         """The rotations every vertex of this leaf gets, in order."""
         p = self.params
         count = p.leaves
         rotate = p.leaf_rotate
-        turns = [self.half_turn, self.tilt]
+        turns: list[Euler | Matrix | Quaternion] = [self.half_turn, self.tilt]
         if rotate < 0:
             turns.append(self.quarter_turn)
             if rotation < 0:
@@ -168,21 +178,21 @@ class LeafGenerator:
         if (count > 0) and (rotate > 0) and p.horizontal_leaves:
             turns.append(Matrix.Rotation(-rotation + rotate, 3, "Z"))
         if count > 0:
-            turns.append(down)
+            turns.append(down)  # type: ignore[arg-type]
         turns.extend((spin, sprout.quat))
         if (p.leaf_bend != 0.0) and (count > 0):
             turns.extend(self._bend_rotations(sprout, p.leaf_bend))
         return turns
 
     @staticmethod
-    def _emit(leaves, sprout, verts, faces):
+    def _emit(leaves: LeafSet, sprout: ChildPoint, verts: list[Vector], faces: list[list[int]]) -> None:
         """Add the leaf to the set: its placed mesh, or for Instance Points one point and its normal."""
         index = len(leaves.vertices)
         if leaves.shape == LeafShape.INSTANCE_POINTS:
             normal = verts[0]
             normal.normalize()
             leaves.vertices.append([sprout.co.x, sprout.co.y, sprout.co.z])
-            leaves.normals.extend(normal)
+            leaves.normals.extend(normal)  # type: ignore[arg-type]
         else:
             for v in verts:
                 v += sprout.co
@@ -192,7 +202,7 @@ class LeafGenerator:
         leaves.sprouts.append(sprout)
 
     @staticmethod
-    def _bend_rotations(sprout, bend):
+    def _bend_rotations(sprout: ChildPoint, bend: float) -> tuple[Matrix, Matrix, Matrix, Matrix]:
         """Rotations that turn a leaf towards the outside of the tree (Leaf Bend)."""
         normal = Axes.y()
         orientation_vec = Axes.z()

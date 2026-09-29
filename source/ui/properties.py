@@ -11,6 +11,7 @@ from bpy.props import (
     IntVectorProperty,
     StringProperty,
 )
+from bpy.types import Context
 
 from ..model.branching import BranchingMode
 from ..model.geometry import CrownShape
@@ -69,13 +70,16 @@ class TreeProperties:
     # UI state: never part of presets or stored tree settings.
     UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "limitImport", "overwrite"})
 
-    def update_tree(self, context):
+    def update_tree(self, context: Context) -> None:
+        """Update callback of a generation property: the next run regenerates the tree."""
         self.do_update = True
 
-    def update_leaves(self, context):
+    def update_leaves(self, context: Context) -> None:
+        """Update callback of a leaf property: regenerate only when the leaves are shown (otherwise nothing changes)."""
         self.do_update = self.showLeaves
 
-    def no_update_tree(self, context):
+    def no_update_tree(self, context: Context) -> None:
+        """Update callback of UI state (page, preset name, ...): the next run keeps the tree as it is."""
         self.do_update = False
 
     do_update: BoolProperty(name="Do Update", default=True, options={"HIDDEN", "SKIP_SAVE"})
@@ -457,12 +461,12 @@ class TreeProperties:
     )  # fmt: skip
 
     @classmethod
-    def generation_names(cls):
+    def generation_names(cls) -> list[str]:
         """Names of the properties that shape the tree (what presets and stored trees hold)."""
         names = TreeProperties.__annotations__  # the mixin's own; operators add only UI state
         return [n for n in names if n not in cls.UI_ONLY and n not in cls.SCENE_BOUND]
 
     @classmethod
-    def stored_names(cls):
+    def stored_names(cls) -> list[str]:
         """What a generated tree stores for re-editing: the generation settings and the leaf object."""
         return [*cls.generation_names(), *cls.SCENE_BOUND]

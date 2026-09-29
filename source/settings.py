@@ -3,6 +3,8 @@
 """Tree settings as plain data: read from and written to the operator, presets and trees."""
 
 import json
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any, Self
 
 
 class SettingsError(Exception):
@@ -27,22 +29,23 @@ class TreeSettings:
         "leafRotateV": "rotateV",
     }
 
-    def __init__(self, values):
+    def __init__(self, values: object) -> None:
         if not isinstance(values, dict):
             raise SettingsError(f"Settings must be a dictionary, not {type(values).__name__}")
         self.values = dict(values)
 
     @classmethod
-    def from_properties(cls, props, names):
+    def from_properties(cls, props: Any, names: Iterable[str]) -> Self:
+        """The named settings read from props (the operator, or anything with its property names)."""
         return cls({name: cls.plain(getattr(props, name)) for name in names})
 
-    def complete(self, defaults):
+    def complete(self, defaults: Mapping[str, Any]) -> Self:
         """Fill in the settings an older preset does not have, from the defaults."""
         for name, value in defaults.items():
             self.values.setdefault(name, value)
         return self
 
-    def apply_to(self, props, names):
+    def apply_to(self, props: Any, names: Sequence[str]) -> None:
         """Set exactly these settings on props: every name must be given, and nothing else."""
         missing = sorted(set(names) - set(self.values))
         unknown = sorted(set(self.values) - set(names))
@@ -51,7 +54,7 @@ class TreeSettings:
         for name in names:
             setattr(props, name, self.values[name])
 
-    def migrate(self):
+    def migrate(self) -> Self:
         """Bring settings from presets of older add-on versions up to date.
 
         Raises KeyError/IndexError/TypeError when the preset lacks what the migration needs.
@@ -70,11 +73,13 @@ class TreeSettings:
         v["bend"] = 0
         return self
 
-    def to_json(self):
+    def to_json(self) -> str:
+        """The settings as versioned JSON, the form a generated tree stores (read back with from_json())."""
         return json.dumps({"version": self.VERSION, "settings": self.values}, sort_keys=True)
 
     @classmethod
-    def from_json(cls, text):
+    def from_json(cls, text: str) -> Self:
+        """Settings stored by to_json(); raises SettingsError on invalid JSON or another settings version."""
         try:
             data = json.loads(text)
         except ValueError as error:
@@ -84,7 +89,7 @@ class TreeSettings:
         return cls(data["settings"])
 
     @classmethod
-    def defaults_from_rna(cls, properties, names):
+    def defaults_from_rna(cls, properties: Any, names: Iterable[str]) -> Self:
         """The RNA default of each named property (bpy.types.Property collection)."""
         values = {}
         for name in names:
@@ -95,7 +100,7 @@ class TreeSettings:
         return cls(values)
 
     @staticmethod
-    def plain(value):
+    def plain(value: Any) -> Any:
         """A property value as plain Python: vectors (bpy arrays) become lists."""
         if isinstance(value, str | bool | int | float):
             return value

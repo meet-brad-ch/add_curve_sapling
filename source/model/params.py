@@ -3,6 +3,7 @@
 """Generation parameters derived from the operator settings: angles in radians, shapes as numbers."""
 
 from math import radians
+from typing import Any, Literal
 
 from .geometry import Angles, Bezier, CrownShape
 
@@ -14,7 +15,7 @@ class TreeParams:
     operator); vector values are indexed per level (at most 4 entries).
     """
 
-    def __init__(self, settings):
+    def __init__(self, settings: Any) -> None:
         s = settings
         self.seed = s.seed
         self.levels = s.levels
@@ -89,7 +90,7 @@ class TreeParams:
         self.bevel_depth = 1.0 if s.bevel else 0.0
         self.bevel_res = s.bevelRes
         self.res_u = s.resU
-        self.handles = Bezier.AUTO if s.handleType == "0" else Bezier.VECTOR
+        self.handles: Literal["AUTO", "VECTOR"] = Bezier.AUTO if s.handleType == "0" else Bezier.VECTOR
 
         self.use_armature = s.useArm
         self.preview_armature = s.previewArm
@@ -121,17 +122,17 @@ class TreeParams:
             self.taper = s.taper
         self._frozen = True
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: object) -> None:
         if getattr(self, "_frozen", False):  # set at the end of __init__
             raise AttributeError(f"TreeParams are read-only; cannot set {name}")
         super().__setattr__(name, value)
 
-    def length_product(self, level, start):
+    def length_product(self, level: int, start: float) -> float:
         """`start` times the relative lengths of levels 0..level."""
         for factor in self.length[: level + 1]:
             start *= factor
         return start
 
-    def envelope(self, ratio):
+    def envelope(self, ratio: float) -> float:
         """Pruning envelope width factor at a height ratio of the envelope."""
         return CrownShape.envelope(ratio, self.prune_width_peak, self.prune_power_high, self.prune_power_low)
