@@ -64,7 +64,17 @@ class TreeProperties:
     SCENE_BOUND = ("leafDupliObj",)
     # UI state: never part of presets or stored tree settings.
     UI_ONLY = frozenset(
-        {"do_update", "chooseSet", "presetName", "limitImport", "overwrite", "preset", "replace", "load_stored"}
+        {
+            "do_update",
+            "chooseSet",
+            "presetName",
+            "limitImport",
+            "overwrite",
+            "preset",
+            "preset_pending",
+            "replace",
+            "load_stored",
+        }
     )
 
     def update_tree(self, context):
@@ -451,7 +461,7 @@ class TreeProperties:
     )  # fmt: skip
     overwrite: BoolProperty(
         name="Overwrite", description="When checked, overwrite existing preset files when saving", default=False,
-        update=no_update_tree,
+        options={"SKIP_SAVE"}, update=no_update_tree,
     )  # fmt: skip
 
     @classmethod

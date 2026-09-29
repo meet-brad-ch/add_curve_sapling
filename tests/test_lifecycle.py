@@ -2,7 +2,6 @@
 
 """Blender data lifecycle: nothing left behind by removing or regenerating a tree, clean re-register."""
 
-import json
 import unittest
 
 import bpy
@@ -37,7 +36,7 @@ class DataLifecycle(unittest.TestCase):
         materials = len(bpy.data.materials)
         node_groups = len(bpy.data.node_groups)
         root = helpers.active_object()
-        stored = json.loads(root["sapling_settings"])
+        stored = helpers.stored_settings(root)
         for _ in range(3):
             result = bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **stored, do_update=True)
             self.assertEqual(result, {"FINISHED"})

@@ -65,6 +65,11 @@ def active_object() -> Any:
     return ob
 
 
+def stored_settings(root: Any) -> dict:
+    """The settings stored on a generated tree's root."""
+    return module("build.tree_record").TreeRecord.settings(root).values
+
+
 def generation_names() -> list[str]:
     """The add-on's own list of properties that shape a tree."""
     return module("ui.properties").TreeProperties.generation_names()
@@ -76,17 +81,9 @@ def operator_property_names() -> list[str]:
 
 
 def operator_defaults() -> dict:
-    rna = bpy.ops.curve.tree_add.get_rna_type()
-    out = {}
-    for prop in rna.properties:
-        name = prop.identifier
-        if name == "rna_type" or name in UI_ONLY:
-            continue
-        if getattr(prop, "is_array", False):
-            out[name] = list(prop.default_array)
-        else:
-            out[name] = prop.default
-    return out
+    """The default of every generation property."""
+    properties = bpy.ops.curve.tree_add.get_rna_type().properties
+    return module("settings").TreeSettings.defaults_from_rna(properties, generation_names()).values
 
 
 def plain(value):

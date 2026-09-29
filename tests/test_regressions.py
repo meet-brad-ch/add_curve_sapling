@@ -2,7 +2,6 @@
 
 """One test per fixed bug. Each one failed before its fix."""
 
-import json
 import re
 import unittest
 from collections import defaultdict
@@ -233,5 +232,5 @@ class LeafObjectSetting(unittest.TestCase):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(showLeaves=True, leafShape="dFace", prune=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        stored = json.loads(helpers.active_object()["sapling_settings"])
+        stored = helpers.stored_settings(helpers.active_object())
         self.assertEqual(stored["leafDupliObj"], helpers.LEAF_CARD)

@@ -8,7 +8,7 @@ from bpy.types import Operator
 
 from ..build.tree_record import TreeRecord
 from ..generator import TreeGenerator
-from ..presets import PresetError, PresetStore
+from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
 from .pages import SettingsPages
 from .properties import TreeProperties
@@ -23,9 +23,13 @@ class PresetChoice:
     def items(props, context):
         cls = PresetChoice
         cls._items.clear()
-        for name, builtin in PresetStore.for_addon().names():
-            label = name.replace("_", " ").title()
-            cls._items.append((name, label, "Built-in preset" if builtin else "Your preset"))
+        for entry in PresetStore.for_addon().entries():
+            if entry.builtin:
+                cls._items.append((entry.name, entry.name.replace("_", " ").title(), "Built-in preset"))
+            elif entry.problem:
+                cls._items.append((entry.name, f"{entry.name} (cannot load)", entry.problem))
+            else:
+                cls._items.append((entry.name, entry.name, "Your preset"))
         return cls._items
 
 
@@ -38,21 +42,15 @@ class AddTreeOperator(TreeProperties, Operator):
 
     DEFAULT_PRESET = "callistemon"
 
-    def apply_preset(self, context):
-        try:
-            settings = PresetStore.for_addon().load(self.preset)
-        except PresetError as error:
-            self.report({"ERROR"}, str(error))
-            return
-        settings.apply_to(self, TreeProperties.generation_names())
-        if self.limitImport:
-            self.levels = min(self.levels, 2)
-            self.showLeaves = False
+    def mark_preset(self, context):
+        # Update callbacks cannot report errors (they only reach the console), so execute() loads it.
+        self.preset_pending = True
         self.do_update = True
 
     preset: EnumProperty(
-        name="Preset", description="Load the settings of a preset", items=PresetChoice.items, update=apply_preset
+        name="Preset", description="Load the settings of a preset", items=PresetChoice.items, update=mark_preset
     )
+    preset_pending: BoolProperty(name="Preset Pending", default=False, options={"HIDDEN", "SKIP_SAVE"})
     replace: StringProperty(
         name="Replace", description="Name of the Sapling tree root to re-generate", options={"HIDDEN", "SKIP_SAVE"}
     )
@@ -80,14 +78,34 @@ class AddTreeOperator(TreeProperties, Operator):
     def execute(self, context):
         if not self.do_update:
             return {"PASS_THROUGH"}
+        try:
+            return self._generate(context)
+        except SettingsError as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
 
+    def defaults(self):
+        """The default of every generation property (what a preset does not set)."""
+        names = TreeProperties.generation_names()
+        return TreeSettings.defaults_from_rna(self.properties.bl_rna.properties, names).values
+
+    def _load_preset(self):
+        self.preset_pending = False
+        settings = PresetStore.for_addon().load(self.preset).complete(self.defaults())
+        settings.apply_to(self, TreeProperties.generation_names())
+        if self.limitImport:
+            self.levels = min(self.levels, 2)
+            self.showLeaves = False
+
+    def _generate(self, context):
+        if self.preset_pending:
+            self._load_preset()
         placement = None
         collection = None
         if self.replace:
             root = TreeRecord.root_of(bpy.data.objects.get(self.replace))
             if root is None:
-                self.report({"ERROR"}, f"'{self.replace}' is not a Sapling tree")
-                return {"CANCELLED"}
+                raise SettingsError(f"'{self.replace}' is not a Sapling tree")
             if self.load_stored:
                 TreeRecord.settings(root).apply_to(self, TreeProperties.stored_names())
                 self.load_stored = False
@@ -96,11 +114,7 @@ class AddTreeOperator(TreeProperties, Operator):
             collection = placement.collections[0] if placement.collections else None
 
         settings = TreeSettings.from_properties(self, TreeProperties.stored_names())
-        try:
-            result = TreeGenerator(self, context, collection).generate()
-        except SettingsError as error:
-            self.report({"ERROR"}, str(error))
-            return {"CANCELLED"}
+        result = TreeGenerator(self, context, collection).generate()
         TreeRecord.store(result, settings)
 
         if placement:
@@ -128,7 +142,7 @@ class SavePresetOperator(Operator):
     def execute(self, context):
         try:
             path = PresetStore.for_addon().save(self.name, TreeSettings.from_json(self.settings), self.overwrite)
-        except PresetError as error:
+        except SettingsError as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
         self.report({"INFO"}, f"Saved preset {path.stem}")

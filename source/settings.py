@@ -10,53 +10,93 @@ class SettingsError(Exception):
 
 
 class TreeSettings:
-    """A dict of generation settings keyed by operator property name.
+    """Generation settings keyed by operator property name.
 
     Values are plain Python (vectors become lists), so they fit presets and JSON.
     """
 
-    # Presets older than these keys get them derived (see migrate()).
-    LEAF_ROTATION_KEYS = ("leafDownAngle", "leafDownAngleV", "leafRotate", "leafRotateV")
+    # Version of the settings stored on a generated tree (see to_json()).
+    VERSION = 1
+    # Keys of the oldest preset format that no longer exist.
+    OBSOLETE_KEYS = ("startCurv", "windGust", "windSpeed")
+    # Presets older than the leaf angles used the last branch level's angles for the leaves.
+    LEAF_ANGLE_SOURCES = {
+        "leafDownAngle": "downAngle",
+        "leafDownAngleV": "downAngleV",
+        "leafRotate": "rotate",
+        "leafRotateV": "rotateV",
+    }
 
-    def __init__(self, values=None):
-        self.values = dict(values or {})
+    def __init__(self, values):
+        if not isinstance(values, dict):
+            raise SettingsError(f"Settings must be a dictionary, not {type(values).__name__}")
+        self.values = dict(values)
 
     @classmethod
     def from_properties(cls, props, names):
-        return cls({name: cls._plain(getattr(props, name)) for name in names})
+        return cls({name: cls.plain(getattr(props, name)) for name in names})
+
+    def complete(self, defaults):
+        """Fill in the settings an older preset does not have, from the defaults."""
+        for name, value in defaults.items():
+            self.values.setdefault(name, value)
+        return self
 
     def apply_to(self, props, names):
-        """Set every known setting on props; unknown keys (from old presets) are ignored."""
+        """Set exactly these settings on props: every name must be given, and nothing else."""
+        missing = sorted(set(names) - set(self.values))
+        unknown = sorted(set(self.values) - set(names))
+        if missing or unknown:
+            raise SettingsError(f"Settings do not fit this version: missing {missing}, unknown {unknown}")
         for name in names:
-            if name in self.values:
-                setattr(props, name, self.values[name])
-
-    def to_json(self):
-        return json.dumps(self.values, sort_keys=True)
-
-    @classmethod
-    def from_json(cls, text):
-        return cls(json.loads(text))
+            setattr(props, name, self.values[name])
 
     def migrate(self):
-        """Bring settings from presets of older add-on versions up to date."""
+        """Bring settings from presets of older add-on versions up to date.
+
+        Raises KeyError/IndexError/TypeError when the preset lacks what the migration needs.
+        """
         v = self.values
+        for key in self.OBSOLETE_KEYS:
+            v.pop(key, None)  # only the oldest presets have them
         # attractUp was a single value before it became per level
-        if isinstance(v.get("attractUp"), int | float):
+        if isinstance(v["attractUp"], int | float):
             v["attractUp"] = [0, 0, v["attractUp"], v["attractUp"]]
-        # leaf angles used to be the last branch level's angles
-        if "leafDownAngle" not in v and "levels" in v:
+        if "leafDownAngle" not in v:
             last = min(v["levels"], 3)
-            v["leafDownAngle"] = v["downAngle"][last]
-            v["leafDownAngleV"] = v["downAngleV"][last]
-            v["leafRotate"] = v["rotate"][last]
-            v["leafRotateV"] = v["rotateV"][last]
+            for leaf_key, branch_key in self.LEAF_ANGLE_SOURCES.items():
+                v[leaf_key] = v[branch_key][last]
         # Leaf Bend has no control in the panel; a preset never bends the leaves
         v["bend"] = 0
         return self
 
+    def to_json(self):
+        return json.dumps({"version": self.VERSION, "settings": self.values}, sort_keys=True)
+
+    @classmethod
+    def from_json(cls, text):
+        try:
+            data = json.loads(text)
+        except ValueError as error:
+            raise SettingsError(f"Invalid settings JSON: {error}") from error
+        if not isinstance(data, dict) or data.get("version") != cls.VERSION or "settings" not in data:
+            raise SettingsError(f"Stored settings are not version {cls.VERSION} settings")
+        return cls(data["settings"])
+
+    @classmethod
+    def defaults_from_rna(cls, properties, names):
+        """The RNA default of each named property (bpy.types.Property collection)."""
+        values = {}
+        for name in names:
+            prop = properties[name]
+            # Only numeric and boolean properties can be arrays (enums and strings have no is_array)
+            is_array = prop.type in {"BOOLEAN", "INT", "FLOAT"} and prop.is_array
+            values[name] = cls.plain(prop.default_array if is_array else prop.default)
+        return cls(values)
+
     @staticmethod
-    def _plain(value):
+    def plain(value):
+        """A property value as plain Python: vectors (bpy arrays) become lists."""
         if isinstance(value, str | bool | int | float):
             return value
-        return [TreeSettings._plain(v) for v in value]
+        return [TreeSettings.plain(v) for v in value]

@@ -2,7 +2,6 @@
 
 """Operator, presets, settings pages, placement and re-editing a generated tree."""
 
-import json
 import re
 import unittest
 from pathlib import Path
@@ -45,14 +44,13 @@ class Presets(unittest.TestCase):
         return helpers.module("presets").PresetStore.for_addon()
 
     def test_builtin_presets_load(self):
-        names = [n for n, builtin in self.store().names() if builtin]
+        names = [e.name for e in self.store().entries() if e.builtin]
         self.assertEqual(len(names), 9)
         generation = set(helpers.module("ui.operators").AddTreeOperator.generation_names())
-        obsolete = {"startCurv", "windGust", "windSpeed"}  # keys of the oldest preset format
         for name in names:
             with self.subTest(preset=name):
                 values = self.store().load(name).values
-                self.assertEqual(set(values) - generation - obsolete, set())
+                self.assertEqual(set(values) - generation, set())
 
     def test_save_and_load_round_trip(self):
         store = self.store()
@@ -60,16 +58,16 @@ class Presets(unittest.TestCase):
         path = store.save("my tree", settings, overwrite=True)
         try:
             self.assertEqual(store.load("my tree").values, settings.values)
-            self.assertIn(("my tree", False), store.names())
+            self.assertIn(("my tree", False, None), [(e.name, e.builtin, e.problem) for e in store.entries()])
             with self.assertRaises(helpers.module("presets").PresetError):
-                store.save("my tree", settings)  # exists, no overwrite
+                store.save("my tree", settings, overwrite=False)  # exists
         finally:
             path.unlink()
 
     def test_rejected_names(self):
         store = self.store()
         settings = store.load("willow")
-        for name in ("", "..\\evil", "../evil", "a/b", "C:\\x", "willow", ".hidden"):
+        for name in ("", "..\\evil", "../evil", "a/b", "C:\\x", "willow", "Willow", ".hidden", "CON", "x" * 65):
             with self.subTest(name=name), self.assertRaises(helpers.module("presets").PresetError):
                 store.save(name, settings, overwrite=True)
 
@@ -121,7 +119,7 @@ class ReEdit(unittest.TestCase):
     def test_settings_stored_on_root(self):
         root = self.generate(useArm=True)
         self.assertEqual(root.type, "ARMATURE")
-        stored = json.loads(root["sapling_settings"])
+        stored = helpers.stored_settings(root)
         self.assertTrue(stored["useArm"])
         self.assertEqual(stored["leafDupliObj"], "leaf_card")
         tree_id = root["sapling_tree"]
@@ -167,7 +165,7 @@ class ReEdit(unittest.TestCase):
 
     @staticmethod
     def _stored():
-        values = json.loads(bpy.data.objects["tree"]["sapling_settings"])
+        values = helpers.stored_settings(bpy.data.objects["tree"])
         values.pop("levels")
         return values
 
