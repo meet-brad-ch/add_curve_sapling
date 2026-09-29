@@ -2,12 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-if "bpy" in locals():
-    import importlib
-    importlib.reload(utils)
-else:
-    from . import utils
-
 import bpy
 import time
 import os
@@ -1076,7 +1070,8 @@ class AddTree(Operator):
             useSet = False
         if not self.do_update:
             return {'PASS_THROUGH'}
-        utils.addTree(self)
+        from .generator import TreeGenerator
+        TreeGenerator(self, context).generate()
         # cProfile.runctx("addTree(self)", globals(), locals())
         print("Tree creation in %0.1fs" % (time.time() - start_time))
 
