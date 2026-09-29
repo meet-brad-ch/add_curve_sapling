@@ -47,6 +47,23 @@ def require_version(path: Path) -> None:
         sys.exit(f"{path} is {version[0] if version else 'not Blender'}; the tests need {REQUIRED_VERSION}")
 
 
+def venv_python() -> Path:
+    """Python of the project venv (Python 3.13 with the pinned tools of requirements-dev.txt)."""
+    for candidate in (ROOT / ".venv" / "Scripts" / "python.exe", ROOT / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return candidate
+    sys.exit("No .venv: create it as described in README (How to run).")
+
+
+def venv_site_packages() -> Path:
+    """site-packages of the project venv; Blender imports coverage from there for --coverage."""
+    unix = (ROOT / ".venv" / "lib").glob("python3.*/site-packages")
+    for candidate in (ROOT / ".venv" / "Lib" / "site-packages", *unix):
+        if candidate.is_dir():
+            return candidate
+    sys.exit("No .venv site-packages: create the venv as described in README (How to run).")
+
+
 def profile_env() -> dict[str, str]:
     env = dict(os.environ)
     env["BLENDER_USER_RESOURCES"] = str(PROFILE)

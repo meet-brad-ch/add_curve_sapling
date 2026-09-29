@@ -14,12 +14,14 @@ still need a check by hand in the Blender UI.
 ## How to run
 
 Blender is at `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (5.2.2 LTS); set
-`BLENDER` to use another one. `ruff` 0.11+ must be on PATH.
+`BLENDER` to use another one.
 
 ```
-py -3.13 -m venv .venv           # once: mypy needs Python 3.13 for the Blender 5.2 stubs
-.venv/Scripts/python -m pip install mypy==1.19.1 fake-bpy-module-5.2==20260730 numpy
-python tools/check.py            # the full gate: ruff, ruff format --check, mypy, manifest, tests
+py -3.13 -m venv .venv                                  # once: Python 3.13, the same as Blender 5.2's
+.venv/Scripts/python -m pip install -r requirements-dev.txt
+git config core.hooksPath tools/hooks                   # once: the fast gate before each commit
+python tools/check.py            # the full gate: ruff, format, mypy, manifest, tests with branch coverage
+python tools/check.py --fast     # the same without the Blender tests (what the pre-commit hook runs)
 python tools/run_tests.py        # tests only (-k NAME filters, --record-golden rewrites golden)
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
@@ -28,8 +30,13 @@ blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.
 The tests build the extension zip and install it into a throwaway profile under
 `build/test-profile` (`BLENDER_USER_RESOURCES`), so your own Blender profile is never touched.
 
+Coverage runs inside Blender: the runner puts the venv's `coverage` package on Blender's
+`sys.path` (both are Python 3.13, so its C tracer loads) and fails below `COVERAGE_MIN` in
+`tools/check.py`.
+
 **Prerequisites:** Blender 5.2 LTS (Python 3.13 inside Blender), Python 3.10+ to run the tools,
-`ruff` 0.11+, Python 3.13 for the mypy venv.
+Python 3.13 for the `.venv` (ruff, mypy, coverage and the Blender stubs, pinned in
+`requirements-dev.txt`).
 
 ## Using it
 

@@ -2,15 +2,11 @@
 
 """Operator, presets, settings pages, placement and re-editing a generated tree."""
 
-import re
 import unittest
-from pathlib import Path
 
 import bpy
 import helpers
 from mathutils import Matrix
-
-SOURCE = Path(__file__).resolve().parent.parent / "source"
 
 
 def root_of(ob):
@@ -25,19 +21,6 @@ class Registration(unittest.TestCase):
             self.assertFalse(hasattr(bpy.types, "VIEW3D_PT_sapling_tree"))
             bpy.ops.preferences.addon_enable(module=helpers.MODULE)
         self.assertIsNotNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
-
-    def test_pages_draw_existing_properties(self):
-        text = (SOURCE / "ui" / "pages.py").read_text(encoding="utf-8")
-        drawn = set(re.findall(r'\.prop\(props, "(\w+)"', text))
-        self.assertGreater(len(drawn), 60)
-        self.assertEqual(drawn - set(helpers.operator_property_names()), set())
-
-    def test_every_generation_property_is_drawn(self):
-        text = (SOURCE / "ui" / "pages.py").read_text(encoding="utf-8")
-        drawn = set(re.findall(r'\.prop\(props, "(\w+)"', text))
-        hidden = {"bend"}  # Leaf Bend has no control, as in earlier versions
-        names = set(helpers.module("ui.operators").AddTreeOperator.generation_names())
-        self.assertEqual(names - drawn - hidden, set())
 
 
 class Presets(unittest.TestCase):

@@ -1,14 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The full gate: lint, format check, type check, manifest validation, test suite.
+"""The gate: lint, format, types, manifest, then the test suite with branch coverage.
 
-python tools/check.py
+python tools/check.py          # everything (run before merging)
+python tools/check.py --fast   # without the Blender test suite (the pre-commit hook)
 """
 
+import argparse
 import subprocess
 import sys
 
-from blender_env import ROOT, SOURCE, install_fresh, run, run_script
+from blender_env import ROOT, SOURCE, install_fresh, run, run_script, venv_python, venv_site_packages
+
+# Branch coverage of the add-on the test suite must reach, in percent
+COVERAGE_MIN = 98
 
 
 def step(title: str, cmd: list[str]) -> bool:
@@ -18,26 +23,25 @@ def step(title: str, cmd: list[str]) -> bool:
     return ok
 
 
-def venv_python() -> str:
-    """mypy runs from the project venv (Python 3.13 with the Blender 5.2 stubs), see README."""
-    for candidate in (ROOT / ".venv" / "Scripts" / "python.exe", ROOT / ".venv" / "bin" / "python"):
-        if candidate.exists():
-            return str(candidate)
-    sys.exit("No .venv: create it as described in README (How to run).")
-
-
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--fast", action="store_true", help="skip the Blender test suite")
+    args = parser.parse_args()
+
+    python = str(venv_python())
     results = [
-        step("ruff check", ["ruff", "check", "."]),
-        step("ruff format", ["ruff", "format", "--check", "."]),
-        step("mypy", [venv_python(), "-m", "mypy"]),
+        step("ruff check", [python, "-m", "ruff", "check", "."]),
+        step("ruff format", [python, "-m", "ruff", "format", "--check", "."]),
+        step("mypy", [python, "-m", "mypy"]),
     ]
     print("== extension validate", flush=True)
     run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)])
     print("== extension validate: ok", flush=True)
-    install_fresh()
-    results.append(run_script(ROOT / "tests" / "run.py", []) == 0)
-    print("== tests:", "ok" if results[-1] else "FAILED")
+    if not args.fast:
+        install_fresh()
+        coverage = [f"--coverage={COVERAGE_MIN}", f"--site={venv_site_packages()}"]
+        results.append(run_script(ROOT / "tests" / "run.py", coverage) == 0)
+        print("== tests:", "ok" if results[-1] else "FAILED")
     return 0 if all(results) else 1
 
 

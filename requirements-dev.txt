@@ -1,0 +1,9 @@
+# Development tools for the Sapling Tree Gen add-on, pinned. Install into a Python 3.13 venv:
+#   py -3.13 -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt
+# (Python 3.13: the Blender 5.2 type stubs use 3.13 syntax, and the coverage tracer must match
+# Blender's own Python 3.13.)
+coverage==7.16.2
+fake-bpy-module-5.2==20260730
+mypy==1.19.1
+numpy==2.5.3
+ruff==0.11.7

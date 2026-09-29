@@ -1,0 +1,5 @@
+#!/bin/sh
+# Fast gate before each commit: ruff, format, mypy and the manifest (python tools/check.py --fast).
+# The full gate with the Blender test suite takes minutes: run `python tools/check.py` before merging.
+# Installed with: git config core.hooksPath tools/hooks
+exec python tools/check.py --fast

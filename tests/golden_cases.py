@@ -26,6 +26,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("leaf_instance_faces", "callistemon", {"showLeaves": True, "leafShape": "dFace"}),
     ("leaf_instance_points", "callistemon", {"showLeaves": True, "leafShape": "dVert"}),
     ("leaf_palmate", "quaking_aspen", {"showLeaves": True, "leaves": -5}),
+    ("leaf_alternate", "quaking_aspen", {"showLeaves": True, "leafRotate": -137.5, "leafRotateV": 15.0}),
     ("leaf_not_horizontal", "quaking_aspen", {"showLeaves": True, "horzLeaves": False, "leafangle": 30.0}),
     ("leaf_bend", "quaking_aspen", {"showLeaves": True, "bend": 0.5}),
     # Branching options.
