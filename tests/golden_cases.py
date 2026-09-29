@@ -39,6 +39,7 @@ CASES = [(f"preset_{name}", name, {}) for name in PRESETS] + [
     ("no_bevel", "quaking_aspen", {"bevel": False}),
     # Pruning, armature, animation, skin mesh.
     ("prune", "callistemon", {"prune": True}),
+    ("prune_armature", "callistemon", {"prune": True, "useArm": True, "showLeaves": True}),
     ("armature", "callistemon", {"showLeaves": True, "useArm": True}),
     ("armature_step", "quaking_aspen", {"showLeaves": True, "useArm": True, "boneStep": (2, 2, 1, 1)}),
     ("wind", "quaking_aspen", {"showLeaves": True, "useArm": True, "armAnim": True}),

@@ -334,7 +334,7 @@ def anglemean(a1, a2, fac):
 # This is the function which extends (or grows) a given stem.
 def growSpline(n, stem, numSplit, splitAng, splitAngV, splineList,
                hType, splineToBone, closeTip, kp, splitHeight, outAtt, stemsegL,
-               lenVar, taperCrown, boneStep, rotate, rotateV):
+               lenVar, taperCrown, boneStep, rotate, rotateV, splNOffset=0):
 
     # curv at base
     sCurv = stem.curv
@@ -491,7 +491,7 @@ def growSpline(n, stem, numSplit, splitAng, splitAngV, splineList,
             nstem = stemSpline(
                         newSpline, stem.curv, stem.curvV, stem.vertAtt, stem.seg + 1,
                         stem.segMax, stemL, stem.children,
-                        stem.radS * bScale, stem.radE * bScale, len(cu.splines) - 1, ofst, stem.quat()
+                        stem.radS * bScale, stem.radE * bScale, len(cu.splines) - 1 + splNOffset, ofst, stem.quat()
                         )
             nstem.splitlast = 1  # numSplit  # keep track of numSplit for next stem
             nstem.rLast = branchRot + pi
@@ -1246,13 +1246,34 @@ def fabricate_stems(addsplinetobone, addstem, baseSize, branches, childP, cu, cu
         addsplinetobone((bone, isend))
 
 
+def copy_spline_points(src, dst):
+    """Make the points of dst an exact copy of the points of src (dst holds at least one point)."""
+    count = len(src.bezier_points)
+    if count > len(dst.bezier_points):
+        dst.bezier_points.add(count - len(dst.bezier_points))
+    for s, d in zip(src.bezier_points, dst.bezier_points):
+        d.handle_left_type = s.handle_left_type
+        d.handle_right_type = s.handle_right_type
+    # foreach_set stores the values without recalculating the handles, so the copy is exact
+    for attr, width in (("co", 3), ("handle_left", 3), ("handle_right", 3), ("radius", 1), ("tilt", 1)):
+        values = [0.0] * (count * width)
+        src.bezier_points.foreach_get(attr, values)
+        dst.bezier_points.foreach_set(attr, values)
+
+
 def perform_pruning(baseSize, baseSplits, childP, cu, currentMax, currentMin, currentScale, curve,
                     curveBack, curveRes, deleteSpline, forceSprout, handles, n, oldMax, originalSplineToBone,
                     originalCo, originalCurv, originalCurvV, originalHandleL, originalHandleR, originalLength,
                     originalSeg, prune, prunePowerHigh, prunePowerLow, pruneRatio, pruneWidth, pruneBase,
                     pruneWidthPeak, randState, ratio, scaleVal, segSplits, splineToBone, splitAngle, splitAngleV,
                     st, startPrune, branchDist, length, splitByLen, closeTip, nrings, splitBias, splitHeight,
-                    attractOut, rMode, lengthV, taperCrown, boneStep, rotate, rotateV):
+                    attractOut, rMode, lengthV, taperCrown, boneStep, rotate, rotateV, scratch=None):
+    # With pruning, the search passes grow the stem in the scratch curve and only the final pass is
+    # copied into the tree curve: the stem keeps its own spline and its splits are appended at the
+    # end, so spline indices, stem.splN and splineToBone stay aligned (issue #4).
+    boneSnapshot = list(splineToBone)
+    treeSpline = st.spline
+    splNOffset = len(cu.splines) - 1 if prune else 0
     while startPrune and ((currentMax - currentMin) > 0.005):
         setstate(randState)
 
@@ -1264,24 +1285,26 @@ def perform_pruning(baseSize, baseSplits, childP, cu, currentMax, currentMin, cu
             forceSprout = True
         # Change the segment length of the stem by applying some scaling
         st.segL = originalLength * currentScale
-        # To prevent millions of splines being created we delete any old ones and
-        # replace them with only their first points to begin the spline again
-        if deleteSpline:
-            for x in splineList:
-                cu.splines.remove(x.spline)
-            newSpline = cu.splines.new('BEZIER')
+        # Each search pass starts the stem again from its first point in the scratch curve
+        if prune:
+            scratch.splines.clear()
+            newSpline = scratch.splines.new('BEZIER')
             newPoint = newSpline.bezier_points[-1]
-            newPoint.co = originalCo
-            newPoint.handle_right = originalHandleR
-            newPoint.handle_left = originalHandleL
-            (newPoint.handle_left_type, newPoint.handle_right_type) = ('VECTOR', 'VECTOR')
+            if deleteSpline:
+                newPoint.co = originalCo
+                newPoint.handle_right = originalHandleR
+                newPoint.handle_left = originalHandleL
+                (newPoint.handle_left_type, newPoint.handle_right_type) = ('VECTOR', 'VECTOR')
+                st.curv = originalCurv
+                st.curvV = originalCurvV
+                st.seg = originalSeg
+                newPoint.radius = st.radS
+            else:
+                copy_spline_points(treeSpline, newSpline)
             st.spline = newSpline
-            st.curv = originalCurv
-            st.curvV = originalCurvV
-            st.seg = originalSeg
-            st.p = newPoint
-            newPoint.radius = st.radS
-            splineToBone = originalSplineToBone
+            st.p = newSpline.bezier_points[-1]
+            splineToBone.clear()
+            splineToBone.extend(boneSnapshot)
 
         # Initialise the spline list for those contained in the current level of branching
         splineList = [st]
@@ -1344,7 +1367,7 @@ def perform_pruning(baseSize, baseSplits, childP, cu, currentMax, currentMin, cu
                 growSpline(
                         n, spl, numSplit, splitAngle[n], splitAngleV[n], splineList,
                         handles, splineToBone, closeTip, kp, splitHeight, attractOut[n],
-                        stemsegL, lengthV[n], taperCrown, boneStep, rotate, rotateV
+                        stemsegL, lengthV[n], taperCrown, boneStep, rotate, rotateV, splNOffset
                         )
 
         # If pruning is enabled then we must check to see if the end of the spline is within the envelope
@@ -1378,6 +1401,16 @@ def perform_pruning(baseSize, baseSplits, childP, cu, currentMax, currentMin, cu
         # If the search will halt on the next iteration then we need
         # to make sure we sprout child points to grow the next splines or leaves
         if (((currentMax - currentMin) < 0.005) or not prune) or forceSprout:
+            if prune:
+                copy_spline_points(st.spline, treeSpline)
+                st.spline = treeSpline
+                for s in splineList[1:]:
+                    newSpline = cu.splines.new('BEZIER')
+                    copy_spline_points(s.spline, newSpline)
+                    s.spline = newSpline
+                    assert s.splN == len(cu.splines) - 1
+                for s in splineList:
+                    s.p = s.spline.bezier_points[-1]
             if (n == 0) and (rMode != "original"):
                 tVals = findChildPoints2(splineList, st.children)
             else:
@@ -1650,6 +1683,10 @@ def addTree(props):
 
     childP = []
     stemList = []
+    # Pruning search passes are grown here and never touch the tree curve
+    scratch = bpy.data.curves.new('sapling_prune_scratch', 'CURVE') if prune else None
+    if scratch:
+        scratch.dimensions = cu.dimensions
 
     levelCount = []
     splineToBone = deque([''])
@@ -1724,10 +1761,13 @@ def addTree(props):
                                         segSplits, splineToBone, splitAngle, splitAngleV, st, startPrune,
                                         branchDist, length, splitByLen, closeTipp, nrings, splitBias,
                                         splitHeight, attractOut, rMode, lengthV, taperCrown, boneStep,
-                                        rotate, rotateV
+                                        rotate, rotateV, scratch
                                         )
 
         levelCount.append(len(cu.splines))
+
+    if scratch:
+        bpy.data.curves.remove(scratch)
 
     # If we need to add leaves, we do it here
     leafVerts = []

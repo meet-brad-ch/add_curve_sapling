@@ -31,10 +31,12 @@
     "verts": 28566
    },
    "instance_type": "NONE",
-   "modifiers": [],
+   "modifiers": [
+    "ARMATURE"
+   ],
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": ""
+   "vertex_groups": "0020637eda63b46b"
   },
   "tree": {
    "data": {
@@ -233,9 +235,30 @@
     "splines": 187
    },
    "instance_type": "NONE",
+   "modifiers": [
+    "ARMATURE"
+   ],
+   "parent": "treeArm",
+   "type": "CURVE",
+   "vertex_groups": ""
+  },
+  "treeArm": {
+   "animation": {
+    "fcurves": 0,
+    "modifiers": "da39a3ee5e6b4b0d",
+    "paths": "da39a3ee5e6b4b0d"
+   },
+   "data": {
+    "bones": 618,
+    "connect": "290e9959aae863e5",
+    "geometry": "cd39d6ffc52f9484",
+    "names": "ff9f242b5095b7a1",
+    "parents": "ebd6c8c716f8eeb5"
+   },
+   "instance_type": "NONE",
    "modifiers": [],
    "parent": null,
-   "type": "CURVE",
+   "type": "ARMATURE",
    "vertex_groups": ""
   }
  },
@@ -422,7 +445,7 @@
    1.0
   ],
   "taperCrown": 0.5,
-  "useArm": false,
+  "useArm": true,
   "useOldDownAngle": true,
   "useParentAngle": true,
   "wind": 1.0

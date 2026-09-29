@@ -61,3 +61,36 @@ class PruningInterpolation(unittest.TestCase):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(prune=True, branchDist=9.6)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
+
+
+class PrunedArmature(unittest.TestCase):
+    """Issue #4: armature on a pruned tree raised KeyError; bones must sit on their own spline."""
+
+    def assert_bones_on_their_splines(self):
+        splines = tree_curve().data.splines
+        checked = 0
+        for bone in armature().data.bones:
+            match = BONE_NAME.match(bone.name)
+            if not match:
+                continue
+            spline, point = (int(g) for g in match.groups())
+            self.assertLess(spline, len(splines), bone.name)
+            co = splines[spline].bezier_points[point].co
+            self.assertLess((bone.head_local - co).length, 1e-4, bone.name)
+            checked += 1
+        self.assertGreater(checked, 0)
+
+    def test_prune_with_armature(self):
+        for preset in ("callistemon.py", "quaking_aspen.py"):
+            with self.subTest(preset=preset):
+                settings = helpers.resolve_preset(preset)
+                settings.update(prune=True, useArm=True, showLeaves=True)
+                self.assertEqual(helpers.generate(settings), {"FINISHED"})
+                self.assert_bones_on_their_splines()
+                self.assertNotIn("sapling_prune_scratch", bpy.data.curves)
+
+    def test_unpruned_bones_on_their_splines(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(useArm=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assert_bones_on_their_splines()
