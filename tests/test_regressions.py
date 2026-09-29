@@ -94,3 +94,31 @@ class PrunedArmature(unittest.TestCase):
         settings.update(useArm=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         self.assert_bones_on_their_splines()
+
+
+class SecondTree(unittest.TestCase):
+    """The skin mesh looked the armature up by the name 'treeArm', so a second tree got the first one's."""
+
+    def test_skin_mesh_uses_its_own_armature(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(useArm=True, makeMesh=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+        for mesh_name, arm_name in (("treemesh", "treeArm"), ("treemesh.001", "treeArm.001")):
+            mesh = bpy.data.objects[mesh_name]
+            modifier = next(m for m in mesh.modifiers if m.type == "ARMATURE")
+            self.assertEqual(modifier.object.name, arm_name, mesh_name)
+            self.assertEqual(mesh.parent.name, arm_name, mesh_name)
+
+
+class LeafInstanceObject(unittest.TestCase):
+    """`leafDupliObj not in "NONE"` was a substring test: objects named N, O, NE, ONE, ... were ignored."""
+
+    def test_short_object_name(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(showLeaves=True, leafShape="dFace")
+        helpers.reset_scene()
+        instance = bpy.data.objects.new("N", bpy.data.meshes.new("N"))
+        bpy.context.scene.collection.objects.link(instance)
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="N", do_update=True), {"FINISHED"})
+        self.assertEqual(instance.parent, bpy.data.objects["leaves"])

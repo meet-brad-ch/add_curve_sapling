@@ -996,6 +996,8 @@ def create_armature(armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSi
         # Assign legacy action slot to animation
         armOb.animation_data.action_slot = armOb.animation_data.action.slots.values()[0]
 
+    return armOb
+
 
 def kickstart_trunk(addstem, levels, leaves, branches, cu, curve, curveRes,
                     curveV, attractUp, length, lengthV, ratio, ratioPower,
@@ -1830,7 +1832,7 @@ def addTree(props):
             leafObj.use_instance_faces_scale = True
             leafObj.instance_faces_scale = 10.0
             try:
-                if leafDupliObj not in "NONE":
+                if leafDupliObj != "NONE":
                     bpy.data.objects[leafDupliObj].parent = leafObj
             except KeyError:
                 pass
@@ -1838,7 +1840,7 @@ def addTree(props):
             leafObj.instance_type = "VERTS"
             leafObj.use_instance_vertices_rotation = True
             try:
-                if leafDupliObj not in "NONE":
+                if leafDupliObj != "NONE":
                     bpy.data.objects[leafDupliObj].parent = leafObj
             except KeyError:
                 pass
@@ -1890,9 +1892,10 @@ def addTree(props):
     splitPidx = [s[3] if len(s) > 2 else 0 for s in splineToBone1]
 
     # If we need an armature we add it
+    armOb = None
     if useArm:
         # Create the armature and objects
-        create_armature(
+        armOb = create_armature(
                     armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSize,
                     leaves, levelCount, splineToBone, treeOb, wind, gust, gustF, af1,
                     af2, af3, leafAnim, loopFrames, previewArm, armLevels, makeMesh, boneStep
@@ -2024,12 +2027,12 @@ def addTree(props):
         if useArm:
             armMod = treeObj.modifiers.new('windSway', 'ARMATURE')
             if previewArm:
-                bpy.data.objects['treeArm'].hide_viewport = True
-                bpy.data.armatures['tree'].display_type = 'STICK'
-            armMod.object = bpy.data.objects['treeArm']
+                armOb.hide_viewport = True
+                armOb.data.display_type = 'STICK'
+            armMod.object = armOb
             armMod.use_bone_envelopes = False
             armMod.use_vertex_groups = True
-            treeObj.parent = bpy.data.objects['treeArm']
+            treeObj.parent = armOb
 
         # add skin modifier and set data
         skinMod = treeObj.modifiers.new('Skin', 'SKIN')
