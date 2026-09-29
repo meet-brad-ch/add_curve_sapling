@@ -36,12 +36,12 @@ class DataLifecycle(unittest.TestCase):
         after_first = counts()
         materials = len(bpy.data.materials)
         node_groups = len(bpy.data.node_groups)
-        root = bpy.context.active_object
+        root = helpers.active_object()
         stored = json.loads(root["sapling_settings"])
         for _ in range(3):
             result = bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **stored, do_update=True)
             self.assertEqual(result, {"FINISHED"})
-            root = bpy.context.active_object
+            root = helpers.active_object()
         self.assertEqual(counts(), after_first)
         self.assertEqual(len(bpy.data.materials), materials)
         self.assertEqual(len(bpy.data.node_groups), node_groups)

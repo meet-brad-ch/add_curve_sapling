@@ -233,5 +233,5 @@ class LeafObjectSetting(unittest.TestCase):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(showLeaves=True, leafShape="dFace", prune=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        stored = json.loads(bpy.context.active_object["sapling_settings"])
+        stored = json.loads(helpers.active_object()["sapling_settings"])
         self.assertEqual(stored["leafDupliObj"], helpers.LEAF_CARD)

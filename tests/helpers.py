@@ -57,6 +57,14 @@ def module(name: str) -> Any:
     return sys.modules[f"{MODULE}.{name}"]
 
 
+def active_object() -> Any:
+    """The active object, which a test expects to exist (the new tree root after an Add)."""
+    ob = bpy.context.active_object
+    if ob is None:
+        raise AssertionError("no active object")
+    return ob
+
+
 def generation_names() -> list[str]:
     """The add-on's own list of properties that shape a tree."""
     return module("ui.properties").TreeProperties.generation_names()
