@@ -127,6 +127,10 @@ class BoneMap:
     def add_split(self, bone, split_point):
         self._links.append(BoneLink(bone, False, True, split_point))
 
+    def next_index(self):
+        """Index of the next tree spline: there is one link per spline (len(curve.splines) is O(n))."""
+        return len(self._links)
+
     def snapshot(self):
         return list(self._links)
 

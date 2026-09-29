@@ -85,7 +85,6 @@ class StemPruner:
         original = _StemStart(stem)
         bones = self.bone_map.snapshot()
         tree_spline = stem.spline
-        index_offset = len(self.curve.splines) - 1 if p.prune else 0
 
         while True:
             rng.setstate(rng_state)
@@ -99,7 +98,7 @@ class StemPruner:
                 self._restart_in_scratch(stem, original, tree_spline, restart)
                 self.bone_map.restore(bones)
 
-            stems = self._grow_segments(stem, level, close_tip, index_offset)
+            stems = self._grow_segments(stem, level, close_tip)
             if not p.prune:
                 return self.sprouts.plan(stems, level, base_size)
 
@@ -128,7 +127,7 @@ class StemPruner:
         stem.spline = spline
         stem.point = spline.bezier_points[-1]
 
-    def _grow_segments(self, stem, level, close_tip, index_offset):
+    def _grow_segments(self, stem, level, close_tip):
         """Grow the stem segment by segment; return it followed by the stems split off it."""
         p = self.params
         stems = [stem]
@@ -148,9 +147,7 @@ class StemPruner:
                 split_count = self._split_count(s, level, k, kp, split_value)
                 if (k == int(segments / 2 + 0.5)) and (p.curve_back[level] != 0):
                     s.curvature += 2 * (p.curve_back[level] / segments)
-                self.grower.grow(
-                    s, level, split_count, stems, self.bone_map, close_tip, kp, base_segment_length, index_offset
-                )
+                self.grower.grow(s, level, split_count, stems, self.bone_map, close_tip, kp, base_segment_length)
         return stems
 
     def _split_count(self, stem, level, k, kp, split_value):
@@ -210,8 +207,6 @@ class StemPruner:
             spline = self.curve.splines.new("BEZIER")
             SplineCopier.copy_points(split.spline, spline)
             split.spline = spline
-            if split.index != len(self.curve.splines) - 1:
-                raise RuntimeError(f"split spline index {split.index} != tree spline {len(self.curve.splines) - 1}")
         for s in stems:
             s.point = s.spline.bezier_points[-1]
 

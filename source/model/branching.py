@@ -160,7 +160,7 @@ class BranchSpawner:
                     children,
                     radius_start,
                     radius_end,
-                    len(self.curve.splines) - 1,
+                    bone_map.next_index(),
                     0,
                     sprout.quat,
                 )

@@ -21,13 +21,12 @@ class StemGrower:
         """0 or 1 split, with the given probability."""
         return 1 if self.rng.random() < probability else 0
 
-    def grow(self, stem, level, split_count, stems, bone_map, close_tip, kp, base_segment_length, index_offset=0):
+    def grow(self, stem, level, split_count, stems, bone_map, close_tip, kp, base_segment_length):
         """Grow `stem` by one segment on its spline.
 
         level: the parameter level (0 = trunk, at most 3).
         split_count: new stems splitting off here; each is appended to `stems` and `bone_map`.
         kp: position of this segment along the stem, 0..1.
-        index_offset: added to the spline index of new splits (pruning grows in a scratch curve).
         """
         p = self.params
         rng = self.rng
@@ -77,7 +76,7 @@ class StemGrower:
 
         if split_count > 0:
             direction_vec = self._split(
-                stem, level, split_count, stems, bone_map, close_tip, base_segment_length, index_offset,
+                stem, level, split_count, stems, bone_map, close_tip, base_segment_length,
                 direction, curve_angle, curve_var_mat, taper_factor,
             )  # fmt: skip
         else:
@@ -113,7 +112,7 @@ class StemGrower:
         stem.update_end()
 
     def _split(
-        self, stem, level, split_count, stems, bone_map, close_tip, base_segment_length, index_offset,
+        self, stem, level, split_count, stems, bone_map, close_tip, base_segment_length,
         direction, curve_angle, curve_var_mat, taper_factor,
     ):  # fmt: skip
         """Start `split_count` new stems at the end of `stem`; return the direction `stem` continues in."""
@@ -200,7 +199,7 @@ class StemGrower:
                 stem.children,
                 stem.radius_start * radius_scale,
                 stem.radius_end * radius_scale,
-                len(cu.splines) - 1 + index_offset,
+                bone_map.next_index(),
                 offset,
                 stem.quat(),
             )

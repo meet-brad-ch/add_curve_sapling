@@ -64,6 +64,8 @@ class TreeGrower:
             sprouts = []
             for stem in stems:
                 sprouts.extend(pruner.grow(stem, level, close_tip, base_size))
-            level_ends.append(len(curve.splines))
+            level_ends.append(bone_map.next_index())
 
+        if len(bone_map) != len(curve.splines):
+            raise RuntimeError(f"{len(bone_map)} bone links for {len(curve.splines)} splines")
         return GrownTree(sprouts, level_ends, bone_map)
