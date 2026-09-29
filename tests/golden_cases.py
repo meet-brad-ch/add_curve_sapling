@@ -47,6 +47,7 @@ CASES = [(f"preset_{name}", name, {}) for name in PRESETS] + [
     ("wind_leaves", "quaking_aspen", {"showLeaves": True, "useArm": True, "armAnim": True, "leafAnim": True}),
     ("wind_loop", "quaking_aspen", {"useArm": True, "armAnim": True, "loopFrames": 48}),
     ("skin_mesh", "quaking_aspen", {"showLeaves": True, "useArm": True, "makeMesh": True}),
+    ("skin_mesh_step", "quaking_aspen", {"useArm": True, "armAnim": True, "makeMesh": True, "boneStep": (2, 2, 1, 1)}),
     (
         "prune_armature_wind",
         "quaking_aspen",

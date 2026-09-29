@@ -801,7 +801,7 @@ def create_armature(armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSi
                 b.tail = s.bezier_points[nx].co
 
                 b.head_radius = s.bezier_points[n].radius
-                b.tail_radius = s.bezier_points[n + 1].radius
+                b.tail_radius = s.bezier_points[nx].radius
                 b.envelope_distance = 0.001
                 """
                 # If there are leaves then we need a new vertex group so they will attach to the bone
@@ -850,8 +850,8 @@ def create_armature(armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSi
                     else:
                         swayFreq = 1 / (loopFrames / tau)
 
-                    # Prevent tree base from rotating
-                    if (boneName == "bone000.000") or (boneName == "bone000.001"):
+                    # Prevent tree base from rotating: the first two bones of the trunk
+                    if (i == 0) and (n <= step):
                         a1 = 0
                         a2 = 0
                         a3 = 0

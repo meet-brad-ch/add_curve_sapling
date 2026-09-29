@@ -137,3 +137,34 @@ class DeepTrees(unittest.TestCase):
     def test_close_tip_on_five_levels(self):
         closed = self.tip_radii(True)
         self.assertGreater(closed.count(0.0), self.tip_radii(False).count(0.0))
+
+
+class BoneStep(unittest.TestCase):
+    """With Bone Step > 1 a bone spans several points: its tail radius came from the point after its
+    head instead of the point at its tail, and only one of the two trunk base bones was held still."""
+
+    @classmethod
+    def setUpClass(cls):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        # Bone Step only applies together with Make Mesh (armature simplification for the skin mesh)
+        settings.update(useArm=True, armAnim=True, makeMesh=True, boneStep=(2, 2, 1, 1))
+        cls.result = helpers.generate(settings)
+
+    def test_tail_radius_from_tail_point(self):
+        self.assertEqual(self.result, {"FINISHED"})
+        splines = tree_curve().data.splines
+        for bone in armature().data.bones:
+            match = BONE_NAME.match(bone.name)
+            if not match:
+                continue
+            points = splines[int(match.group(1))].bezier_points
+            tail = next(p for p in points if (p.co - bone.tail_local).length < 1e-5)
+            self.assertAlmostEqual(bone.tail_radius, tail.radius, places=5, msg=bone.name)
+
+    def test_trunk_base_bones_do_not_sway(self):
+        base = sorted(b.name for b in armature().data.bones if b.name.startswith("bone000."))[:2]
+        self.assertEqual(len(base), 2)
+        for fc in helpers.fcurves_of(armature()):
+            if any(f'"{name}"' in fc.data_path for name in base):
+                for mod in fc.modifiers:
+                    self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
