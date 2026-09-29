@@ -25,7 +25,7 @@ class GrownTree:
         for level, end in enumerate(self.level_ends):
             if spline_index < end:
                 return min(level, 3)
-        return 0
+        raise IndexError(f"spline {spline_index} is beyond the {self.level_ends[-1]} grown splines")
 
 
 class TreeGrower:

@@ -21,6 +21,7 @@ class Registration(unittest.TestCase):
     def test_reregister(self):
         for _ in range(2):
             bpy.ops.preferences.addon_disable(module=helpers.MODULE)
+            self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
             self.assertFalse(hasattr(bpy.types, "VIEW3D_PT_sapling_tree"))
             bpy.ops.preferences.addon_enable(module=helpers.MODULE)
         self.assertIsNotNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
@@ -177,9 +178,20 @@ class ArmatureContext(unittest.TestCase):
         bpy.context.scene.collection.objects.link(other)
         other.select_set(True)
         bpy.context.view_layer.objects.active = other
+        modes = []
+        builder = helpers.module("build.armature").ArmatureBuilder
+        original = builder._branch_bones
+
+        def recording(builder_self, *args):
+            modes.append(other.mode)
+            return original(builder_self, *args)
+
+        builder._branch_bones = recording
+        self.addCleanup(setattr, builder, "_branch_bones", original)
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(useArm=True)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+        self.assertEqual(modes, ["OBJECT"], "the other armature stays in Object Mode while bones are made")
         self.assertEqual(len(other.data.bones), 0)
         self.assertEqual(bpy.context.mode, "OBJECT")
         self.assertEqual(bpy.context.active_object.location.to_tuple(), (0.0, 0.0, 0.0))

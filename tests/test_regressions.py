@@ -160,6 +160,7 @@ class BoneStep(unittest.TestCase):
     def test_tail_radius_from_tail_point(self):
         self.assertEqual(self.result, {"FINISHED"})
         splines = tree_curve().data.splines
+        checked = 0
         for bone in armature().data.bones:
             match = BONE_NAME.match(bone.name)
             if not match:
@@ -167,14 +168,19 @@ class BoneStep(unittest.TestCase):
             points = splines[int(match.group(1))].bezier_points
             tail = next(p for p in points if (p.co - bone.tail_local).length < 1e-5)
             self.assertAlmostEqual(bone.tail_radius, tail.radius, places=5, msg=bone.name)
+            checked += 1
+        self.assertGreater(checked, 10)
 
     def test_trunk_base_bones_do_not_sway(self):
         base = sorted(b.name for b in armature().data.bones if b.name.startswith("bone000."))[:2]
         self.assertEqual(len(base), 2)
+        matched = 0
         for fc in helpers.fcurves_of(armature()):
             if any(f'"{name}"' in fc.data_path for name in base):
+                matched += 1
                 for mod in fc.modifiers:
                     self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
+        self.assertEqual(matched, 4, "X and Z sway curves of both base bones")
 
 
 class InstancePointLeaves(unittest.TestCase):
@@ -234,3 +240,64 @@ class LeafObjectSetting(unittest.TestCase):
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         stored = helpers.stored_settings(helpers.active_object())
         self.assertEqual(stored["leafDupliObj"], helpers.LEAF_CARD)
+
+
+class ArmatureLevels(unittest.TestCase):
+    """Armature Levels 0 ("all levels") read boneStep[-1] (the 4th level's step) for the leaves, so
+    with Make Mesh they hung on the parent branch's bones; above 4 levels it indexed past boneStep."""
+
+    def test_all_levels_leaves_hang_on_their_own_branch(self):
+        level_ends = []
+        grower = helpers.module("model.tree").TreeGrower
+        original = grower.grow
+
+        def recording(grower_self, *args):
+            grown = original(grower_self, *args)
+            level_ends.extend(grown.level_ends)
+            return grown
+
+        grower.grow = recording
+        self.addCleanup(setattr, grower, "grow", original)
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(showLeaves=True, useArm=True, makeMesh=True, armLevels=0, boneStep=(1, 2, 1, 1))
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        groups = [g.name for g in bpy.data.objects["leaves"].vertex_groups]
+        self.assertTrue(groups)
+        last_level_start = level_ends[-2]
+        for name in groups:
+            self.assertGreaterEqual(int(BONE_NAME.match(name).group(1)), last_level_start, name)
+
+    def test_more_armature_levels_than_parameter_levels(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=5, branches=(0, 6, 3, 2), armLevels=6, showLeaves=True, useArm=True, makeMesh=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+
+
+class ScriptCalls(unittest.TestCase):
+    """UI-only keywords from a script used to make the operator pass through without a tree."""
+
+    def test_ui_keywords_still_generate(self):
+        helpers.reset_scene()
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        result = bpy.ops.curve.tree_add(**settings, chooseSet="3", limitImport=False)
+        self.assertEqual(result, {"FINISHED"})
+        self.assertIn("tree", bpy.data.objects)
+
+
+class FailFast(unittest.TestCase):
+    def test_level_beyond_grown_splines(self):
+        grown = helpers.module("model.tree").GrownTree([], [1, 5], None)
+        self.assertEqual(grown.level_of(4), 1)
+        with self.assertRaisesRegex(IndexError, "beyond the 5 grown splines"):
+            grown.level_of(5)
+
+    def test_foreign_node_group_with_the_instancer_name(self):
+        helpers.reset_scene()
+        nodes = helpers.module("build.leaf_object").LeafInstancerNodes
+        bpy.data.node_groups.new(nodes.GROUP, "ShaderNodeTree")
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(showLeaves=True, leafShape="dVert")
+        card = helpers.add_leaf_card()
+        with self.assertRaisesRegex(RuntimeError, "is not a Geometry Nodes group"):
+            bpy.ops.curve.tree_add(**settings, leafDupliObj=card.name, do_update=True)
+        self.assertEqual([ob.name for ob in bpy.data.objects], [card.name])

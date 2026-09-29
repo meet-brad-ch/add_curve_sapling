@@ -7,6 +7,7 @@
 import bpy
 from bpy.types import Operator, Panel
 
+from .presets import PresetStore
 from .ui.operators import AddTreeOperator, SavePresetOperator
 from .ui.panels import Menus, TreePanel
 
@@ -18,6 +19,9 @@ class Registration:
 
     @classmethod
     def register(cls):
+        builtin = [e.name for e in PresetStore.for_addon().entries() if e.builtin]
+        if AddTreeOperator.DEFAULT_PRESET not in builtin:
+            raise RuntimeError(f"Sapling built-in presets are missing ({builtin}); reinstall the extension")
         for klass in cls.CLASSES:
             bpy.utils.register_class(klass)
         Menus.register()

@@ -76,7 +76,8 @@ class AddTreeOperator(TreeProperties, Operator):
         return self.execute(context)
 
     def execute(self, context):
-        if not self.do_update:
+        # In the redo panel, changing a page or other UI state keeps the tree as it is
+        if self.options.is_repeat and not self.do_update:
             return {"PASS_THROUGH"}
         try:
             return self._generate(context)

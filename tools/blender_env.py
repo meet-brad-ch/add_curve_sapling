@@ -6,6 +6,7 @@ Tests and golden recording must never touch the owner's Blender profile, and the
 the extension exactly as users get it: built into a zip and installed into a user repository.
 """
 
+import functools
 import os
 import shutil
 import subprocess
@@ -17,22 +18,33 @@ SOURCE = ROOT / "source"
 BUILD = ROOT / "build"
 PROFILE = BUILD / "test-profile"
 REPO = "user_default"
-MODULE = f"bl_ext.{REPO}.sapling_tree_gen"
 
+REQUIRED_VERSION = "Blender 5.2"
 DEFAULT_BLENDER = Path(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")
 
 
+@functools.cache
 def blender_path() -> Path:
-    """Blender from $BLENDER, else the default 5.2 install, else PATH."""
-    candidate = os.environ.get("BLENDER")
-    if candidate:
-        return Path(candidate)
-    if DEFAULT_BLENDER.exists():
-        return DEFAULT_BLENDER
-    found = shutil.which("blender")
-    if found:
-        return Path(found)
-    sys.exit("Blender not found: set BLENDER to the blender executable.")
+    """Blender from $BLENDER, else the default 5.2 install, else PATH; it must be Blender 5.2."""
+    if "BLENDER" in os.environ:
+        path = Path(os.environ["BLENDER"])
+        if not path.is_file():
+            sys.exit(f"BLENDER={path} does not exist")
+    elif DEFAULT_BLENDER.is_file():
+        path = DEFAULT_BLENDER
+    elif shutil.which("blender"):
+        path = Path(str(shutil.which("blender")))
+    else:
+        sys.exit("Blender not found: set BLENDER to the Blender 5.2 executable")
+    require_version(path)
+    return path
+
+
+def require_version(path: Path) -> None:
+    """The golden files hold exact float32 values, valid for one Blender version only."""
+    version = subprocess.run([str(path), "--version"], capture_output=True, text=True).stdout.splitlines()
+    if not version or not version[0].startswith(REQUIRED_VERSION):
+        sys.exit(f"{path} is {version[0] if version else 'not Blender'}; the tests need {REQUIRED_VERSION}")
 
 
 def profile_env() -> dict[str, str]:
@@ -59,7 +71,10 @@ def install_fresh() -> None:
     for old in BUILD.glob("sapling_tree_gen-*.zip"):
         old.unlink()
     run(["--factory-startup", "-c", "extension", "build", "--source-dir", str(SOURCE), "--output-dir", str(BUILD)])
-    (package,) = BUILD.glob("sapling_tree_gen-*.zip")
+    packages = list(BUILD.glob("sapling_tree_gen-*.zip"))
+    if len(packages) != 1:
+        sys.exit(f"expected one built package in {BUILD}, found {[p.name for p in packages]}")
+    (package,) = packages
     run(["--factory-startup", "-c", "extension", "install-file", "-r", REPO, "-e", str(package)])
 
 

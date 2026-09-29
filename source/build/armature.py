@@ -63,32 +63,49 @@ class ArmatureBuilder:
 
     @contextmanager
     def _editing(self, armature_ob):
-        """Edit mode on the new armature only; the previously active object is restored after."""
+        """Edit mode on the new armature alone; the selection and active object are restored after.
+
+        mode_set works on the view layer's selection (a context override does not change that), so every
+        other selected armature would enter edit mode too; the new armature is made the only selection.
+        """
         objects = self.context.view_layer.objects
-        previous = objects.active
+        previous_active = objects.active
+        previous_selection = [ob for ob in objects if ob.select_get()]
+        for ob in previous_selection:
+            ob.select_set(False)
+        armature_ob.select_set(True)
         objects.active = armature_ob
         try:
-            with self.context.temp_override(
-                active_object=armature_ob,
-                object=armature_ob,
-                selected_objects=[armature_ob],
-                selected_editable_objects=[armature_ob],
-                objects_in_mode=[armature_ob],
-            ):
-                bpy.ops.object.mode_set(mode="EDIT")
-                try:
-                    yield
-                finally:
-                    bpy.ops.object.mode_set(mode="OBJECT")
+            self._switch_mode("EDIT")
+            try:
+                yield
+            finally:
+                self._switch_mode("OBJECT")
         finally:
-            objects.active = previous
+            armature_ob.select_set(False)
+            for ob in previous_selection:
+                ob.select_set(True)
+            objects.active = previous_active
+
+    @staticmethod
+    def _switch_mode(mode):
+        if bpy.ops.object.mode_set(mode=mode) != {"FINISHED"}:
+            raise RuntimeError(f"Could not switch the new armature to {mode} mode")
 
     def armature_level_end(self, grown):
         """Splines below this index get their own bones when the skin mesh simplifies the armature."""
         return grown.level_ends[self.bone_levels()]
 
     def bone_levels(self):
+        """Index of the last level that gets its own bones; -1 when every level does (Armature Levels 0)."""
         return min(self.params.armature_levels, self.params.levels) - 1
+
+    def leaf_bone_step(self):
+        """Bone Step of the level whose bones the leaves hang from (at most the 4th parameter level)."""
+        level = self.bone_levels()
+        if level == -1:
+            level = self.params.levels - 1
+        return self.params.bone_step[min(level, 3)]
 
     def _branch_bones(self, armature, curve, grown, wind, fps):
         p = self.params
@@ -174,7 +191,7 @@ class ArmatureBuilder:
         anim_speed = (24 / fps) * p.frame_rate
         groups = {}
         for i, sprout in enumerate(leaves.sprouts):
-            parent = BoneName.rounded(sprout.parent_bone, p.bone_step[self.bone_levels()])
+            parent = BoneName.rounded(sprout.parent_bone, self.leaf_bone_step())
             while parent not in bones:
                 parent = bone_names[BoneName.spline(parent)]
 

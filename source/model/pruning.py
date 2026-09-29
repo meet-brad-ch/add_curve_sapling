@@ -210,7 +210,8 @@ class StemPruner:
             spline = self.curve.splines.new("BEZIER")
             SplineCopier.copy_points(split.spline, spline)
             split.spline = spline
-            assert split.index == len(self.curve.splines) - 1
+            if split.index != len(self.curve.splines) - 1:
+                raise RuntimeError(f"split spline index {split.index} != tree spline {len(self.curve.splines) - 1}")
         for s in stems:
             s.point = s.spline.bezier_points[-1]
 

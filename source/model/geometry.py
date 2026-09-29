@@ -150,10 +150,8 @@ class CrownShape:
 
         taper_t = []
         for i in range(len(taper_r)):
-            try:
-                taper_t.append(taper_p[i] / taper_r[i])
-            except ZeroDivisionError:
-                taper_t.append(1.0)
+            # levels beyond the tree's own have nothing to taper towards
+            taper_t.append(taper_p[i] / taper_r[i] if i < levels else 1.0)
 
         return [t * taper[i] for i, t in enumerate(taper_t)]
 

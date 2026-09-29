@@ -110,7 +110,9 @@ class LeafInstancerNodes:
     def node_group(cls):
         """The shared node group, rebuilt if it is missing or from another version."""
         group = bpy.data.node_groups.get(cls.GROUP)
-        if group and group.get("sapling_version") == cls.VERSION:
+        if group is not None and group.bl_idname != "GeometryNodeTree":
+            raise SettingsError(f"Node group '{cls.GROUP}' exists but is not a Geometry Nodes group; rename it")
+        if group is not None and group.get("sapling_version") == cls.VERSION:
             return group
         if group is None:
             group = bpy.data.node_groups.new(cls.GROUP, "GeometryNodeTree")

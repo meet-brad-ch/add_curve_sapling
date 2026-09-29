@@ -23,12 +23,17 @@ def main() -> int:
     helpers.RECORD_GOLDEN = "--record-golden" in argv
 
     bpy.ops.preferences.addon_enable(module=helpers.MODULE)
+    if helpers.MODULE not in sys.modules:
+        raise SystemExit(f"the add-on {helpers.MODULE} did not enable")
 
     loader = unittest.TestLoader()
     if patterns:
         loader.testNamePatterns = [f"*{p}*" for p in patterns]
     suite = loader.discover(str(TESTS), pattern="test_*.py", top_level_dir=str(TESTS))
     result = unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite)
+    if result.testsRun == 0:
+        print(f"no tests matched {patterns}")
+        return 1
     return 0 if result.wasSuccessful() else 1
 
 

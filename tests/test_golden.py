@@ -48,13 +48,17 @@ class GoldenTrees(unittest.TestCase):
         for name, preset, overrides in CASES:
             with self.subTest(case=name):
                 path = GOLDEN / f"{name}.json"
+                # The settings a case stands for: the preset as loaded today, with the case's overrides
+                current = helpers.resolve_preset(f"{preset}.py")
+                current.update({k: helpers.plain(v) for k, v in overrides.items()})
                 if helpers.RECORD_GOLDEN:
-                    settings = helpers.resolve_preset(f"{preset}.py")
-                    settings.update({k: helpers.plain(v) for k, v in overrides.items()})
+                    settings = current
                 else:
                     self.assertTrue(path.exists(), f"no golden file {path.name}; record it first")
                     recorded = json.loads(path.read_text(encoding="utf-8"))
                     settings = recorded["settings"]
+                    difference = first_difference(settings, current)
+                    self.assertEqual(difference, "", f"{name}: settings drifted from the recording at {difference}")
 
                 result = helpers.generate(settings)
                 self.assertEqual(result, {"FINISHED"})
@@ -66,3 +70,5 @@ class GoldenTrees(unittest.TestCase):
                 else:
                     difference = first_difference(recorded["fingerprint"], actual)
                     self.assertEqual(difference, "", f"{name} differs at {difference}")
+        if helpers.RECORD_GOLDEN:
+            self.fail("golden files recorded: review the diff, then run the tests without --record-golden")
