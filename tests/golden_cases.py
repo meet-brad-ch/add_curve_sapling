@@ -34,6 +34,7 @@ CASES = [(f"preset_{name}", name, {}) for name in PRESETS] + [
     ("vector_handles", "quaking_aspen", {"handleType": "1"}),
     ("levels_1", "quaking_aspen", {"levels": 1}),
     ("levels_4", "quaking_aspen", {"levels": 4, "branches": (0, 20, 5, 3)}),
+    ("levels_5_close_tip", "quaking_aspen", {"levels": 5, "branches": (0, 8, 3, 2), "closeTip": True}),
     ("no_split_by_len", "callistemon", {"splitByLen": False}),
     ("custom_shape", "quaking_aspen", {"shape": "8", "customShape": (0.3, 1.0, 0.4, 0.6)}),
     ("no_bevel", "quaking_aspen", {"bevel": False}),

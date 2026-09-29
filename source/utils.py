@@ -1705,7 +1705,7 @@ def addTree(props):
         splitError = 0.0
 
         # closeTip only on last level
-        closeTipp = all([(n == levels - 1), closeTip])
+        closeTipp = all([(storeN == levels - 1), closeTip])
 
         # If this is the first level of growth (the trunk) then we need some special work to begin the tree
         if n == 0:
@@ -1724,7 +1724,7 @@ def addTree(props):
         # change base size for each level
         if n > 0:
             baseSize *= baseSize_s  # decrease at each level
-        if (n == levels - 1):
+        if (storeN == levels - 1):
             baseSize = 0
 
         childP = []

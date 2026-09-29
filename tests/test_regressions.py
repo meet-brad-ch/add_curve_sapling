@@ -122,3 +122,18 @@ class LeafInstanceObject(unittest.TestCase):
         bpy.context.scene.collection.objects.link(instance)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="N", do_update=True), {"FINISHED"})
         self.assertEqual(instance.parent, bpy.data.objects["leaves"])
+
+
+class DeepTrees(unittest.TestCase):
+    """The last-level checks compared the level index clamped to 3 with levels - 1, so with 5 or 6
+    levels Close Tip and the last level's base size reset never applied."""
+
+    def tip_radii(self, close_tip):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=5, branches=(0, 8, 3, 2), closeTip=close_tip)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        return [s.bezier_points[-1].radius for s in tree_curve().data.splines]
+
+    def test_close_tip_on_five_levels(self):
+        closed = self.tip_radii(True)
+        self.assertGreater(closed.count(0.0), self.tip_radii(False).count(0.0))

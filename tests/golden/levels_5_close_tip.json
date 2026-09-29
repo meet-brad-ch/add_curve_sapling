@@ -1,0 +1,249 @@
+{
+ "blender": "5.2.2 LTS",
+ "fingerprint": {
+  "tree": {
+   "data": {
+    "bevel_depth": 1.0,
+    "points": 131,
+    "resolution_u": 4,
+    "spline_digests": [
+     "b372ef21e1cd475e",
+     "6bbb345659b506c6",
+     "7bc05f7708016f42",
+     "3e9c59e7d323300d",
+     "8d13f4024411c072",
+     "7b7200cf2912baf0",
+     "666165a36f9f07fd",
+     "92b286a9a4e88555",
+     "d1da1640b45099b1",
+     "02cd7936aeb693b3",
+     "c4accf1d88095f74",
+     "df3a3f267da5ecd3",
+     "76829ff679d66011",
+     "1a7959e8ee682e0d",
+     "4df5b78b1b7eb2d1",
+     "b40c817cf75e344a",
+     "5c8099965b98c036",
+     "fc49900ebf28989f",
+     "acbf9cd65c4ff6c3",
+     "24b8d7d304a056ca",
+     "9fe9d118f45e5da8",
+     "4db3790ae1f8c284",
+     "0d728612ca538c18",
+     "eee2ccece6dcb389",
+     "ed239c700c071e08",
+     "d01d2551ba1f8e83",
+     "e02c2d5a0a0862ff",
+     "20b30b88c01e2216",
+     "a86efcb76ab70d01",
+     "ecdfb670da372b94",
+     "acd69d6d2b718d7f",
+     "e9b54d8ca2040b93",
+     "2b6fe033cf9bd5a7",
+     "349c8039e0911099",
+     "13988476519cbf1f",
+     "beba6901fe1bc56e",
+     "795a10dac25a896d",
+     "3c34e9af8eef02f7",
+     "0fa4ec9117133fdb",
+     "7e54fa8b05a8b87a",
+     "991ae943a5c1a154"
+    ],
+    "splines": 41
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": null,
+   "type": "CURVE",
+   "vertex_groups": ""
+  }
+ },
+ "settings": {
+  "af1": 1.0,
+  "af2": 1.0,
+  "af3": 4.0,
+  "armAnim": false,
+  "armLevels": 2,
+  "attractOut": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "attractUp": [
+   0.0,
+   0.0,
+   0.5,
+   0.5
+  ],
+  "autoTaper": true,
+  "baseSize": 0.4000000059604645,
+  "baseSize_s": 0.25,
+  "baseSplits": 0,
+  "bend": 0,
+  "bevel": true,
+  "bevelRes": 0,
+  "boneStep": [
+   1,
+   1,
+   1,
+   1
+  ],
+  "branchDist": 1.0,
+  "branches": [
+   0,
+   8,
+   3,
+   2
+  ],
+  "closeTip": true,
+  "curve": [
+   0.0,
+   -40.0,
+   -40.0,
+   0.0
+  ],
+  "curveBack": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "curveRes": [
+   8,
+   5,
+   3,
+   1
+  ],
+  "curveV": [
+   20.0,
+   50.0,
+   75.0,
+   0.0
+  ],
+  "customShape": [
+   0.5,
+   1.0,
+   0.30000001192092896,
+   0.5
+  ],
+  "downAngle": [
+   90.0,
+   110.0,
+   45.0,
+   45.0
+  ],
+  "downAngleV": [
+   0.0,
+   80.0,
+   10.0,
+   10.0
+  ],
+  "frameRate": 1.0,
+  "gust": 1.0,
+  "gustF": 0.07500000298023224,
+  "handleType": "0",
+  "horzLeaves": true,
+  "leafAnim": false,
+  "leafDist": "6",
+  "leafDownAngle": 45.0,
+  "leafDownAngleV": 10.0,
+  "leafRotate": 137.5,
+  "leafRotateV": 0.0,
+  "leafScale": 0.17000000178813934,
+  "leafScaleT": 0.0,
+  "leafScaleV": 0.0,
+  "leafScaleX": 1.0,
+  "leafShape": "hex",
+  "leafangle": 0.0,
+  "leaves": 25,
+  "length": [
+   1.0,
+   0.30000001192092896,
+   0.6000000238418579,
+   0.44999998807907104
+  ],
+  "lengthV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "levels": 5,
+  "loopFrames": 0,
+  "makeMesh": false,
+  "minRadius": 0.001500000013038516,
+  "nrings": 0,
+  "previewArm": false,
+  "prune": false,
+  "pruneBase": 0.30000001192092896,
+  "prunePowerHigh": 0.5,
+  "prunePowerLow": 0.0010000000474974513,
+  "pruneRatio": 1.0,
+  "pruneWidth": 0.4000000059604645,
+  "pruneWidthPeak": 0.6000000238418579,
+  "rMode": "rotate",
+  "radiusTweak": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "ratio": 0.014999999664723873,
+  "ratioPower": 1.100000023841858,
+  "resU": 4,
+  "rootFlare": 1.0,
+  "rotate": [
+   99.5,
+   137.5,
+   137.5,
+   137.5
+  ],
+  "rotateV": [
+   15.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "scale": 13.0,
+  "scale0": 1.0,
+  "scaleV": 3.0,
+  "scaleV0": 0.10000000149011612,
+  "seed": 0,
+  "segSplits": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "shape": "7",
+  "shapeS": "4",
+  "showLeaves": false,
+  "splitAngle": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitAngleV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitBias": 0.0,
+  "splitByLen": true,
+  "splitHeight": 0.20000000298023224,
+  "taper": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "taperCrown": 0.0,
+  "useArm": false,
+  "useOldDownAngle": false,
+  "useParentAngle": true,
+  "wind": 1.0
+ }
+}
