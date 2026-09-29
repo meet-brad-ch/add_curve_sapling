@@ -52,3 +52,12 @@ class WindAnimation(unittest.TestCase):
         self.assertTrue(leaf_bones)
         for name in leaf_bones:
             self.assertEqual(channels[name], {0, 2}, name)
+
+
+class PruningInterpolation(unittest.TestCase):
+    """interpStem: t rounding to the stem top gave index == numSegs -> IndexError (review, v0.3.6)."""
+
+    def test_branch_distribution_near_max(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(prune=True, branchDist=9.6)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})

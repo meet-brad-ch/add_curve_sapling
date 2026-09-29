@@ -270,7 +270,8 @@ def interpStem(stem, tVals, lPar, parRad, maxOffset, baseSize):
             ofst = ((t - baseSize) / (checkTop - baseSize)) * (1 - baseSize) + baseSize
 
             length = numSegs * scaledT
-            index = int(length)
+            # scaledT can round to exactly 1.0, keep the last segment
+            index = min(int(length), numSegs - 1)
             tTemp = length - index
 
             coord = evalBez(
