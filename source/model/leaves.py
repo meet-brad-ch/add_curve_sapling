@@ -69,6 +69,10 @@ class LeafGenerator:
     def __init__(self, params, rng):
         self.params = params
         self.rng = rng
+        # Rotations that are the same for every vertex of every leaf, built once
+        self.half_turn = Euler((0, 0, radians(180)))
+        self.quarter_turn = Euler((0, 0, radians(90)))
+        self.tilt = Matrix.Rotation(radians(-params.leaf_angle), 3, "X")
 
     def generate(self, sprouts):
         p = self.params
@@ -133,21 +137,25 @@ class LeafGenerator:
         if (bend != 0.0) and (count >= 0):
             bend_rotations = self._bend_rotations(sprout, bend)
 
+        horizontal = None
+        if (count > 0) and (rotate > 0) and p.horizontal_leaves:
+            horizontal = Matrix.Rotation(-rotation + rotate, 3, "Z")
+
         for v in verts:
             v.z *= scale
             v.y *= scale
             v.x *= p.leaf_scale_x * scale
 
-            v.rotate(Euler((0, 0, radians(180))))
-            v.rotate(Matrix.Rotation(radians(-p.leaf_angle), 3, "X"))
+            v.rotate(self.half_turn)
+            v.rotate(self.tilt)
 
             if rotate < 0:
-                v.rotate(Euler((0, 0, radians(90))))
+                v.rotate(self.quarter_turn)
                 if rotation < 0:
-                    v.rotate(Euler((0, 0, radians(180))))
+                    v.rotate(self.half_turn)
 
-            if (count > 0) and (rotate > 0) and p.horizontal_leaves:
-                v.rotate(Matrix.Rotation(-rotation + rotate, 3, "Z"))
+            if horizontal is not None:
+                v.rotate(horizontal)
 
             if count > 0:
                 v.rotate(down_rot)
