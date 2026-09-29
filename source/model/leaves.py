@@ -17,6 +17,8 @@ class LeafShape:
     INSTANCE_FACES = "dFace"
     INSTANCE_POINTS = "dVert"
 
+    MESH = (HEX, RECT)
+    INSTANCED = (INSTANCE_FACES, INSTANCE_POINTS)
     VERTS_PER_LEAF = {HEX: 6, RECT: 4, INSTANCE_FACES: 4, INSTANCE_POINTS: 1}
 
     @staticmethod

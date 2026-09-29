@@ -13,7 +13,7 @@ from .build.materials import MaterialLibrary
 from .build.objects import ObjectFactory
 from .build.skin_mesh import SkinMeshBuilder
 from .build.tree_curve import EnvelopeBuilder, TreeCurveBuilder
-from .model.leaves import LeafGenerator
+from .model.leaves import LeafGenerator, LeafShape
 from .model.params import TreeParams
 from .model.tree import TreeGrower
 
@@ -43,6 +43,8 @@ class TreeGenerator:
 
     def generate(self):
         p = self.params
+        if p.leaves and p.leaf_shape in LeafShape.INSTANCED:
+            LeafObjectBuilder.instance_object(p)  # fail before anything is created
         # One random stream for the whole tree: the same seed gives the same tree
         rng = random.Random(p.seed)
         objects = ObjectFactory(self.collection)

@@ -2,6 +2,9 @@
 
 """The settings pages of the Add Tree operator panel."""
 
+import bpy
+
+from ..model.leaves import LeafShape
 from ..settings import TreeSettings
 from .properties import TreeProperties
 
@@ -129,8 +132,8 @@ class SettingsPages:
     def leaves(props, box):
         box.prop(props, "showLeaves")
         box.prop(props, "leafShape")
-        if props.leafShape in {"dFace", "dVert"}:
-            box.prop(props, "leafDupliObj")
+        if props.leafShape in LeafShape.INSTANCED:
+            box.prop_search(props, "leafDupliObj", bpy.data, "objects")
         box.prop(props, "leaves")
         box.prop(props, "leafDist")
         row = box.row()
@@ -145,7 +148,7 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "leafScaleT")
         row.prop(props, "leafScaleV")
-        if props.leafShape in {"hex", "rect"}:
+        if props.leafShape in LeafShape.MESH:
             box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
         box.prop(props, "leafangle")

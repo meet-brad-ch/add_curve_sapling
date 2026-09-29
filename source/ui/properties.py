@@ -2,7 +2,6 @@
 
 """The operator's tree properties. Their names are the operator API and the preset keys."""
 
-import bpy
 from bpy.props import (
     BoolProperty,
     EnumProperty,
@@ -54,23 +53,6 @@ class Choices:
     ]
 
 
-class LeafObjectChoice:
-    """Enum items for the leaf instance object; Blender needs the strings kept alive (T83360)."""
-
-    _items: list[tuple[str, str, str]] = []
-
-    @staticmethod
-    def items(props, context):
-        cls = LeafObjectChoice
-        cls._items.clear()
-        for ob in bpy.data.objects:
-            if ob.type in {"MESH", "CURVE", "SURFACE"} and not ob.get("sapling_tree"):
-                cls._items.append((ob.name, ob.name, ""))
-        if not cls._items:
-            cls._items.append(("NONE", "No objects", "No appropriate objects in the scene"))
-        return cls._items
-
-
 class TreeProperties:
     """Mixin with the tree properties, for the Add Tree operator.
 
@@ -78,6 +60,8 @@ class TreeProperties:
     state does not (do_update is cleared and the operator passes through).
     """
 
+    # Refers to an object in the scene: stored with a tree, never in presets.
+    SCENE_BOUND = ("leafDupliObj",)
     # UI state: never part of presets or stored tree settings.
     UI_ONLY = frozenset(
         {"do_update", "chooseSet", "presetName", "limitImport", "overwrite", "preset", "replace", "load_stored"}
@@ -333,9 +317,9 @@ class TreeProperties:
         name="Leaf Shape", description="The shape of the leaves", items=Choices.LEAF_SHAPES, default="hex",
         update=update_leaves,
     )  # fmt: skip
-    leafDupliObj: EnumProperty(
+    leafDupliObj: StringProperty(
         name="Leaf Object", description="Object instanced as the leaf (Instance Faces and Instance Points)",
-        items=LeafObjectChoice.items, update=update_leaves,
+        default="", update=update_leaves,
     )  # fmt: skip
     leaves: IntProperty(
         name="Leaves",
@@ -476,9 +460,9 @@ class TreeProperties:
         names: list[str] = []
         for klass in reversed(cls.__mro__):
             names.extend(n for n in getattr(klass, "__annotations__", {}) if n not in names)
-        return [n for n in names if n not in cls.UI_ONLY and n != "leafDupliObj"]
+        return [n for n in names if n not in cls.UI_ONLY and n not in cls.SCENE_BOUND]
 
     @classmethod
     def stored_names(cls):
         """What a generated tree stores for re-editing: the generation settings and the leaf object."""
-        return [*cls.generation_names(), "leafDupliObj"]
+        return [*cls.generation_names(), *cls.SCENE_BOUND]

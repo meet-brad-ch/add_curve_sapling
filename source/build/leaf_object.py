@@ -6,6 +6,8 @@ import bpy
 from mathutils import Vector
 
 from ..model.leaves import LeafShape
+from ..settings import SettingsError
+from .tree_record import TreeRecord
 
 
 class LeafObjectBuilder:
@@ -38,18 +40,26 @@ class LeafObjectBuilder:
 
     def finish(self, leaves_ob, leaves):
         """Last modifier on the leaves: instance the leaf object on the points (after the armature)."""
-        instance = self._instance_object()
-        if leaves.shape == LeafShape.INSTANCE_POINTS and instance:
-            LeafInstancerNodes.add_modifier(leaves_ob, instance)
+        if leaves.shape == LeafShape.INSTANCE_POINTS:
+            LeafInstancerNodes.add_modifier(leaves_ob, self.instance_object(self.params))
 
-    def _instance_object(self):
-        name = self.params.leaf_instance_object
-        return bpy.data.objects.get(name) if name != "NONE" else None
+    @staticmethod
+    def instance_object(params):
+        """The object instanced as the leaf; raises SettingsError when instanced leaves have none."""
+        name = params.leaf_instance_name
+        instance = bpy.data.objects.get(name)
+        if instance is None:
+            raise SettingsError(
+                f"Instanced leaves need a Leaf Object (Leaves page); '{name}' is not an object"
+                if name
+                else "Instanced leaves need a Leaf Object (Leaves page)"
+            )
+        if instance.get(TreeRecord.ID):
+            raise SettingsError(f"Leaf Object '{name}' is part of a Sapling tree; choose your own leaf object")
+        return instance
 
     def _attach_instance_object(self, leaves_ob):
-        instance = self._instance_object()
-        if instance:
-            instance.parent = leaves_ob
+        self.instance_object(self.params).parent = leaves_ob
 
     @staticmethod
     def _store_rotations(mesh, leaves):

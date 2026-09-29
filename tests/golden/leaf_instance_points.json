@@ -1,6 +1,21 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
+  "leaf_card": {
+   "data": {
+    "co": "da39a3ee5e6b4b0d",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 0
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": null,
+   "type": "MESH",
+   "vertex_groups": ""
+  },
   "leaves": {
    "data": {
     "co": "b36d13a7a739fec6",
@@ -11,7 +26,9 @@
     "verts": 4794
    },
    "instance_type": "NONE",
-   "modifiers": [],
+   "modifiers": [
+    "NODES"
+   ],
    "parent": "tree",
    "type": "MESH",
    "vertex_groups": ""

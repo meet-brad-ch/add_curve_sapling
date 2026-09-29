@@ -5,6 +5,10 @@
 import json
 
 
+class SettingsError(Exception):
+    """Settings the user can fix (bad preset, missing leaf object, ...); shown in the UI as an error."""
+
+
 class TreeSettings:
     """A dict of generation settings keyed by operator property name.
 

@@ -2,6 +2,7 @@
 
 """One test per fixed bug. Each one failed before its fix."""
 
+import json
 import re
 import unittest
 from collections import defaultdict
@@ -205,3 +206,32 @@ class InstancePointLeaves(unittest.TestCase):
             position_rotation = vertex.co.normalized().to_track_quat("Y", "Z")
             turned += position_rotation.rotation_difference(stored.value).angle > 0.01
         self.assertGreater(turned, len(instances) // 2, "rotations still follow the leaf positions")
+
+
+class LeafObjectSetting(unittest.TestCase):
+    """The leaf object used to be a dynamic enum, stored by index: stored trees recorded one of their
+    own objects ("envelope") and a missing object silently gave leaves that instance nothing."""
+
+    def test_instanced_leaves_without_object_cancel_before_creating_anything(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(showLeaves=True, leafShape="dFace")
+        for name in ("", "no_such_object"):
+            with self.subTest(leaf_object=name):
+                helpers.reset_scene()
+                with self.assertRaisesRegex(RuntimeError, "Instanced leaves need a Leaf Object"):
+                    bpy.ops.curve.tree_add(**settings, leafDupliObj=name, do_update=True)
+                self.assertEqual(len(bpy.data.objects), 0)
+
+    def test_tree_part_is_not_a_leaf_object(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        settings.update(showLeaves=True, leafShape="dVert")
+        with self.assertRaisesRegex(RuntimeError, "is part of a Sapling tree"):
+            bpy.ops.curve.tree_add(**settings, leafDupliObj="tree", do_update=True)
+
+    def test_stored_leaf_object_is_the_chosen_one(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(showLeaves=True, leafShape="dFace", prune=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        stored = json.loads(bpy.context.active_object["sapling_settings"])
+        self.assertEqual(stored["leafDupliObj"], helpers.LEAF_CARD)

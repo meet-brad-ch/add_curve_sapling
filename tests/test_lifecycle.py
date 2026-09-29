@@ -2,6 +2,7 @@
 
 """Blender data lifecycle: nothing left behind by removing or regenerating a tree, clean re-register."""
 
+import json
 import unittest
 
 import bpy
@@ -28,6 +29,22 @@ class DataLifecycle(unittest.TestCase):
         root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
         helpers.module("build.tree_record").TreeRecord.remove(root)
         self.assertEqual(counts(), empty)
+
+    def test_regenerate_leaves_no_orphans(self):
+        helpers.reset_scene()
+        self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(), do_update=True), {"FINISHED"})
+        after_first = counts()
+        materials = len(bpy.data.materials)
+        node_groups = len(bpy.data.node_groups)
+        root = bpy.context.active_object
+        stored = json.loads(root["sapling_settings"])
+        for _ in range(3):
+            result = bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **stored, do_update=True)
+            self.assertEqual(result, {"FINISHED"})
+            root = bpy.context.active_object
+        self.assertEqual(counts(), after_first)
+        self.assertEqual(len(bpy.data.materials), materials)
+        self.assertEqual(len(bpy.data.node_groups), node_groups)
 
 
 class Registration(unittest.TestCase):

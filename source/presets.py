@@ -8,10 +8,10 @@ from pathlib import Path
 
 import bpy
 
-from .settings import TreeSettings
+from .settings import SettingsError, TreeSettings
 
 
-class PresetError(Exception):
+class PresetError(SettingsError):
     """A preset cannot be read or written; the message is shown to the user."""
 
 

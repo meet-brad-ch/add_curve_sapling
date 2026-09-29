@@ -98,13 +98,29 @@ def resolve_preset(filename: str) -> dict:
     return {k: plain(v) for k, v in settings.items()}
 
 
+LEAF_CARD = "leaf_card"
+
+
+def add_leaf_card() -> Any:
+    """A user's leaf object for instanced leaves (an empty mesh is enough to instance)."""
+    card = bpy.data.objects.new(LEAF_CARD, bpy.data.meshes.new(LEAF_CARD))
+    bpy.context.scene.collection.objects.link(card)
+    return card
+
+
 def generate(settings: dict) -> set:
-    """Run the operator with explicit settings on an empty scene; return the result set."""
+    """Run the operator with explicit settings on an empty scene; return the result set.
+
+    Instanced leaf shapes get a leaf object, as they require.
+    """
     reset_scene()
+    extra = {}
+    if settings.get("showLeaves") and settings.get("leafShape") in ("dFace", "dVert"):
+        extra["leafDupliObj"] = add_leaf_card().name
     # Blender applies operator keywords in property-definition order and runs their update callbacks;
-    # the legacy callbacks of UI-only properties (limitImport, chooseSet, ...) clear do_update, so only
+    # the callbacks of UI-only properties (limitImport, chooseSet, ...) clear do_update, so only
     # generation settings are passed.
-    return bpy.ops.curve.tree_add(**settings, do_update=True)
+    return bpy.ops.curve.tree_add(**settings, **extra, do_update=True)
 
 
 def _hash(data: bytes) -> str:

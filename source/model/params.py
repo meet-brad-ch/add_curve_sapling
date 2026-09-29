@@ -79,7 +79,7 @@ class TreeParams:
         self.leaf_scale_t = s.leafScaleT
         self.leaf_scale_v = s.leafScaleV
         self.leaf_shape = s.leafShape
-        self.leaf_instance_object = s.leafDupliObj
+        self.leaf_instance_name = s.leafDupliObj
         self.leaf_bend = s.bend
         self.leaf_angle = s.leafangle
         self.horizontal_leaves = s.horzLeaves

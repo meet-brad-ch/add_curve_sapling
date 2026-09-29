@@ -9,7 +9,7 @@ from bpy.types import Operator
 from ..build.tree_record import TreeRecord
 from ..generator import TreeGenerator
 from ..presets import PresetError, PresetStore
-from ..settings import TreeSettings
+from ..settings import SettingsError, TreeSettings
 from .pages import SettingsPages
 from .properties import TreeProperties
 
@@ -95,8 +95,13 @@ class AddTreeOperator(TreeProperties, Operator):
             placement = TreeRecord.remove(root)
             collection = placement.collections[0] if placement.collections else None
 
-        result = TreeGenerator(self, context, collection).generate()
-        TreeRecord.store(result, TreeSettings.from_properties(self, TreeProperties.stored_names()))
+        settings = TreeSettings.from_properties(self, TreeProperties.stored_names())
+        try:
+            result = TreeGenerator(self, context, collection).generate()
+        except SettingsError as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        TreeRecord.store(result, settings)
 
         if placement:
             TreeRecord.restore(result, placement, context.view_layer)
