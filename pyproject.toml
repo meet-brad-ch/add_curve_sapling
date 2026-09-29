@@ -1,32 +1,19 @@
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-[tool.autopep8]
-# Configuration for `autopep8`, allowing the command: autopep8 .
-# to reformat all source files.
-#
-# NOTE: the settings defined here map directly to command line arguments
-# which will override these settings when passed in to autopep8.
+# Lint and format configuration: `ruff check .` and `ruff format --check .`
+# (run both, plus validation and tests, with `python tools/check.py`).
 
-max_line_length = 120
+[tool.ruff]
+target-version = "py313"  # Blender 5.2 bundles Python 3.13.
+line-length = 120
+# Legacy modules, linted once they are replaced by the OO package.
+extend-exclude = ["source/__init__.py", "source/utils.py", "source/presets"]
 
-ignore = [
-    # Info: Use `isinstance()` instead of comparing types directly.
-    # Why disable? Changes code logic, in rare cases we want to compare exact types.
-    "E721",
-    # Info: Fix bare except.
-    # Why disable? Disruptive, leave our exceptions alone.
-    "E722",
-    # Info: Fix module level import not at top of file.
-    # Why disable? Re-ordering imports is disruptive and breaks some scripts
-    # that need to check if a module has already been loaded in the case of reloading.
-    "E402",
-    # Info: Fix various deprecated code (via lib2to3)
-    # Why disable? Does nothing besides incorrectly adding a duplicate import,
-    # could be reported as a bug except this is likely to be removed soon, see:
-    # https://github.com/python/cpython/issues/84540.
-    "W690",
-]
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "N"]
 
-# Use aggressive as many useful edits are disabled unless it's enabled.
-# Any edits which are overly disruptive or risky can be removed in the `ignore` list.
-aggressive = 2
+[tool.ruff.lint.per-file-ignores]
+# Operator property names are the public operator API and the preset keys, so they stay camelCase.
+"source/ui/properties.py" = ["N815"]
+# Test methods follow unittest's camelCase API (setUp, assertEqual, ...).
+"tests/*" = ["N802"]

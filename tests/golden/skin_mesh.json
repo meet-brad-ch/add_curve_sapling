@@ -1,0 +1,299 @@
+{
+ "blender": "5.2.2 LTS",
+ "fingerprint": {
+  "leaves": {
+   "data": {
+    "co": "64213326c2034c26",
+    "edges": 3087,
+    "faces": 882,
+    "topology": "83ffb3597209477b",
+    "uv": "8b943bb927f2cc15",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 2646
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "ARMATURE"
+   ],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": "5201fd8dabd65fba"
+  },
+  "tree": {
+   "data": {
+    "bevel_depth": 1.0,
+    "points": 189,
+    "resolution_u": 4,
+    "spline_digests": [
+     "34f1d6afbe8687e2",
+     "60591d3ec4338e82",
+     "2fcdc188fe633c20",
+     "a4ab5c97194c959b",
+     "509e28fe11c15a87",
+     "a46dead0a8b328c5",
+     "1ed5e557c5d24fc3",
+     "a0a04d6e761687e3",
+     "872344a24d0d00f1",
+     "41c135ee1540ad43",
+     "c223b01e434de9a3",
+     "e4e667aa195276d8",
+     "7ad6744b2990eee3",
+     "08a7ff5d6257c3cf",
+     "38c5ad49bb36a790",
+     "a2ecf4bea4988dac",
+     "ab06214c4e28cde7",
+     "ddcdc00f754cf5fe",
+     "3a2176d652134349",
+     "c9646eafb592d309",
+     "346a7e7cde9ef0aa",
+     "387711851a5588d2",
+     "f5f354549b2684f1",
+     "92c7824bc665622f",
+     "c26b3105d67bf744",
+     "b1157ac174508f5d",
+     "737f1d2f9fb18fab",
+     "058d86269349312f",
+     "fd6ca46b3e5253f2",
+     "434dd6adab40be58",
+     "549233272c0cafb6"
+    ],
+    "splines": 31
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "ARMATURE"
+   ],
+   "parent": "treeArm",
+   "type": "CURVE",
+   "vertex_groups": ""
+  },
+  "treeArm": {
+   "animation": {
+    "fcurves": 0,
+    "modifiers": "da39a3ee5e6b4b0d",
+    "paths": "da39a3ee5e6b4b0d"
+   },
+   "data": {
+    "bones": 158,
+    "connect": "41663ef0cbb633b6",
+    "geometry": "b9a413cb99732bd5",
+    "names": "b869fe8ad1b37bd6",
+    "parents": "dcb9e98e71750b96"
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": null,
+   "type": "ARMATURE",
+   "vertex_groups": ""
+  },
+  "treemesh": {
+   "data": {
+    "co": "ac57a5b2798ec359",
+    "edges": 632,
+    "faces": 0,
+    "skin": "46805076476c26c0",
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 662
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "ARMATURE",
+    "SKIN"
+   ],
+   "parent": "treeArm",
+   "type": "MESH",
+   "vertex_groups": "a506ac98a0947658"
+  }
+ },
+ "settings": {
+  "af1": 1.0,
+  "af2": 1.0,
+  "af3": 4.0,
+  "armAnim": false,
+  "armLevels": 2,
+  "attractOut": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "attractUp": [
+   0.0,
+   0.0,
+   0.5,
+   0.5
+  ],
+  "autoTaper": true,
+  "baseSize": 0.4000000059604645,
+  "baseSize_s": 0.25,
+  "baseSplits": 0,
+  "bend": 0,
+  "bevel": true,
+  "bevelRes": 0,
+  "boneStep": [
+   1,
+   1,
+   1,
+   1
+  ],
+  "branchDist": 1.0,
+  "branches": [
+   0,
+   50,
+   30,
+   10
+  ],
+  "closeTip": false,
+  "curve": [
+   0.0,
+   -40.0,
+   -40.0,
+   0.0
+  ],
+  "curveBack": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "curveRes": [
+   8,
+   5,
+   3,
+   1
+  ],
+  "curveV": [
+   20.0,
+   50.0,
+   75.0,
+   0.0
+  ],
+  "customShape": [
+   0.5,
+   1.0,
+   0.30000001192092896,
+   0.5
+  ],
+  "downAngle": [
+   90.0,
+   110.0,
+   45.0,
+   45.0
+  ],
+  "downAngleV": [
+   0.0,
+   80.0,
+   10.0,
+   10.0
+  ],
+  "frameRate": 1.0,
+  "gust": 1.0,
+  "gustF": 0.07500000298023224,
+  "handleType": "0",
+  "horzLeaves": true,
+  "leafAnim": false,
+  "leafDist": "6",
+  "leafDownAngle": 45.0,
+  "leafDownAngleV": 10.0,
+  "leafRotate": 137.5,
+  "leafRotateV": 0.0,
+  "leafScale": 0.17000000178813934,
+  "leafScaleT": 0.0,
+  "leafScaleV": 0.0,
+  "leafScaleX": 1.0,
+  "leafShape": "hex",
+  "leafangle": 0.0,
+  "leaves": 25,
+  "length": [
+   1.0,
+   0.30000001192092896,
+   0.6000000238418579,
+   0.44999998807907104
+  ],
+  "lengthV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "levels": 2,
+  "loopFrames": 0,
+  "makeMesh": true,
+  "minRadius": 0.001500000013038516,
+  "nrings": 0,
+  "previewArm": false,
+  "prune": false,
+  "pruneBase": 0.30000001192092896,
+  "prunePowerHigh": 0.5,
+  "prunePowerLow": 0.0010000000474974513,
+  "pruneRatio": 1.0,
+  "pruneWidth": 0.4000000059604645,
+  "pruneWidthPeak": 0.6000000238418579,
+  "rMode": "rotate",
+  "radiusTweak": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "ratio": 0.014999999664723873,
+  "ratioPower": 1.100000023841858,
+  "resU": 4,
+  "rootFlare": 1.0,
+  "rotate": [
+   99.5,
+   137.5,
+   137.5,
+   137.5
+  ],
+  "rotateV": [
+   15.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "scale": 13.0,
+  "scale0": 1.0,
+  "scaleV": 3.0,
+  "scaleV0": 0.10000000149011612,
+  "seed": 0,
+  "segSplits": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "shape": "7",
+  "shapeS": "4",
+  "showLeaves": true,
+  "splitAngle": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitAngleV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitBias": 0.0,
+  "splitByLen": true,
+  "splitHeight": 0.20000000298023224,
+  "taper": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "taperCrown": 0.0,
+  "useArm": true,
+  "useOldDownAngle": false,
+  "useParentAngle": true,
+  "wind": 1.0
+ }
+}
