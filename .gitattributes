@@ -1,0 +1,2 @@
+# The hook runs under sh, which fails on CRLF line endings (core.autocrlf would add them on checkout)
+tools/hooks/* text eol=lf

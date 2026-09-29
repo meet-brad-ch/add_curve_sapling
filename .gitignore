@@ -1,5 +1,6 @@
 # Generic files to ignore.
 .*
+!.gitattributes
 
 # Python temp paths.
 __pycache__/
