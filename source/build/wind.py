@@ -68,9 +68,3 @@ class WindAnimator:
             noise.scale = scale
             noise.strength = strength
             noise.offset = offset
-
-    def finish(self):
-        """Make sure the action plays on the armature (its slot is assigned)."""
-        animation = self.armature_ob.animation_data
-        if animation.action_slot is None and self.action.slots:
-            animation.action_slot = self.action.slots[0]

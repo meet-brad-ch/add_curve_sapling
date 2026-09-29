@@ -62,6 +62,7 @@ class Ownership(unittest.TestCase):
         self.assertEqual(mesh.parent, root)
         self.assertTrue(record().is_tree(mesh))
         self.assertEqual(record().root_of(mesh), root)
+        self.assertNotIn("sharp_face", mesh.data.attributes, "an edge-only skeleton has no faces to shade")
 
     def test_broken_record_is_an_error(self):
         helpers.reset_scene()

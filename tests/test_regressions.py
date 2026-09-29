@@ -33,6 +33,8 @@ class WindAnimation(unittest.TestCase):
 
     def test_generates(self):
         self.assertEqual(self.result, {"FINISHED"})
+        # fcurve_ensure_for_datablock assigns the action slot itself
+        self.assertIsNotNone(armature().animation_data.action_slot)
 
     def test_branch_and_leaf_bones_move(self):
         arm = armature()

@@ -85,7 +85,7 @@ class LeafObjectBuilder:
         else:
             per_leaf = [0.5, 0, u1, 1 / 3, u1, 2 / 3, 0.5, 1, 0.5, 0, 0.5, 1, u2, 2 / 3, u2, 1 / 3]
         layer = mesh.uv_layers.new(name=self.UV_LAYER)
-        layer.data.foreach_set("uv", per_leaf * (len(mesh.loops) * 2 // len(per_leaf)))
+        layer.uv.foreach_set("vector", per_leaf * (len(mesh.loops) * 2 // len(per_leaf)))
 
 
 class LeafInstancerNodes:

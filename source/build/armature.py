@@ -57,8 +57,6 @@ class ArmatureBuilder:
         for pose_bone in armature_ob.pose.bones:
             pose_bone.rotation_mode = "XYZ"
         tree.parent = armature_ob
-        if wind:
-            wind.finish()
         return armature_ob
 
     @contextmanager

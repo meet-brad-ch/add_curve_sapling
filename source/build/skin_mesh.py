@@ -95,7 +95,7 @@ class SkinMeshBuilder:
         mesh = bpy.data.meshes.new(self.ROLE)
         # Part of the tree: under the armature that deforms it, or under the tree curve
         ob = self.objects.new(self.ROLE, mesh, parent=armature_ob or tree)
-        mesh.from_pydata(verts, edges, ())
+        mesh.from_pydata(verts, edges, (), shade_flat=False)  # edges only: nothing to shade
         for name, indices in groups.items():
             ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
 
