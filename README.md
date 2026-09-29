@@ -9,8 +9,8 @@ it work on 5.2 LTS, fixes long-standing bugs, restructures the code (OO, tests, 
 
 **Status:** working on Blender 5.2.2 LTS — generation, pruning, armature, wind, presets, re-edit
 and the Thin Wall leaf material are done, reviewed and tested headless (74 tests, 98.7 % branch
-coverage) and checked by hand in the Blender 5.2.2 UI (2026-09-29); the performance table below
-is due for a re-measurement.
+coverage) and checked by hand in the Blender 5.2.2 UI (2026-09-29); it generates trees 18–56 %
+faster than 0.3.7 (see Performance).
 
 ## How to run
 
@@ -58,27 +58,28 @@ Python 3.13 for the `.venv` (ruff, mypy, coverage and the Blender stubs, pinned 
 
 ## Performance
 
-Generation time per built-in preset with leaves on (median of 5, Blender 5.2.2, Windows, same
-settings for both, runs one after another), 2026-09-29, **before** the review's performance work:
+Generation time per built-in preset with leaves on, Blender 5.2.2, Windows. 0.3.7: median of 5,
+measured 2026-09-29 before the revamp's performance work. 0.4.0: `python tools/bench.py` (median
+of 5 per preset), run 3 times on 2026-09-29 after the code review; the table shows the median of
+the 3 runs. Two unrelated jobs kept 2 of the 24 logical cores busy during these runs, and the runs
+differed by up to about ±12 % per preset (weeping_willow 573–715 ms), so read the changes as
+approximate.
 
 | Preset | Leaves | 0.3.7 (upstream) | 0.4.0 | Change |
 | --- | ---: | ---: | ---: | ---: |
-| callistemon | 9 588 | 145 ms | 102 ms | −30 % |
-| douglas_fir | 52 454 | 1 437 ms | 1 020 ms | −29 % |
-| japanese_maple | 106 800 | 4 418 ms | 3 924 ms | −11 % |
-| quaking_aspen | 882 | 16 ms | 12 ms | −22 % |
-| small_maple | 36 290 | 862 ms | 683 ms | −21 % |
-| small_pine | 48 607 | 881 ms | 672 ms | −24 % |
-| weeping_willow | 62 340 | 993 ms | 682 ms | −31 % |
-| white_birch | 18 918 | 495 ms | 369 ms | −25 % |
-| willow | 1 328 | 59 ms | 55 ms | −6 % |
+| callistemon | 9 588 | 145 ms | 86 ms | −40 % |
+| douglas_fir | 52 454 | 1 437 ms | 727 ms | −49 % |
+| japanese_maple | 106 800 | 4 418 ms | 1 934 ms | −56 % |
+| quaking_aspen | 882 | 16 ms | 12 ms | −25 % |
+| small_maple | 36 290 | 862 ms | 516 ms | −40 % |
+| small_pine | 48 607 | 881 ms | 600 ms | −32 % |
+| weeping_willow | 62 340 | 993 ms | 592 ms | −40 % |
+| white_birch | 18 918 | 495 ms | 310 ms | −37 % |
+| willow | 1 328 | 59 ms | 48 ms | −18 % |
 
-The review then removed the O(n²) spline counting and pruning snapshots and the per-vertex
-rotation rebuilds. `tools/bench.py` (median of 5 per preset against `tools/bench_baseline.json`)
-measured japanese_maple at 3843 ms before and about 1950–2000 ms after, and 16–28 % less on the
-other large presets; those runs shared the CPU with other heavy jobs, so the table is to be
-re-measured on an idle machine with `python tools/bench.py`. The benchmark is not part of the
-gate: timings depend on the machine.
+The gains come from growth no longer being O(n²) (Blender walks the spline list on every
+`len(curve.splines)`; unpruned stems copied the bone map), and from leaf rotations built once
+instead of per vertex. The benchmark is not part of the gate: timings depend on the machine.
 
 ## Layout
 

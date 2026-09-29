@@ -57,8 +57,8 @@ Requires Blender 5.2 LTS.
   bit-identical to 0.3.7 for every built-in preset, except where a fix above changes them.
 - User presets live in the extension's user folder.
 - Faster generation: the spline count Blender walks as a linked list and the per-stem pruning
-  snapshots made growth O(n²), and leaf rotations were rebuilt per vertex. japanese_maple went
-  from 3.8 s to about 2 s in `tools/bench.py` (to be re-measured on an idle machine).
+  snapshots made growth O(n²), and leaf rotations were rebuilt per vertex. The built-in presets
+  generate 18–56 % faster than in 0.3.7 (japanese_maple 4.4 s → 1.9 s); see the README.
 - Wind F-curves are grouped by bone in the Graph Editor.
 - Errors fail fast with a message instead of silent defaults; a failed Add leaves nothing behind.
 - The settings stored on a tree are versioned JSON.
