@@ -227,6 +227,7 @@ def _animation_fp(ob) -> dict:
     return {
         "fcurves": len(curves),
         "paths": _text([f"{c.data_path}[{c.array_index}]" for c in curves]),
+        "groups": _text([c.group.name if c.group else "" for c in curves]),
         "modifiers": _text(params),
     }
 

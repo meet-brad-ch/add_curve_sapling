@@ -229,6 +229,7 @@
   "treeArm": {
    "animation": {
     "fcurves": 0,
+    "groups": "da39a3ee5e6b4b0d",
     "modifiers": "da39a3ee5e6b4b0d",
     "paths": "da39a3ee5e6b4b0d"
    },

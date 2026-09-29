@@ -27,9 +27,13 @@ class WindAnimator:
         self.action = action
 
     def _rotation_curves(self, bone):
+        """The X and Z rotation curves of a bone, grouped under the bone's name (as keyframing does)."""
         path = 'pose.bones["' + bone + '"].rotation_euler'
         ensure = self.action.fcurve_ensure_for_datablock
-        return ensure(self.armature_ob, path, index=0), ensure(self.armature_ob, path, index=2)
+        return (
+            ensure(self.armature_ob, path, index=0, group_name=bone),
+            ensure(self.armature_ob, path, index=2, group_name=bone),
+        )
 
     def add_branch_sway(self, bone, sway):
         """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend."""
