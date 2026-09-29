@@ -17,3 +17,9 @@ __pycache__/
 
 # Locally built extensions.
 /*.zip
+
+# Local working log (sw-project), never committed.
+LOG.md
+
+# Local build output.
+/build/
