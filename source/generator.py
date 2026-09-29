@@ -61,9 +61,10 @@ class TreeGenerator:
                 bpy.data.curves.remove(scratch)
 
         leaves = leaves_ob = None
+        leaf_builder = LeafObjectBuilder(p, objects)
         if p.leaves:
             leaves = LeafGenerator(p, rng).generate(grown.sprouts)
-            leaves_ob = LeafObjectBuilder(p, objects).build(leaves, tree)
+            leaves_ob = leaf_builder.build(leaves, tree)
 
         armature_ob = None
         armatures = ArmatureBuilder(p, rng, objects, self.context)
@@ -75,6 +76,9 @@ class TreeGenerator:
             skin_ob = SkinMeshBuilder(p, objects).build(
                 tree.data, grown, armature_ob, armatures.armature_level_end(grown)
             )
+
+        if leaves_ob:
+            leaf_builder.finish(leaves_ob, leaves)
 
         result = TreeResult(tree, leaves_ob, armature_ob, skin_ob, objects.created)
         MaterialLibrary().assign(result, p.leaf_material)

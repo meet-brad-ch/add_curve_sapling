@@ -638,6 +638,7 @@
   "leafDist": "4",
   "leafDownAngle": 30.0,
   "leafDownAngleV": 10.0,
+  "leafMaterial": true,
   "leafRotate": -120.0,
   "leafRotateV": 30.0,
   "leafScale": 0.11999999731779099,

@@ -3,6 +3,7 @@
 """The leaves object: a mesh of leaf quads, or points/faces that instance a leaf object."""
 
 import bpy
+from mathutils import Vector
 
 from ..model.leaves import LeafShape
 
@@ -28,20 +29,40 @@ class LeafObjectBuilder:
             ob.instance_faces_scale = 10.0
             self._attach_instance_object(ob)
         elif leaves.shape == LeafShape.INSTANCE_POINTS:
-            ob.instance_type = "VERTS"
-            ob.use_instance_vertices_rotation = True
-            self._attach_instance_object(ob)
+            self._store_rotations(mesh, leaves)
 
         if leaves.shape in (LeafShape.HEX, LeafShape.RECT):
             self._add_uvs(mesh, leaves.shape, p.leaf_scale_x)
         mesh.validate()
         return ob
 
-    def _attach_instance_object(self, leaves_ob):
+    def finish(self, leaves_ob, leaves):
+        """Last modifier on the leaves: instance the leaf object on the points (after the armature)."""
+        instance = self._instance_object()
+        if leaves.shape == LeafShape.INSTANCE_POINTS and instance:
+            LeafInstancerNodes.add_modifier(leaves_ob, instance)
+
+    def _instance_object(self):
         name = self.params.leaf_instance_object
-        instance = bpy.data.objects.get(name) if name != "NONE" else None
+        return bpy.data.objects.get(name) if name != "NONE" else None
+
+    def _attach_instance_object(self, leaves_ob):
+        instance = self._instance_object()
         if instance:
             instance.parent = leaves_ob
+
+    @staticmethod
+    def _store_rotations(mesh, leaves):
+        """Per leaf, the rotation Blender's vertex instancing used to derive from the vertex normal.
+
+        Vertex normals cannot be set since Blender 4.1, so the instancer reads this attribute instead.
+        """
+        normals = leaves.normals
+        rotations = []
+        for i in range(0, len(normals), 3):
+            rotations.extend(Vector(normals[i : i + 3]).to_track_quat("Y", "Z"))
+        attribute = mesh.attributes.new(LeafInstancerNodes.ROTATION, "QUATERNION", "POINT")
+        attribute.data.foreach_set("value", rotations)
 
     def _add_uvs(self, mesh, shape, scale_x):
         """Each leaf maps onto the full 0..1 UV square, narrowed by Leaf Scale X."""
@@ -53,3 +74,63 @@ class LeafObjectBuilder:
             per_leaf = [0.5, 0, u1, 1 / 3, u1, 2 / 3, 0.5, 1, 0.5, 0, 0.5, 1, u2, 2 / 3, u2, 1 / 3]
         layer = mesh.uv_layers.new(name=self.UV_LAYER)
         layer.data.foreach_set("uv", per_leaf * (len(mesh.loops) * 2 // len(per_leaf)))
+
+
+class LeafInstancerNodes:
+    """Geometry nodes that put one instance of the leaf object on each leaf point, rotated per leaf."""
+
+    GROUP = "Sapling Leaf Instancer"
+    VERSION = 1
+    ROTATION = "leaf_rotation"
+    OBJECT_INPUT = "Leaf Object"
+
+    @classmethod
+    def add_modifier(cls, leaves_ob, instance):
+        group = cls.node_group()
+        modifier = leaves_ob.modifiers.new("Leaf Instances", "NODES")
+        modifier.node_group = group
+        socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == cls.OBJECT_INPUT)
+        # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
+        getattr(modifier.properties.inputs, socket.identifier).value = instance
+        return modifier
+
+    @classmethod
+    def node_group(cls):
+        """The shared node group, rebuilt if it is missing or from another version."""
+        group = bpy.data.node_groups.get(cls.GROUP)
+        if group and group.get("sapling_version") == cls.VERSION:
+            return group
+        if group is None:
+            group = bpy.data.node_groups.new(cls.GROUP, "GeometryNodeTree")
+        cls._build(group)
+        group["sapling_version"] = cls.VERSION
+        return group
+
+    @classmethod
+    def _build(cls, group):
+        group.nodes.clear()
+        group.interface.clear()
+        group.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        group.interface.new_socket(cls.OBJECT_INPUT, in_out="INPUT", socket_type="NodeSocketObject")
+        group.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+
+        nodes = group.nodes
+        links = group.links
+        inputs = nodes.new("NodeGroupInput")
+        output = nodes.new("NodeGroupOutput")
+        info = nodes.new("GeometryNodeObjectInfo")
+        info.transform_space = "ORIGINAL"  # the leaf object's own geometry, around its origin
+        info.inputs["As Instance"].default_value = True
+        rotation = nodes.new("GeometryNodeInputNamedAttribute")
+        rotation.data_type = "QUATERNION"
+        rotation.inputs["Name"].default_value = cls.ROTATION
+        instancer = nodes.new("GeometryNodeInstanceOnPoints")
+
+        links.new(inputs.outputs["Geometry"], instancer.inputs["Points"])
+        links.new(inputs.outputs[cls.OBJECT_INPUT], info.inputs["Object"])
+        links.new(info.outputs["Geometry"], instancer.inputs["Instance"])
+        links.new(rotation.outputs["Attribute"], instancer.inputs["Rotation"])
+        links.new(instancer.outputs["Instances"], output.inputs["Geometry"])
+        for x, node in enumerate((inputs, info, instancer, output)):
+            node.location = (x * 220, 0)
+        rotation.location = (220, -200)

@@ -168,3 +168,33 @@ class BoneStep(unittest.TestCase):
             if any(f'"{name}"' in fc.data_path for name in base):
                 for mod in fc.modifiers:
                     self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
+
+
+class InstancePointLeaves(unittest.TestCase):
+    """Instance Points leaves were rotated by vertex normals, which cannot be set since Blender 4.1:
+    every leaf was turned by its position instead. Each instance must follow its own leaf normal."""
+
+    def test_instances_follow_leaf_normals(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(showLeaves=True, leafShape="dVert")
+        helpers.reset_scene()
+        card = bpy.data.objects.new("leaf_card", bpy.data.meshes.new("leaf_card"))
+        bpy.context.scene.collection.objects.link(card)
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True), {"FINISHED"})
+
+        leaves = bpy.data.objects["leaves"]
+        rotations = leaves.data.attributes["leaf_rotation"].data
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        instances = [
+            i.matrix_world.copy()
+            for i in depsgraph.object_instances
+            if i.is_instance and i.parent and i.parent.name == "leaves"
+        ]
+        self.assertEqual(len(instances), len(leaves.data.vertices))
+        turned = 0
+        for matrix, vertex, stored in zip(instances, leaves.data.vertices, rotations, strict=True):
+            self.assertLess((matrix.translation - vertex.co).length, 1e-5)
+            self.assertLess(matrix.to_quaternion().rotation_difference(stored.value).angle, 1e-4)
+            position_rotation = vertex.co.normalized().to_track_quat("Y", "Z")
+            turned += position_rotation.rotation_difference(stored.value).angle > 0.01
+        self.assertGreater(turned, len(instances) // 2, "rotations still follow the leaf positions")
