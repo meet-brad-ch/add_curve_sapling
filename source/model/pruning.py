@@ -76,6 +76,12 @@ class StemPruner:
 
     def grow(self, stem, level, close_tip, base_size):
         """Grow `stem` (and its splits) to full length; return the sprout points for the next level."""
+        if not self.params.prune:
+            return self.sprouts.plan(self._grow_segments(stem, level, close_tip), level, base_size)
+        return self._grow_pruned(stem, level, close_tip, base_size)
+
+    def _grow_pruned(self, stem, level, close_tip, base_size):
+        """Binary search of the stem length: every pass restarts from the same state in the scratch curve."""
         p = self.params
         rng = self.rng
         # Every pass starts from the same random state, so the search is deterministic
@@ -94,14 +100,10 @@ class StemPruner:
             if last_pass:
                 search.scale = (search.scale - 1) * p.prune_ratio + 1
             stem.segment_length = original.segment_length * search.scale
-            if p.prune:
-                self._restart_in_scratch(stem, original, tree_spline, restart)
-                self.bone_map.restore(bones)
+            self._restart_in_scratch(stem, original, tree_spline, restart)
+            self.bone_map.restore(bones)
 
             stems = self._grow_segments(stem, level, close_tip)
-            if not p.prune:
-                return self.sprouts.plan(stems, level, base_size)
-
             self._check_envelope(stems, level, search)
             if search.converged or last_pass:
                 self._copy_to_tree(stems, tree_spline)
