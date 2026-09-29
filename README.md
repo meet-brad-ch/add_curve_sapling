@@ -1,73 +1,74 @@
-# Sapling Tree Gen (Blender 5.2 LTS fork)
+# Sapling Tree Gen for Blender 5.2 LTS
 
-**What:** A Blender 5.2 LTS extension that generates parametric trees (Weber–Penn based), with
-leaves, pruning, armature and wind animation, forked from the orphaned official Sapling Tree Gen.
+**What:** A Blender 5.2 LTS extension that makes parametric trees (Weber–Penn model) with leaves,
+pruning, an armature and wind animation. It is a fork of the official Sapling Tree Gen, which is no
+longer maintained.
 
-**Why:** Upstream is orphaned and broken on Blender 5.x (wind animation crashes); this fork makes
-it work on 5.2 LTS, fixes long-standing bugs, restructures the code (OO, tests, lint), and uses
-5.2's Thin Wall shading for leaves.
+**Why:** The original extension does not work correctly on Blender 5.x. For example, the wind
+animation stops with an error. This fork makes the extension work on Blender 5.2 LTS and corrects
+old bugs. It also uses the Thin Wall shading of Blender 5.2 for the leaves. The code is
+restructured into classes, with tests, lint and type checks.
 
-**Status:** working on Blender 5.2.2 LTS — generation, pruning, armature, wind, presets, re-edit
-and the Thin Wall leaf material are done, reviewed and tested headless (74 tests, 98.7 % branch
-coverage) and checked by hand in the Blender 5.2.2 UI (2026-09-29); it generates trees 18–56 %
-faster than 0.3.7 (see Performance).
+**Status:** Working on Blender 5.2.2 LTS. Tree generation, pruning, armature, wind, presets, tree
+editing and the leaf material are complete. 79 automated tests pass in headless Blender, with
+98.7 % branch coverage. The features were also checked by hand in the Blender user interface.
 
 ## How to run
 
-Blender is at `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (5.2.2 LTS); set
-`BLENDER` to use another one.
+The default Blender is `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (5.2.2 LTS).
+To use a different Blender, set the `BLENDER` environment variable.
 
 ```
-py -3.13 -m venv .venv                                  # once: Python 3.13, the same as Blender 5.2's
+py -3.13 -m venv .venv                                  # one time: Python 3.13, the same as Blender 5.2
 .venv/Scripts/python -m pip install -r requirements-dev.txt
-git config core.hooksPath tools/hooks                   # once: the fast gate before each commit
-python tools/check.py            # the full gate: ruff, format, mypy, manifest, tests with branch coverage
-python tools/check.py --fast     # the same without the Blender tests (what the pre-commit hook runs)
-python tools/run_tests.py        # tests only (-k NAME filters, --record-golden rewrites golden)
+git config core.hooksPath tools/hooks                   # one time: the fast checks before each commit
+python tools/check.py            # all checks: ruff, format, mypy, manifest, tests with branch coverage
+python tools/check.py --fast     # all checks except the Blender tests (the pre-commit hook runs this)
+python tools/run_tests.py        # tests only (-k NAME selects tests, --record-golden writes new golden files)
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
 ```
 
-The tests build the extension zip and install it into a throwaway profile under
-`build/test-profile` (`BLENDER_USER_RESOURCES`), so your own Blender profile is never touched.
+The tests build the extension zip and install it into a temporary profile in `build/test-profile`
+(through `BLENDER_USER_RESOURCES`). The tests do not change your own Blender profile.
 
-Coverage runs inside Blender: the runner puts the venv's `coverage` package on Blender's
-`sys.path` (both are Python 3.13, so its C tracer loads) and fails below `COVERAGE_MIN` in
-`tools/check.py`.
+Branch coverage is measured inside Blender. The test runner adds the `coverage` package of the
+`.venv` to the `sys.path` of Blender. This works because both use Python 3.13. The run fails when
+the coverage is less than `COVERAGE_MIN` in `tools/check.py`.
 
-**Prerequisites:** Blender 5.2 LTS (Python 3.13 inside Blender), Python 3.10+ to run the tools,
-Python 3.13 for the `.venv` (ruff, mypy, coverage and the Blender stubs, pinned in
-`requirements-dev.txt`).
+**Prerequisites:** Blender 5.2 LTS (with Python 3.13), Python 3.10 or later for the tools, and
+Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage and the Blender stubs.
 
 ## Using it
 
-- *Add > Curve > Sapling Tree Gen* adds a tree at the 3D cursor. Its settings are in the
-  *Adjust Last Operation* panel (F9), on eight pages (Geometry … Animation).
-- **Presets:** Geometry page. Pick one from the list (it applies immediately; *Limit Import*
-  keeps it to 2 levels without leaves, for speed), or type a name and *Save Preset*. Your presets
-  are stored in the extension's user folder (`extensions/.user/<repo>/sapling_tree_gen/presets`).
-- **Edit Sapling Tree:** select any part of a generated tree; the *Sapling* sidebar tab (N) and
-  the *Object* menu re-open the settings it was made with and regenerate it in place (same
-  transform, parent and collection; objects you parented to it stay attached).
-- **Leaf Material** (Leaves page, on by default): mesh leaves get *Sapling Leaf*, a Principled
-  BSDF in Blender 5.2's **Thin Wall** mode with thin subsurface scattering, so light shines
-  through the leaves. Branches get *Sapling Bark*. Both are created once and then reused, so
-  your edits to them are kept.
-- **Armature:** the bones are hidden after generation (bone collection *Sapling Bones*); show
-  them with its eye icon in *Armature properties > Bone Collections*. The armature object, the
-  top of the tree, stays visible and selected, so the whole tree can be moved right away. *Fast
-  Preview* shows the bones instead of the tree.
-- **Instance Points** leaves put your leaf object on every leaf point with a Geometry Nodes
-  modifier (*Sapling Leaf Instancer*), rotated per leaf; the leaf object itself is not moved.
+- **Add a tree:** Select *Add > Curve > Sapling Tree Gen*. The tree appears at the 3D cursor. The
+  settings are in the *Adjust Last Operation* panel (F9), on eight pages from Geometry to Animation.
+- **Presets:** On the Geometry page, select a preset from the list. The preset applies immediately.
+  When *Limit Import* is on, a preset loads with 2 levels and no leaves, which is faster. To save
+  your settings, type a name and click *Save Preset*. Your presets are in the user folder of the
+  extension (`extensions/.user/<repo>/sapling_tree_gen/presets`).
+- **Edit Sapling Tree:** Select a part of a generated tree. Click *Edit Sapling Tree* in the
+  *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
+  again, and the tree is made again in the same place. The tree keeps its transform, its parent
+  and its collections. Objects that you parented to the tree stay attached.
+- **Leaf Material** (Leaves page, on by default): Mesh leaves get the material *Sapling Leaf*. This
+  material is a Principled BSDF in the **Thin Wall** mode of Blender 5.2, with thin subsurface
+  scattering, so light goes through the leaves. Branches get the material *Sapling Bark*. The
+  extension makes each material one time and then uses it again, so your changes to them stay.
+- **Armature:** The tree curve (*tree*) is the top object, and the armature (*treeArm*) is its child.
+  A click on the branches selects the tree. When you move the tree, all parts move with it. After
+  generation, the bones are hidden in the bone collection *Sapling Bones*. To show them, click the
+  eye icon of that collection in *Armature Properties > Bone Collections*. *Fast Preview* shows the
+  bones and shows the tree as its bounding box.
+- **Instance Points** leaves: A Geometry Nodes modifier (*Sapling Leaf Instancer*) puts your leaf
+  object on each leaf point, with a rotation for each leaf. The leaf object itself does not move.
 
 ## Performance
 
-Generation time per built-in preset with leaves on, Blender 5.2.2, Windows. 0.3.7: median of 5,
-measured 2026-09-29 before the revamp's performance work. 0.4.0: `python tools/bench.py` (median
-of 5 per preset), run 3 times on 2026-09-29 after the code review; the table shows the median of
-the 3 runs. Two unrelated jobs kept 2 of the 24 logical cores busy during these runs, and the runs
-differed by up to about ±12 % per preset (weeping_willow 573–715 ms), so read the changes as
-approximate.
+The table shows the time to generate each built-in preset with leaves on, in Blender 5.2.2 on
+Windows. Each value is a median of 5 runs. The 0.4.0 values are the median of 3 runs of
+`python tools/bench.py`. During these runs, other processes used 2 of the 24 logical cores, and the
+values changed by up to approximately 12 % between runs. Thus, the changes are approximate.
 
 | Preset | Leaves | 0.3.7 (upstream) | 0.4.0 | Change |
 | --- | ---: | ---: | ---: | ---: |
@@ -81,62 +82,63 @@ approximate.
 | white_birch | 18 918 | 495 ms | 310 ms | −37 % |
 | willow | 1 328 | 59 ms | 48 ms | −18 % |
 
-The gains come from growth no longer being O(n²) (Blender walks the spline list on every
-`len(curve.splines)`; unpruned stems copied the bone map), and from leaf rotations built once
-instead of per vertex. The benchmark is not part of the gate: timings depend on the machine.
+Stem growth is no longer O(n²). The old code counted the curve splines for each new stem, and
+Blender counts them through a linked list. The old code also copied the bone map for each stem,
+also without pruning. In addition, the leaf rotations are now calculated one time, not for each
+vertex. The benchmark is not part of the checks, because the times depend on the machine.
 
 ## Layout
 
 - `source/` — the extension package
   - `model/` — tree growth on the curve: `TreeGrower`, `StemBuilder`, `StemGrower`,
-    `BranchSpawner`, `SproutPlanner`, `LeafGenerator`, `TreeParams`, geometry helpers
-  - `build/` — Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
-  - `ui/` — the Add Tree operator, its properties and pages, panels and menus
+    `BranchSpawner`, `SproutPlanner`, `LeafGenerator`, `TreeParams` and geometry classes
+  - `build/` — the Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
+  - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
-  - `presets/` — built-in presets (one Python dict literal each)
-- `tests/` — unittest suite run inside headless Blender; `tests/golden/` holds exact fingerprints
-  of 38 generated trees; `test_fuzz` grows 100 trees from random settings; `test_architecture`
-  checks the layering and the no-module-state rule
-- `tools/` — `check.py` (the gate), `run_tests.py`, `bench.py` (+ `bench_in_blender.py`,
-  `bench_baseline.json`), `blender_env.py`, `hooks/pre-commit`
+  - `presets/` — the built-in presets (one Python dictionary each)
+- `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
+  fingerprints of 38 generated trees. `test_fuzz` grows 100 trees from random settings.
+  `test_architecture` checks the layers and the rule of no module-level state.
+- `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
+  `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`
 
 ## Decisions
 
-- 2026-09-29 — target Blender 5.2 LTS only; no backward compatibility, so the 5.x animation API
-  and the Principled BSDF *Thin Wall* input can be used directly.
-- 2026-09-29 — full OO restructure, guarded by golden-output tests recorded before the refactor,
-  so every preset still produces the same tree.
-- 2026-09-29 — tests run inside headless Blender (`unittest`) against the built and installed
-  extension zip in a throwaway user profile, because `bpy.utils.extension_path_user` only accepts
-  a real extension package.
-- 2026-09-29 — work stays local on branch `revamp-5.2`; nothing is pushed.
-- 2026-09-29 — stems grow on real bpy curve splines, not in a pure-Python model: Blender computes
-  bezier handles in C on every write and stores float32, and the trees depend on both.
-- 2026-09-29 — golden fingerprints hash exact float32 values (no rounding); they are valid for
-  Blender 5.2.2 on Windows and are re-recorded only in their own commits, with the reason.
-- 2026-09-29 — pruning grows its search passes in a scratch curve and copies the final pass into
-  the tree, so spline order, stem indices and bone names stay aligned (issue #4).
-- 2026-09-29 — leaves use Thin Wall + Subsurface Weight 1.0 (translucent), not Thin Wall +
-  Transmission (clear like glass): measured on a backlit leaf, see `CHANGELOG.md`.
-- 2026-09-29 — Instance Points leaves use a Geometry Nodes instancer with a stored rotation per
-  leaf: vertex normals can no longer be set (Blender 4.1+), so vertex instancing lost the rotation.
-- 2026-09-29 — fail fast: no silent defaults or fallbacks. Errors the user can fix are
-  `SettingsError` (with `PresetError`), which the operator's `execute` reports and cancels on — the
-  only catch; everything else raises with a message that names the thing.
-- 2026-09-29 — a tree is its root plus the descendants carrying the root's id (not every object
-  with the tag), and Edit builds the new tree before removing the old one, so a failed edit
-  keeps the old tree and a failed Add leaves nothing.
-- 2026-09-29 — quality gates in `tools/check.py`: ruff (with complexity ≤ 10, docstrings and
-  annotations for `source/`), mypy with typed signatures, and branch coverage ≥ 98 % measured
-  inside Blender. A `type: ignore` is allowed only with its reason (stub gaps, values Blender
-  always sets); `warn_unused_ignores` flags the ones that become unnecessary.
-- 2026-09-29 — the armature's bones are hidden after generation through a hidden bone collection,
-  not by hiding the armature object: a hidden object is deselected and left out of
-  Move/Rotate/Scale (measured on 5.2.2), and the armature is the tree's root (owner's choice).
+Each item gives the decision and the reason for it.
+
+- **Blender 5.2 LTS only.** Older versions are not supported. Thus the code uses the 5.x animation
+  API and the Thin Wall input of the Principled BSDF directly.
+- **Classes only.** All code in `source/` is in classes. Golden tests, recorded before the
+  restructure, show that each preset still makes the same tree.
+- **Stems grow on Blender curve splines**, not in a separate Python model. The tree shape depends on
+  the Bezier handles that Blender calculates in C at each change, and on its float32 values.
+- **Golden tests use exact values.** The fingerprints hash float32 values without rounding. They are
+  valid for Blender 5.2.2 on Windows. A commit that changes a fingerprint must give the reason.
+- **Tests use the installed extension.** The tests build the extension zip and install it in a
+  temporary user profile, because `bpy.utils.extension_path_user` accepts only an installed package.
+- **Pruning uses a scratch curve.** Each search pass grows in a scratch curve. The last pass is copied
+  into the tree. This keeps the spline order, the stem indices and the bone names aligned.
+- **Translucent leaves.** Leaves use Thin Wall with Subsurface Weight 1.0. Thin Wall with Transmission
+  makes the leaves look like clear glass. `CHANGELOG.md` gives the measurements.
+- **Geometry Nodes for Instance Points.** A script cannot set vertex normals since Blender 4.1. Thus
+  a Geometry Nodes instancer rotates each leaf from a stored rotation.
+- **Errors stop the operation.** The code has no silent defaults. The user can correct a
+  `SettingsError` (or a `PresetError`). The operator's `execute` method shows these errors and
+  cancels. It is the only place that catches errors.
+- **A tree is its root and the root's descendants with the same tree id.** Edit Sapling Tree makes
+  the new tree before it removes the old tree. If the edit fails, the old tree stays.
+- **The tree curve is always the root.** A click on the branches selects the curve. If the armature
+  were the root, a move of the curve would separate the tree from its bones.
+- **Objects that a user can select are not hidden.** A hidden object is deselected, and Move, Rotate
+  and Scale ignore it. Thus a bone collection hides the bones, and Fast Preview shows the tree as
+  its bounding box.
+- **`tools/check.py` checks all code.** It runs ruff (complexity 10 or less, docstrings and type
+  annotations in `source/`) and mypy. It also runs the tests and requires 98 % branch coverage.
+  Each `type: ignore` must give its reason.
 
 ## Credits
 
-Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7), originally
-written by Andrew Hale (TrumanBlending) and Aaron Buchler, maintained over the years by
-CansecoGPC, Campbell Barton, Nika Kutsniashvili and many Blender contributors (see `git log`).
-Licensed GPL-3.0-or-later (see `source/blender_manifest.toml`).
+Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7). Andrew Hale
+(TrumanBlending) and Aaron Buchler wrote the original extension. CansecoGPC, Campbell Barton, Nika
+Kutsniashvili and many Blender contributors maintained it (see `git log`). The license is
+GPL-3.0-or-later (see `source/blender_manifest.toml`).

@@ -21,7 +21,7 @@ from .model.tree import TreeGrower
 
 
 class TreeResult:
-    """The objects of one generated tree, by role; `root` is the object the others hang from."""
+    """The objects of one generated tree, by role; `root` is the tree curve, which the others hang from."""
 
     def __init__(self, objects: ObjectFactory) -> None:
         self.objects = objects
@@ -34,8 +34,9 @@ class TreeResult:
 
     @property
     def root(self) -> Object:
-        """The armature object when the tree has one, else the tree curve."""
-        return self.roles.get(ArmatureBuilder.ROLE, self.tree)
+        """The tree curve: every other part hangs from it, the armature too (so a click on the branches
+        selects the whole tree)."""
+        return self.tree
 
     def role(self, name: str) -> Object | None:
         """The object with this role, or None when this tree has none (e.g. no leaves)."""

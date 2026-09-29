@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import bpy
 import helpers
+from mathutils import Vector
 
 BONE_NAME = re.compile(r"bone(\d{3})\.(\d{3})$")
 
@@ -318,3 +319,35 @@ class ReadOnlyParams(unittest.TestCase):
         self.assertEqual(params.levels, settings.levels)
         with self.assertRaisesRegex(AttributeError, "read-only; cannot set levels"):
             params.levels = 1
+
+
+class MoveByTheBranches(unittest.TestCase):
+    """Clicking the branches selected the curve, a child of the armature; moving it tore the tree from its bones."""
+
+    OFFSET = (1.0, 2.0, 3.0)
+    FRAMES = (1, 17)
+
+    @staticmethod
+    def world_vertices(name, frame):
+        bpy.context.scene.frame_set(frame)
+        ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
+        mesh = ob.to_mesh()
+        points = [ob.matrix_world @ v.co for v in mesh.vertices]
+        ob.to_mesh_clear()
+        return points
+
+    def test_moving_the_clicked_curve_moves_the_whole_tree(self):
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(showLeaves=True, useArm=True, armAnim=True, leafAnim=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        curve = bpy.data.objects["tree"]  # what a click on the branches selects
+        before = {(name, f): self.world_vertices(name, f) for name in ("tree", "leaves") for f in self.FRAMES}
+
+        curve.location += Vector(self.OFFSET)
+        bpy.context.view_layer.update()
+        for (name, frame), points in before.items():
+            with self.subTest(object=name, frame=frame):
+                after = self.world_vertices(name, frame)
+                self.assertEqual(len(after), len(points))
+                worst = max((b - a - Vector(self.OFFSET)).length for a, b in zip(points, after, strict=True))
+                self.assertLess(worst, 1e-5, "the part moved away from its bones")

@@ -45,7 +45,7 @@
    "modifiers": [
     "ARMATURE"
    ],
-   "parent": "treeArm",
+   "parent": null,
    "type": "CURVE",
    "vertex_groups": ""
   },
@@ -65,7 +65,7 @@
    },
    "instance_type": "NONE",
    "modifiers": [],
-   "parent": null,
+   "parent": "tree",
    "type": "ARMATURE",
    "vertex_groups": ""
   }

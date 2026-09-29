@@ -121,6 +121,18 @@ class Placement(unittest.TestCase):
         self.assertEqual(link, (plane, "VERTEX_3", (0, 1, 3)))
         self.assertLess((new_root.matrix_world.to_translation() - world.to_translation()).length, 1e-5)
 
+    def test_moved_armature_tree_stays_on_edit(self):
+        helpers.reset_scene()
+        root = add_tree(useArm=True, armAnim=True)
+        self.assertEqual(root.name, "tree")
+        root.location = (3.0, 0.0, 1.0)
+
+        self.assertEqual(edit(root), {"FINISHED"})
+        new_root = helpers.active_object()
+        self.assertEqual(new_root.name, "tree")
+        self.assertEqual(new_root.location.to_tuple(), (3.0, 0.0, 1.0))
+        self.assertEqual([ob.name for ob in new_root.children if ob.type == "ARMATURE"], ["treeArm"])
+
     def test_all_collections_are_kept(self):
         helpers.reset_scene()
         root = add_tree()

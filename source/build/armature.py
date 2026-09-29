@@ -40,16 +40,18 @@ class ArmatureBuilder:
         self.context = context
 
     def build(self, tree: Object, grown: GrownTree, leaves: LeafSet | None, leaves_ob: Object | None) -> Object:
-        """The armature object, now the tree's parent, with bones for the branches (and leaves) and wind.
+        """The armature object, a child of the tree curve, with bones for the branches (and leaves) and wind.
 
         Adds Armature modifiers to the tree curve and the leaves. Switches the new armature into edit mode
         and back (see _editing). Draws from the rng only with Armature Animation: two phase offsets per
         spline that gets bones, and two per leaf bone with Leaf Animation. The bones are hidden (see
-        _collect_bones); the armature object stays visible, so the tree is still selected and movable.
+        _collect_bones). The tree curve stays the root: a click on the branches selects it, and moving it
+        moves the armature and everything the armature deforms with it.
         """
         p = self.params
         armature = bpy.data.armatures.new(self.DATA_NAME)
-        armature_ob = self.objects.new(self.ROLE, armature)
+        # Both are at the origin with no rotation while the tree is built, so no parent inverse is needed
+        armature_ob = self.objects.new(self.ROLE, armature, parent=tree)
         armature.display_type = "STICK"
         scene = self.context.scene
         fps = scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene
@@ -61,7 +63,8 @@ class ArmatureBuilder:
         if p.preview_armature:
             modifier.show_viewport = False
             armature.display_type = "WIRE"
-            tree.hide_viewport = True
+            # Drawn as its bounds, not hidden: a hidden root is deselected and left out of Move/Rotate/Scale
+            tree.display_type = "BOUNDS"
         if leaves_ob:
             self.deform(leaves_ob, armature_ob, by_envelopes=False)
 
@@ -73,15 +76,14 @@ class ArmatureBuilder:
         for pose_bone in armature_ob.pose.bones:  # type: ignore[union-attr]  # an armature object has a pose
             pose_bone.rotation_mode = "XYZ"
         self._collect_bones(armature, visible=p.preview_armature)
-        tree.parent = armature_ob
         return armature_ob
 
     @classmethod
     def _collect_bones(cls, armature: Armature, visible: bool) -> None:
         """Put every bone into one bone collection, shown only when asked (Fast Preview).
 
-        Hiding the bones, not the armature object: a hidden object is deselected and left out of
-        Move/Rotate/Scale, and the armature is the tree's root. Bones in no collection are always shown.
+        Hiding the bones, not the armature object, keeps the armature an ordinary part of the tree.
+        Bones in no collection are always shown.
         """
         collection = armature.collections.new(cls.BONE_COLLECTION)
         for bone in armature.bones:

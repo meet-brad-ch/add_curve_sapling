@@ -102,7 +102,7 @@ class ReEdit(unittest.TestCase):
 
     def test_settings_stored_on_root(self):
         root = self.generate(useArm=True)
-        self.assertEqual(root.type, "ARMATURE")
+        self.assertEqual((root.name, root.type), ("tree", "CURVE"))
         stored = helpers.stored_settings(root)
         self.assertTrue(stored["useArm"])
         self.assertEqual(stored["leafDupliObj"], "leaf_card")
@@ -181,7 +181,7 @@ class ArmatureContext(unittest.TestCase):
 
 
 class ArmatureDisplay(unittest.TestCase):
-    """The bones are hidden after generation; the armature object, the tree's root, is not."""
+    """The tree curve is the root, the armature its child; the bones are hidden, the root never is."""
 
     def add(self, **changes):
         helpers.reset_scene()
@@ -189,16 +189,12 @@ class ArmatureDisplay(unittest.TestCase):
         settings.update(useArm=True, **changes)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         root = helpers.active_object()
-        self.assertEqual(root.type, "ARMATURE")
-        (collection,) = root.data.collections
-        return root, collection
+        self.assertEqual((root.name, root.type), ("tree", "CURVE"))
+        (armature,) = [ob for ob in root.children if ob.type == "ARMATURE"]
+        (collection,) = armature.data.collections
+        return root, armature, collection
 
-    def test_bones_hidden_tree_still_selected_and_movable(self):
-        root, collection = self.add()
-        self.assertEqual(collection.name, "Sapling Bones")
-        self.assertFalse(collection.is_visible)
-        self.assertEqual(len(collection.bones), len(root.data.bones))
-        self.assertGreater(len(root.data.bones), 10)
+    def assert_selected_and_movable(self, root):
         self.assertTrue(root.visible_get())
         self.assertTrue(root.select_get())
         editable = bpy.context.selected_editable_objects
@@ -206,9 +202,19 @@ class ArmatureDisplay(unittest.TestCase):
             raise AssertionError("no selected_editable_objects in this context")
         self.assertIn(root, editable)
 
-    def test_fast_preview_shows_the_bones(self):
-        _root, collection = self.add(previewArm=True)
+    def test_bones_hidden_tree_selected_and_movable(self):
+        root, armature, collection = self.add()
+        self.assertEqual(collection.name, "Sapling Bones")
+        self.assertFalse(collection.is_visible)
+        self.assertEqual(len(collection.bones), len(armature.data.bones))
+        self.assertGreater(len(armature.data.bones), 10)
+        self.assert_selected_and_movable(root)
+
+    def test_fast_preview_draws_the_tree_as_bounds_and_shows_the_bones(self):
+        root, _armature, collection = self.add(previewArm=True)
         self.assertTrue(collection.is_visible)
+        self.assertEqual(root.display_type, "BOUNDS")
+        self.assert_selected_and_movable(root)
 
     def test_hidden_bones_still_deform(self):
         self.add(showLeaves=True, armAnim=True)

@@ -419,7 +419,8 @@ class TreeProperties:
     )  # fmt: skip
     previewArm: BoolProperty(
         name="Fast Preview",
-        description="Disable armature modifier, hide tree, and set bone display to wire, for fast playback",
+        description="Disable the armature modifier, draw the tree as its bounds and the bones as wire, for fast "
+        "playback",
         default=False, update=update_tree,
     )  # fmt: skip
     frameRate: FloatProperty(
