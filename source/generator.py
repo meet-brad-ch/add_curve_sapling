@@ -91,6 +91,8 @@ class TreeGenerator:
 
         if p.make_mesh:
             SkinMeshBuilder(p, objects).build(tree, grown, armature_ob, armatures.armature_level_end(grown))
+            if armature_ob and p.preview_armature:
+                ArmatureBuilder.preview_with_skin_mesh(armature_ob)
 
         if leaves_ob:
             leaf_builder.finish(leaves_ob, leaves)

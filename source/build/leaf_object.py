@@ -95,6 +95,7 @@ class LeafInstancerNodes:
     VERSION = 1
     ROTATION = "leaf_rotation"
     OBJECT_INPUT = "Leaf Object"
+    VERSION_KEY = "sapling_version"
 
     @classmethod
     def add_modifier(cls, leaves_ob, instance):
@@ -112,12 +113,12 @@ class LeafInstancerNodes:
         group = bpy.data.node_groups.get(cls.GROUP)
         if group is not None and group.bl_idname != "GeometryNodeTree":
             raise SettingsError(f"Node group '{cls.GROUP}' exists but is not a Geometry Nodes group; rename it")
-        if group is not None and group.get("sapling_version") == cls.VERSION:
+        if group is not None and group.get(cls.VERSION_KEY) == cls.VERSION:
             return group
         if group is None:
             group = bpy.data.node_groups.new(cls.GROUP, "GeometryNodeTree")
         cls._build(group)
-        group["sapling_version"] = cls.VERSION
+        group[cls.VERSION_KEY] = cls.VERSION
         return group
 
     @classmethod

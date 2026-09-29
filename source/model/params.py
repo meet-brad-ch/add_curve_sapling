@@ -4,7 +4,7 @@
 
 from math import radians
 
-from .geometry import Angles, CrownShape
+from .geometry import Angles, Bezier, CrownShape
 
 
 class TreeParams:
@@ -89,7 +89,7 @@ class TreeParams:
         self.bevel_depth = 1.0 if s.bevel else 0.0
         self.bevel_res = s.bevelRes
         self.res_u = s.resU
-        self.handles = "AUTO" if s.handleType == "0" else "VECTOR"
+        self.handles = Bezier.AUTO if s.handleType == "0" else Bezier.VECTOR
 
         self.use_armature = s.useArm
         self.preview_armature = s.previewArm

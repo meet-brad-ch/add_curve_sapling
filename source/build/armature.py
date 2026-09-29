@@ -18,6 +18,7 @@ class ArmatureBuilder:
 
     ROLE = "treeArm"
     DATA_NAME = "tree"
+    MODIFIER = "windSway"
 
     def __init__(self, params, rng, objects, context):
         self.params = params
@@ -32,20 +33,15 @@ class ArmatureBuilder:
         armature.display_type = "STICK"
         wind = WindAnimator(armature_ob, p.loop_frames) if p.armature_animation else None
 
-        modifier = tree.modifiers.new("windSway", "ARMATURE")
+        # Curves have no vertex groups: the bone envelopes deform them
+        modifier = self.deform(tree, armature_ob, by_envelopes=True)
+        modifier.use_apply_on_spline = True
         if p.preview_armature:
             modifier.show_viewport = False
             armature.display_type = "WIRE"
             tree.hide_viewport = True
-        modifier.use_apply_on_spline = True
-        modifier.object = armature_ob
-        modifier.use_bone_envelopes = True
-        modifier.use_vertex_groups = False  # curves have no vertex groups
         if leaves_ob:
-            modifier = leaves_ob.modifiers.new("windSway", "ARMATURE")
-            modifier.object = armature_ob
-            modifier.use_bone_envelopes = False
-            modifier.use_vertex_groups = True
+            self.deform(leaves_ob, armature_ob, by_envelopes=False)
 
         scene = self.context.scene
         fps = scene.render.fps / scene.render.fps_base
@@ -58,6 +54,21 @@ class ArmatureBuilder:
             pose_bone.rotation_mode = "XYZ"
         tree.parent = armature_ob
         return armature_ob
+
+    @classmethod
+    def deform(cls, ob, armature_ob, by_envelopes):
+        """An Armature modifier on ob: by bone envelopes, or by the vertex groups named after the bones."""
+        modifier = ob.modifiers.new(cls.MODIFIER, "ARMATURE")
+        modifier.object = armature_ob
+        modifier.use_bone_envelopes = by_envelopes
+        modifier.use_vertex_groups = not by_envelopes
+        return modifier
+
+    @staticmethod
+    def preview_with_skin_mesh(armature_ob):
+        """Fast Preview with Make Mesh: the skin mesh shows the tree, so the armature is hidden."""
+        armature_ob.hide_viewport = True
+        armature_ob.data.display_type = "STICK"
 
     @contextmanager
     def _editing(self, armature_ob):
@@ -194,7 +205,7 @@ class ArmatureBuilder:
                 parent = bone_names[BoneName.spline(parent)]
 
             if p.leaf_animation:
-                name = "leaf" + str(i)
+                name = BoneName.leaf(i)
                 bone = armature.edit_bones.new(name)
                 bone.head = sprout.co
                 bone.tail = sprout.co + Vector((0, 0, 0.02))

@@ -12,6 +12,10 @@ from bpy.props import (
     StringProperty,
 )
 
+from ..model.branching import BranchingMode
+from ..model.geometry import CrownShape
+from ..model.leaves import LeafShape
+
 
 class Choices:
     """Enum items of the tree properties."""
@@ -26,20 +30,20 @@ class Choices:
         ("10", "Inverse Tapered Cylindrical", ""),
         ("5", "Flame", ""),
         ("7", "Tend Flame", ""),
-        ("8", "Custom Shape", ""),
+        (str(CrownShape.CUSTOM), "Custom Shape", ""),
     ]
-    SECONDARY_SHAPES = [item for item in SHAPES if item[0] != "8"]
+    SECONDARY_SHAPES = [item for item in SHAPES if item[0] != str(CrownShape.CUSTOM)]
     HANDLES = [("0", "Auto", "Smooth automatic handles"), ("1", "Vector", "Straight segments")]
     BRANCH_MODES = [
-        ("original", "Original", "Rotate around each branch"),
-        ("rotate", "Rotate", "Evenly distribute branches to point outward from the center of the tree"),
-        ("random", "Random", "Choose a random point"),
+        (BranchingMode.ORIGINAL, "Original", "Rotate around each branch"),
+        (BranchingMode.ROTATE, "Rotate", "Evenly distribute branches to point outward from the center of the tree"),
+        (BranchingMode.RANDOM, "Random", "Choose a random point"),
     ]
     LEAF_SHAPES = [
-        ("hex", "Hexagonal", "Hexagonal leaf mesh"),
-        ("rect", "Rectangular", "Rectangular leaf mesh, for image textures"),
-        ("dFace", "Instance Faces", "Instance the leaf object on one face per leaf"),
-        ("dVert", "Instance Points", "Instance the leaf object on one point per leaf"),
+        (LeafShape.HEX, "Hexagonal", "Hexagonal leaf mesh"),
+        (LeafShape.RECT, "Rectangular", "Rectangular leaf mesh, for image textures"),
+        (LeafShape.INSTANCE_FACES, "Instance Faces", "Instance the leaf object on one face per leaf"),
+        (LeafShape.INSTANCE_POINTS, "Instance Points", "Instance the leaf object on one point per leaf"),
     ]
     PAGES = [
         ("0", "Geometry", "Tree shape, scale, curve settings and presets"),
@@ -63,19 +67,7 @@ class TreeProperties:
     # Refers to an object in the scene: stored with a tree, never in presets.
     SCENE_BOUND = ("leafDupliObj",)
     # UI state: never part of presets or stored tree settings.
-    UI_ONLY = frozenset(
-        {
-            "do_update",
-            "chooseSet",
-            "presetName",
-            "limitImport",
-            "overwrite",
-            "preset",
-            "preset_pending",
-            "replace",
-            "load_stored",
-        }
-    )
+    UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "limitImport", "overwrite"})
 
     def update_tree(self, context):
         self.do_update = True
@@ -233,7 +225,7 @@ class TreeProperties:
     )  # fmt: skip
     rMode: EnumProperty(
         name="Branching Mode", description="Branching and rotation mode", items=Choices.BRANCH_MODES,
-        default="rotate", update=update_tree,
+        default=BranchingMode.ROTATE, update=update_tree,
     )  # fmt: skip
     curveRes: IntVectorProperty(
         name="Curve Resolution", description="The number of segments on each branch (nCurveRes)", min=1,
@@ -324,7 +316,7 @@ class TreeProperties:
         name="Show Leaves", description="Whether the leaves are shown", default=False, update=update_tree
     )
     leafShape: EnumProperty(
-        name="Leaf Shape", description="The shape of the leaves", items=Choices.LEAF_SHAPES, default="hex",
+        name="Leaf Shape", description="The shape of the leaves", items=Choices.LEAF_SHAPES, default=LeafShape.HEX,
         update=update_leaves,
     )  # fmt: skip
     leafDupliObj: StringProperty(
@@ -467,9 +459,7 @@ class TreeProperties:
     @classmethod
     def generation_names(cls):
         """Names of the properties that shape the tree (what presets and stored trees hold)."""
-        names: list[str] = []
-        for klass in reversed(cls.__mro__):
-            names.extend(n for n in getattr(klass, "__annotations__", {}) if n not in names)
+        names = TreeProperties.__annotations__  # the mixin's own; operators add only UI state
         return [n for n in names if n not in cls.UI_ONLY and n not in cls.SCENE_BOUND]
 
     @classmethod

@@ -7,6 +7,7 @@ reordering an expression changes the generated trees.
 """
 
 from math import acos, atan2, cos, degrees, pi, radians, sin
+from typing import Final
 
 from mathutils import Vector
 
@@ -70,6 +71,14 @@ class Angles:
         x = x1 + (x2 - x1) * fac
         y = y1 + (y2 - y1) * fac
         return atan2(x, y)
+
+
+class Bezier:
+    """Blender's enum values for bezier splines and their handles."""
+
+    SPLINE: Final = "BEZIER"
+    AUTO: Final = "AUTO"
+    VECTOR: Final = "VECTOR"
 
 
 class CrownShape:

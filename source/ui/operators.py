@@ -140,24 +140,3 @@ class AddTreeOperator(TreeProperties, Operator):
             self.load_stored = False
         context.view_layer.update()  # current world matrices of the tree and the user's objects
         return root
-
-
-class SavePresetOperator(Operator):
-    """Save the current tree settings as a preset"""
-
-    bl_idname = "sapling.preset_save"
-    bl_label = "Save Preset"
-    bl_options = {"INTERNAL"}
-
-    name: StringProperty(name="Name")
-    overwrite: BoolProperty(name="Overwrite")
-    settings: StringProperty(name="Settings", options={"HIDDEN"})
-
-    def execute(self, context):
-        try:
-            path = PresetStore.for_addon().save(self.name, TreeSettings.from_json(self.settings), self.overwrite)
-        except SettingsError as error:
-            self.report({"ERROR"}, str(error))
-            return {"CANCELLED"}
-        self.report({"INFO"}, f"Saved preset {path.stem}")
-        return {"FINISHED"}

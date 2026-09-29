@@ -8,9 +8,17 @@ from dataclasses import dataclass
 class BoneName:
     """Branch bones are named bone<spline>.<point>: the spline and point index where they start."""
 
-    @staticmethod
-    def of(spline_index, point_index):
-        return "bone" + str(spline_index).rjust(3, "0") + "." + str(point_index).rjust(3, "0")
+    PREFIX = "bone"
+    LEAF_PREFIX = "leaf"
+
+    @classmethod
+    def of(cls, spline_index, point_index):
+        return cls.PREFIX + str(spline_index).rjust(3, "0") + "." + str(point_index).rjust(3, "0")
+
+    @classmethod
+    def leaf(cls, leaf_index):
+        """Name of the bone of one leaf (Leaf Animation)."""
+        return cls.LEAF_PREFIX + str(leaf_index)
 
     @staticmethod
     def rounded(bone, step):

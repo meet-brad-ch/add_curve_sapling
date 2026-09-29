@@ -6,7 +6,7 @@ from math import atan2, pi, radians
 
 from mathutils import Euler, Matrix
 
-from .geometry import Angles, Axes
+from .geometry import Angles, Axes, Bezier
 from .stem import BoneName, Stem
 
 
@@ -108,7 +108,7 @@ class StemGrower:
         # The first point cannot have VECTOR handles before a second point exists
         if len(stem.spline.bezier_points) == 2:
             first = stem.spline.bezier_points[0]
-            (first.handle_left_type, first.handle_right_type) = ("VECTOR", "VECTOR")
+            (first.handle_left_type, first.handle_right_type) = (Bezier.VECTOR, Bezier.VECTOR)
         stem.update_end()
 
     def _split(
@@ -140,12 +140,12 @@ class StemGrower:
             length_scale = uniform(1 - length_var, 1 + length_var)
             radius_scale = min(length_scale * taper_factor, 1)
 
-            new_spline = cu.splines.new("BEZIER")
+            new_spline = cu.splines.new(Bezier.SPLINE)
             new_point = new_spline.bezier_points[-1]
             (new_point.co, new_point.handle_left_type, new_point.handle_right_type) = (
                 stem.point.co,
-                "VECTOR",
-                "VECTOR",
+                Bezier.VECTOR,
+                Bezier.VECTOR,
             )
             new_point.radius = (
                 stem.radius_start * (1 - stem.segment / stem.segments)

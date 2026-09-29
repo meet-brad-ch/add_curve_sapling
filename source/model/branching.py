@@ -6,8 +6,16 @@ from math import atan2, copysign, cos, pi, radians, sin
 
 from mathutils import Euler, Matrix, Vector
 
-from .geometry import Angles, Axes, CrownShape
+from .geometry import Angles, Axes, Bezier, CrownShape
 from .stem import BoneName, ChildPoint, Stem
+
+
+class BranchingMode:
+    """How branches are placed around their parent (the Branching Mode setting)."""
+
+    ORIGINAL = "original"  # rotate around each branch
+    ROTATE = "rotate"  # spread evenly to point outward from the tree's center
+    RANDOM = "random"  # a random point at each height
 
 
 class BranchSpawner:
@@ -21,7 +29,7 @@ class BranchSpawner:
     def start_trunk(self, scale):
         """The trunk stem, standing at the origin."""
         p = self.params
-        spline = self.curve.splines.new("BEZIER")
+        spline = self.curve.splines.new(Bezier.SPLINE)
         point = spline.bezier_points[-1]
         point.co = Vector((0, 0, 0))
         point.handle_right = Vector((0, 0, 1))
@@ -59,13 +67,13 @@ class BranchSpawner:
         rng = self.rng
         base_size = min(0.999, base_size)  # never divide by zero below
         rotations: list[float] = []
-        if (level == 1) and (p.rotate_mode != "original"):
+        if (level == 1) and (p.rotate_mode != BranchingMode.ORIGINAL):
             sprouts, rotations = self._pick_trunk_sprouts(sprouts, level, base_size)
 
         stems: list[Stem] = []
         old_rotate = 0.0
         for i, sprout in enumerate(sprouts):
-            spline = self.curve.splines.new("BEZIER")
+            spline = self.curve.splines.new(Bezier.SPLINE)
             point = spline.bezier_points[-1]
             point.co = sprout.co
             direction = Axes.z()
@@ -92,13 +100,13 @@ class BranchSpawner:
             else:
                 old_rotate += p.rotate[level]
             rotate = old_rotate + rng.uniform(-p.rotate_v[level], p.rotate_v[level])
-            if (level == 1) and (p.rotate_mode == "rotate"):
+            if (level == 1) and (p.rotate_mode == BranchingMode.ROTATE):
                 rotate = rotations[i]
 
             direction.rotate(down_rot)
             direction.rotate(Matrix.Rotation(rotate, 3, "Z"))
 
-            if (p.rotate_mode == "rotate") and (level == 1) and (sprout.offset != 1):
+            if (p.rotate_mode == BranchingMode.ROTATE) and (level == 1) and (sprout.offset != 1):
                 if p.use_parent_angle:
                     edir = sprout.quat.to_euler("XYZ", Euler((0, 0, rotate), "XYZ"))
                     edir[0] = 0
@@ -169,7 +177,7 @@ class BranchSpawner:
     def _pick_trunk_sprouts(self, sprouts, level, base_size):
         """Rotate/random modes: one branch per height on the trunk, picked around the trunk.
 
-        Returns the chosen sprouts (tips last) and, for "rotate", the growth angle of each.
+        Returns the chosen sprouts (tips last) and, for ROTATE, the growth angle of each.
         """
         p = self.params
         rng = self.rng
@@ -186,7 +194,7 @@ class BranchSpawner:
         old_rotate = 0.0
         for height in sorted(by_height):
             candidates = by_height[height]
-            if p.rotate_mode == "rotate":
+            if p.rotate_mode == BranchingMode.ROTATE:
                 if p.rotate[level] < 0.0:
                     old_rotate = -copysign(p.rotate[level], old_rotate)
                 else:

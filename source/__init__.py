@@ -8,8 +8,9 @@ import bpy
 from bpy.types import Operator, Panel
 
 from .presets import PresetStore
-from .ui.operators import AddTreeOperator, SavePresetOperator
+from .ui.operators import AddTreeOperator
 from .ui.panels import Menus, TreePanel
+from .ui.preset_save import SavePresetOperator
 
 
 class Registration:

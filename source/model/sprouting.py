@@ -6,6 +6,7 @@ from math import floor
 
 from mathutils import Vector
 
+from .branching import BranchingMode
 from .geometry import BezierSegment
 from .stem import BoneName, ChildPoint
 
@@ -21,7 +22,7 @@ class SproutPlanner:
         """Sprout points of a stem and its splits, in order: along each stem, then its tip."""
         p = self.params
         stem = stems[0]
-        if (level == 0) and (p.rotate_mode != "original"):
+        if (level == 0) and (p.rotate_mode != BranchingMode.ORIGINAL):
             positions = self._even_positions(stem.children)
         else:
             positions = self._positions_per_segment(stems, stem.children)

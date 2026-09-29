@@ -7,6 +7,7 @@ from mathutils import Vector
 
 from ..model.geometry import BezierSegment
 from ..model.stem import BoneName
+from .armature import ArmatureBuilder
 
 
 class SkinMeshBuilder:
@@ -100,13 +101,7 @@ class SkinMeshBuilder:
             ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
 
         if armature_ob:
-            modifier = ob.modifiers.new("windSway", "ARMATURE")
-            if p.preview_armature:
-                armature_ob.hide_viewport = True
-                armature_ob.data.display_type = "STICK"
-            modifier.object = armature_ob
-            modifier.use_bone_envelopes = False
-            modifier.use_vertex_groups = True
+            ArmatureBuilder.deform(ob, armature_ob, by_envelopes=False)
 
         skin = ob.modifiers.new("Skin", "SKIN")
         skin.use_smooth_shade = True

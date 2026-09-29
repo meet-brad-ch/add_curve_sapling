@@ -4,27 +4,25 @@
 
 import bpy
 
+from ..model.geometry import CrownShape
 from ..model.leaves import LeafShape
 from ..settings import TreeSettings
+from .preset_save import SavePresetOperator
 from .properties import TreeProperties
 
 
 class SettingsPages:
     """Draws the page chosen with the operator's `chooseSet` property."""
 
+    # One method per entry of Choices.PAGES, in the same order
+    ORDER = (
+        "geometry", "branch_radius", "branch_splitting", "branch_growth", "pruning", "leaves", "armature", "animation",
+    )  # fmt: skip
+
     @classmethod
     def draw(cls, props, layout):
         layout.prop(props, "chooseSet")
-        page = {
-            "0": cls.geometry,
-            "1": cls.branch_radius,
-            "2": cls.branch_splitting,
-            "3": cls.branch_growth,
-            "4": cls.pruning,
-            "5": cls.leaves,
-            "6": cls.armature,
-            "7": cls.animation,
-        }[props.chooseSet]
+        page = getattr(cls, cls.ORDER[int(props.chooseSet)])
         page(props, layout.box())
 
     @staticmethod
@@ -35,7 +33,7 @@ class SettingsPages:
         row.prop(props, "resU")
         box.prop(props, "handleType")
         box.prop(props, "shape")
-        if props.shape == "8":
+        if props.shape == str(CrownShape.CUSTOM):
             box.column().prop(props, "customShape")
         box.prop(props, "shapeS")
         box.prop(props, "branchDist")
@@ -52,7 +50,7 @@ class SettingsPages:
         row.prop(props, "limitImport")
         row = box.row()
         row.prop(props, "presetName", text="")
-        save = row.operator("sapling.preset_save", icon="FILE_TICK")
+        save = row.operator(SavePresetOperator.bl_idname, icon="FILE_TICK")
         save.name = props.presetName
         save.overwrite = props.overwrite
         save.settings = TreeSettings.from_properties(props, TreeProperties.generation_names()).to_json()

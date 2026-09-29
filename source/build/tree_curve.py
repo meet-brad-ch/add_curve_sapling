@@ -5,7 +5,7 @@
 import bpy
 from mathutils import Vector
 
-from ..model.geometry import CrownShape
+from ..model.geometry import Bezier, CrownShape
 
 
 class TreeCurveBuilder:
@@ -52,10 +52,10 @@ class EnvelopeBuilder:
         curve = bpy.data.curves.new(self.ROLE, "CURVE")
         self.objects.new(self.ROLE, curve, parent=tree)
         for axis in (0, 1):
-            spline = curve.splines.new("BEZIER")
+            spline = curve.splines.new(Bezier.SPLINE)
             point = spline.bezier_points[-1]
             point.co = Vector((0, 0, scale))
-            (point.handle_right_type, point.handle_left_type) = ("VECTOR", "VECTOR")
+            (point.handle_right_type, point.handle_left_type) = (Bezier.VECTOR, Bezier.VECTOR)
             for c in range(self.POINTS):
                 spline.bezier_points.add(1)
                 point = spline.bezier_points[-1]
@@ -69,4 +69,4 @@ class EnvelopeBuilder:
                     )
                 )
                 point.co = Vector((width, 0, z) if axis == 0 else (0, width, z))
-                (point.handle_right_type, point.handle_left_type) = ("VECTOR", "VECTOR")
+                (point.handle_right_type, point.handle_left_type) = (Bezier.VECTOR, Bezier.VECTOR)

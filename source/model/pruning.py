@@ -2,7 +2,7 @@
 
 """Growing each stem to full length, shortened by the pruning envelope when pruning is on."""
 
-from .geometry import CrownShape
+from .geometry import Bezier, CrownShape
 from .growth import StemGrower
 from .sprouting import SproutPlanner
 
@@ -113,13 +113,13 @@ class StemPruner:
     def _restart_in_scratch(self, stem, original, tree_spline, restart):
         """Start the stem again from its first point, in the scratch curve."""
         self.scratch.splines.clear()
-        spline = self.scratch.splines.new("BEZIER")
+        spline = self.scratch.splines.new(Bezier.SPLINE)
         point = spline.bezier_points[-1]
         if restart:
             point.co = original.co
             point.handle_right = original.handle_right
             point.handle_left = original.handle_left
-            (point.handle_left_type, point.handle_right_type) = ("VECTOR", "VECTOR")
+            (point.handle_left_type, point.handle_right_type) = (Bezier.VECTOR, Bezier.VECTOR)
             stem.curvature = original.curvature
             stem.curvature_v = original.curvature_v
             stem.segment = original.segment
@@ -206,7 +206,7 @@ class StemPruner:
         SplineCopier.copy_points(stem.spline, tree_spline)
         stem.spline = tree_spline
         for split in stems[1:]:
-            spline = self.curve.splines.new("BEZIER")
+            spline = self.curve.splines.new(Bezier.SPLINE)
             SplineCopier.copy_points(split.spline, spline)
             split.spline = spline
         for s in stems:
