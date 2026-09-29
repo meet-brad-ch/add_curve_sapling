@@ -8,8 +8,9 @@ it work on 5.2 LTS, fixes long-standing bugs, restructures the code (OO, tests, 
 5.2's Thin Wall shading for leaves.
 
 **Status:** working on Blender 5.2.2 LTS — generation, pruning, armature, wind, presets, re-edit
-and the Thin Wall leaf material are done and tested headless; the redo panel and wind playback
-still need a check by hand in the Blender UI.
+and the Thin Wall leaf material are done, reviewed and tested headless (74 tests, 98.7 % branch
+coverage); the redo panel and wind playback still need a check by hand in the Blender UI, and
+the performance table below is due for a re-measurement.
 
 ## How to run
 
@@ -58,7 +59,7 @@ Python 3.13 for the `.venv` (ruff, mypy, coverage and the Blender stubs, pinned 
 ## Performance
 
 Generation time per built-in preset with leaves on (median of 5, Blender 5.2.2, Windows, same
-settings for both, runs one after another), 2026-09-29:
+settings for both, runs one after another), 2026-09-29, **before** the review's performance work:
 
 | Preset | Leaves | 0.3.7 (upstream) | 0.4.0 | Change |
 | --- | ---: | ---: | ---: | ---: |
@@ -72,18 +73,27 @@ settings for both, runs one after another), 2026-09-29:
 | white_birch | 18 918 | 495 ms | 369 ms | −25 % |
 | willow | 1 328 | 59 ms | 55 ms | −6 % |
 
+The review then removed the O(n²) spline counting and pruning snapshots and the per-vertex
+rotation rebuilds. `tools/bench.py` (median of 5 per preset against `tools/bench_baseline.json`)
+measured japanese_maple at 3843 ms before and about 1950–2000 ms after, and 16–28 % less on the
+other large presets; those runs shared the CPU with other heavy jobs, so the table is to be
+re-measured on an idle machine with `python tools/bench.py`. The benchmark is not part of the
+gate: timings depend on the machine.
+
 ## Layout
 
 - `source/` — the extension package
-  - `model/` — tree growth on the curve: `TreeGrower`, `StemPruner`, `StemGrower`,
+  - `model/` — tree growth on the curve: `TreeGrower`, `StemBuilder`, `StemGrower`,
     `BranchSpawner`, `SproutPlanner`, `LeafGenerator`, `TreeParams`, geometry helpers
   - `build/` — Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
   - `ui/` — the Add Tree operator, its properties and pages, panels and menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
   - `presets/` — built-in presets (one Python dict literal each)
 - `tests/` — unittest suite run inside headless Blender; `tests/golden/` holds exact fingerprints
-  of 38 generated trees
-- `tools/` — `check.py`, `run_tests.py`, `blender_env.py`
+  of 38 generated trees; `test_fuzz` grows 100 trees from random settings; `test_architecture`
+  checks the layering and the no-module-state rule
+- `tools/` — `check.py` (the gate), `run_tests.py`, `bench.py` (+ `bench_in_blender.py`,
+  `bench_baseline.json`), `blender_env.py`, `hooks/pre-commit`
 
 ## Decisions
 
@@ -105,6 +115,16 @@ settings for both, runs one after another), 2026-09-29:
   Transmission (clear like glass): measured on a backlit leaf, see `CHANGELOG.md`.
 - 2026-09-29 — Instance Points leaves use a Geometry Nodes instancer with a stored rotation per
   leaf: vertex normals can no longer be set (Blender 4.1+), so vertex instancing lost the rotation.
+- 2026-09-29 — fail fast: no silent defaults or fallbacks. Errors the user can fix are
+  `SettingsError` (with `PresetError`), which the operator's `execute` reports and cancels on — the
+  only catch; everything else raises with a message that names the thing.
+- 2026-09-29 — a tree is its root plus the descendants carrying the root's id (not every object
+  with the tag), and Edit builds the new tree before removing the old one, so a failed edit
+  keeps the old tree and a failed Add leaves nothing.
+- 2026-09-29 — quality gates in `tools/check.py`: ruff (with complexity ≤ 10, docstrings and
+  annotations for `source/`), mypy with typed signatures, and branch coverage ≥ 98 % measured
+  inside Blender. A `type: ignore` is allowed only with its reason (stub gaps, values Blender
+  always sets); `warn_unused_ignores` flags the ones that become unnecessary.
 
 ## Credits
 

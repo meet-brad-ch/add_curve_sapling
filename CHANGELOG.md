@@ -23,6 +23,18 @@ Requires Blender 5.2 LTS.
 - The add-on reseeded Python's shared `random` module; it now has its own generator (same trees).
 - Armature creation deselected the whole scene and left the armature in an odd active state.
 - Typos and unclear labels in the panel.
+- Presets leaked values into each other: a preset that lacks settings (willow lacks about 35)
+  kept those of the preset loaded before it. Every preset now sets every generation setting.
+- A preset that failed to load only printed to the console; the operator now reports it and
+  cancels. Unreadable, malformed or badly named user preset files are listed with the reason.
+- Armature Levels 0 took the 4th level's Bone Step for the leaves, so with Make Mesh the leaves
+  hung on the parent branch; Armature Levels above 4 raised `IndexError`.
+- Making the armature also put any other selected armature into edit mode.
+- Calling `curve.tree_add` from a script with a UI-only keyword (`chooseSet`, `limitImport`)
+  made no tree.
+- Instanced leaves without a leaf object failed late; they now cancel before anything is made.
+- *Leaf Material* went onto Instance Points leaves, which have no faces.
+- *Make Mesh* without an armature left the skin mesh outside the tree (not parented to it).
 
 ### Added
 
@@ -33,7 +45,10 @@ Requires Blender 5.2 LTS.
   0.54; Thin Wall + Transmission 0.3 gives 0.76 but looks like clear glass, so it was not used.
   EEVEE opaque 0.11 → 0.23. On a backlit tree in Cycles, leaf pixels are 2.3× brighter.
 - **Edit Sapling Tree** (sidebar *Sapling* tab and *Object* menu): regenerate a tree from the
-  settings stored on it, in place.
+  settings stored on it, in place: same transform, parent (object, bone or vertex parent) and
+  collections; your objects parented to the tree are re-attached, or listed in a warning when
+  their part of the tree is gone. The new tree is built before the old one is removed, so a
+  failed edit keeps the old tree; a duplicated tree (Shift+D) is edited on its own.
 - New trees are added at the 3D cursor, in the active collection, selected and active.
 
 ### Changed
@@ -41,3 +56,12 @@ Requires Blender 5.2 LTS.
 - The code is rewritten as classes (`model/`, `build/`, `ui/`); the generated trees are
   bit-identical to 0.3.7 for every built-in preset, except where a fix above changes them.
 - User presets live in the extension's user folder.
+- Faster generation: the spline count Blender walks as a linked list and the per-stem pruning
+  snapshots made growth O(n²), and leaf rotations were rebuilt per vertex. japanese_maple went
+  from 3.8 s to about 2 s in `tools/bench.py` (to be re-measured on an idle machine).
+- Wind F-curves are grouped by bone in the Graph Editor.
+- Errors fail fast with a message instead of silent defaults; a failed Add leaves nothing behind.
+- The settings stored on a tree are versioned JSON.
+- Development: `tools/check.py` gates ruff (complexity ≤ 10, docstrings, annotations), mypy,
+  the manifest and the Blender test suite with branch coverage ≥ 98 %; a pre-commit hook runs
+  the fast part. Tests include 38 exact golden trees, 100 fuzzed trees and architecture checks.
