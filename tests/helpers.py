@@ -3,7 +3,6 @@
 """Shared test helpers: scene reset, tree generation through the public operator, fingerprints."""
 
 import hashlib
-import importlib
 import sys
 
 import bpy
@@ -15,7 +14,17 @@ OPERATOR = "curve.tree_add"
 RECORD_GOLDEN = False
 
 # Properties that are UI state, not generation input.
-UI_ONLY = {"chooseSet", "presetName", "limitImport", "overwrite", "do_update", "leafDupliObj"}
+UI_ONLY = {
+    "chooseSet",
+    "presetName",
+    "limitImport",
+    "overwrite",
+    "do_update",
+    "leafDupliObj",
+    "preset",
+    "replace",
+    "load_stored",
+}
 
 
 def addon():
@@ -68,14 +77,10 @@ def plain(value):
 
 
 def resolve_preset(filename: str) -> dict:
-    """Full operator settings produced by importing a built-in preset (operator defaults + preset)."""
-    importlib.invalidate_caches()
+    """Full operator settings produced by loading a built-in preset (operator defaults + preset)."""
     settings = operator_defaults()
-    bpy.ops.sapling.importdata(filename=filename)
-    # Legacy add-on: ImportData leaves the migrated preset in a module global for AddTree.execute.
-    mod = addon()
-    preset = dict(mod.settings)
-    mod.useSet = False
+    store = sys.modules[f"{MODULE}.presets"].PresetStore.for_addon()
+    preset = store.load(filename.removesuffix(".py")).values
     names = set(operator_property_names())
     settings.update({k: v for k, v in preset.items() if k in names and k not in UI_ONLY})
     return {k: plain(v) for k, v in settings.items()}

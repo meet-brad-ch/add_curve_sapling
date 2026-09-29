@@ -35,15 +35,16 @@ class TreeResult:
 class TreeGenerator:
     """Generates one tree from settings (anything with the operator's property names)."""
 
-    def __init__(self, settings, context):
+    def __init__(self, settings, context, collection=None):
         self.params = TreeParams(settings)
         self.context = context
+        self.collection = collection or context.collection
 
     def generate(self):
         p = self.params
         # One random stream for the whole tree: the same seed gives the same tree
         rng = random.Random(p.seed)
-        objects = ObjectFactory(self.context.collection)
+        objects = ObjectFactory(self.collection)
 
         tree = TreeCurveBuilder(p, objects).build()
         scale = p.scale + rng.uniform(-p.scale_v, p.scale_v)
