@@ -103,6 +103,24 @@ class Placement(unittest.TestCase):
         self.assertEqual((new_root.parent, new_root.parent_type, new_root.parent_bone), (rig, "BONE", "Bone"))
         self.assertLess((new_root.matrix_world.to_translation() - world.to_translation()).length, 1e-5)
 
+    def test_vertex_parent_is_kept(self):
+        helpers.reset_scene()
+        self.assertEqual(bpy.ops.mesh.primitive_plane_add(location=(2, 0, 1)), {"FINISHED"})
+        plane = helpers.active_object()
+        root = add_tree()
+        root.parent = plane
+        root.parent_type = "VERTEX_3"
+        root.parent_vertices = (0, 1, 3)
+        bpy.context.view_layer.update()
+        world = root.matrix_world.copy()
+
+        self.assertEqual(edit(root), {"FINISHED"})
+        new_root = helpers.active_object()
+        bpy.context.view_layer.update()
+        link = (new_root.parent, new_root.parent_type, tuple(new_root.parent_vertices))
+        self.assertEqual(link, (plane, "VERTEX_3", (0, 1, 3)))
+        self.assertLess((new_root.matrix_world.to_translation() - world.to_translation()).length, 1e-5)
+
     def test_all_collections_are_kept(self):
         helpers.reset_scene()
         root = add_tree()

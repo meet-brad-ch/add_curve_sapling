@@ -116,7 +116,9 @@ class TreePlacement:
     """Where a tree sits (transform, parent, collections) and the user's objects attached to it."""
 
     def __init__(self, root, owned):
-        self.matrix = root.matrix_world.copy()
+        # The root's own transform: with the same parent link and parent inverse it puts the new root
+        # exactly where the old one was (setting matrix_world misplaces vertex-parented roots)
+        self.basis = root.matrix_basis.copy()
         self.link = ParentLink.of(root)
         self.parent_inverse = root.matrix_parent_inverse.copy()
         self.collections = list(root.users_collection)
@@ -144,7 +146,7 @@ class TreePlacement:
         root = result.root
         self.link.attach(root)
         root.matrix_parent_inverse = self.parent_inverse
-        root.matrix_world = self.matrix
+        root.matrix_basis = self.basis
         view_layer.update()  # the new tree's world matrices, for re-parenting below
         unattached = []
         for item in self.attached:
