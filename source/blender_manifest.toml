@@ -1,12 +1,12 @@
 schema_version = "1.0.0"
 id = "sapling_tree_gen"
 name = "Sapling Tree Gen"
-version = "0.3.7"
-tagline = "Adds a parametric tree"
+version = "0.4.0"
+tagline = "Adds a parametric tree with leaves, armature and wind"
 maintainer = "Community"
 type = "add-on"
 tags = ["Add Curve"]
-blender_version_min = "4.4.0"
+blender_version_min = "5.2.0"
 license = ["SPDX:GPL-3.0-or-later"]
 website = "https://projects.blender.org/extensions/add_curve_sapling"
 copyright = [
@@ -14,3 +14,6 @@ copyright = [
     "2024 Aaron Buchler",
     "2024 CansecoGPC",
 ]
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "/.*"]
