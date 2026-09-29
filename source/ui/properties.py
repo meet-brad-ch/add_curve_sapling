@@ -390,6 +390,12 @@ class TreeProperties:
     leafangle: FloatProperty(
         name="Leaf Angle", description="Leaf vertical attraction", default=0.0, update=update_leaves
     )
+    leafMaterial: BoolProperty(
+        name="Leaf Material",
+        description="Give mesh leaves the Sapling Leaf material: Thin Wall shading, so light shines through the "
+        "leaves like through real ones",
+        default=True, update=update_leaves,
+    )  # fmt: skip
     horzLeaves: BoolProperty(
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
     )

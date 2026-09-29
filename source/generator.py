@@ -9,6 +9,7 @@ import bpy
 
 from .build.armature import ArmatureBuilder
 from .build.leaf_object import LeafObjectBuilder
+from .build.materials import MaterialLibrary
 from .build.objects import ObjectFactory
 from .build.skin_mesh import SkinMeshBuilder
 from .build.tree_curve import EnvelopeBuilder, TreeCurveBuilder
@@ -75,4 +76,6 @@ class TreeGenerator:
                 tree.data, grown, armature_ob, armatures.armature_level_end(grown)
             )
 
-        return TreeResult(tree, leaves_ob, armature_ob, skin_ob, objects.created)
+        result = TreeResult(tree, leaves_ob, armature_ob, skin_ob, objects.created)
+        MaterialLibrary().assign(result, p.leaf_material)
+        return result

@@ -84,6 +84,7 @@ class TreeParams:
         self.leaf_angle = s.leafangle
         self.horizontal_leaves = s.horzLeaves
         self.leaf_dist = int(s.leafDist)
+        self.leaf_material = s.leafMaterial
 
         self.bevel_depth = 1.0 if s.bevel else 0.0
         self.bevel_res = s.bevelRes

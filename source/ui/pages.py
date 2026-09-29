@@ -145,6 +145,8 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "leafScaleT")
         row.prop(props, "leafScaleV")
+        if props.leafShape in {"hex", "rect"}:
+            box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
         box.prop(props, "leafangle")
 
