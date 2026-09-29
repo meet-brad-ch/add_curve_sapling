@@ -9,8 +9,8 @@ it work on 5.2 LTS, fixes long-standing bugs, restructures the code (OO, tests, 
 
 **Status:** working on Blender 5.2.2 LTS — generation, pruning, armature, wind, presets, re-edit
 and the Thin Wall leaf material are done, reviewed and tested headless (74 tests, 98.7 % branch
-coverage); the redo panel and wind playback still need a check by hand in the Blender UI, and
-the performance table below is due for a re-measurement.
+coverage) and checked by hand in the Blender 5.2.2 UI (2026-09-29); the performance table below
+is due for a re-measurement.
 
 ## How to run
 
