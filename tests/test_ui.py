@@ -4,7 +4,6 @@
 
 import json
 import re
-import sys
 import unittest
 from pathlib import Path
 
@@ -15,12 +14,8 @@ from mathutils import Matrix
 SOURCE = Path(__file__).resolve().parent.parent / "source"
 
 
-def module(name):
-    return sys.modules[f"{helpers.MODULE}.{name}"]
-
-
 def root_of(ob):
-    return module("build.tree_record").TreeRecord.root_of(ob)
+    return helpers.module("build.tree_record").TreeRecord.root_of(ob)
 
 
 class Registration(unittest.TestCase):
@@ -41,18 +36,18 @@ class Registration(unittest.TestCase):
         text = (SOURCE / "ui" / "pages.py").read_text(encoding="utf-8")
         drawn = set(re.findall(r'\.prop\(props, "(\w+)"', text))
         hidden = {"bend"}  # Leaf Bend has no control, as in earlier versions
-        names = set(module("ui.operators").AddTreeOperator.generation_names())
+        names = set(helpers.module("ui.operators").AddTreeOperator.generation_names())
         self.assertEqual(names - drawn - hidden, set())
 
 
 class Presets(unittest.TestCase):
     def store(self):
-        return module("presets").PresetStore.for_addon()
+        return helpers.module("presets").PresetStore.for_addon()
 
     def test_builtin_presets_load(self):
         names = [n for n, builtin in self.store().names() if builtin]
         self.assertEqual(len(names), 9)
-        generation = set(module("ui.operators").AddTreeOperator.generation_names())
+        generation = set(helpers.module("ui.operators").AddTreeOperator.generation_names())
         obsolete = {"startCurv", "windGust", "windSpeed"}  # keys of the oldest preset format
         for name in names:
             with self.subTest(preset=name):
@@ -66,7 +61,7 @@ class Presets(unittest.TestCase):
         try:
             self.assertEqual(store.load("my tree").values, settings.values)
             self.assertIn(("my tree", False), store.names())
-            with self.assertRaises(module("presets").PresetError):
+            with self.assertRaises(helpers.module("presets").PresetError):
                 store.save("my tree", settings)  # exists, no overwrite
         finally:
             path.unlink()
@@ -75,13 +70,13 @@ class Presets(unittest.TestCase):
         store = self.store()
         settings = store.load("willow")
         for name in ("", "..\\evil", "../evil", "a/b", "C:\\x", "willow", ".hidden"):
-            with self.subTest(name=name), self.assertRaises(module("presets").PresetError):
+            with self.subTest(name=name), self.assertRaises(helpers.module("presets").PresetError):
                 store.save(name, settings, overwrite=True)
 
     def test_operator_applies_preset(self):
         helpers.reset_scene()
         self.assertEqual(bpy.ops.curve.tree_add(preset="douglas_fir", do_update=True), {"FINISHED"})
-        stored = module("build.tree_record").TreeRecord.settings(bpy.context.active_object).values
+        stored = helpers.module("build.tree_record").TreeRecord.settings(bpy.context.active_object).values
         preset = self.store().load("douglas_fir").values
         self.assertEqual(stored["levels"], min(preset["levels"], 2))  # Limit Import
         self.assertFalse(stored["showLeaves"])

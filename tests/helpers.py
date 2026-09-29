@@ -52,6 +52,16 @@ def reset_scene() -> None:
     scene.frame_set(1)
 
 
+def module(name: str) -> Any:
+    """A module of the installed add-on, e.g. module("build.tree_record")."""
+    return sys.modules[f"{MODULE}.{name}"]
+
+
+def generation_names() -> list[str]:
+    """The add-on's own list of properties that shape a tree."""
+    return module("ui.properties").TreeProperties.generation_names()
+
+
 def operator_property_names() -> list[str]:
     rna = bpy.ops.curve.tree_add.get_rna_type()
     return [p.identifier for p in rna.properties if p.identifier != "rna_type"]
@@ -81,7 +91,7 @@ def plain(value):
 def resolve_preset(filename: str) -> dict:
     """Full operator settings produced by loading a built-in preset (operator defaults + preset)."""
     settings = operator_defaults()
-    store = sys.modules[f"{MODULE}.presets"].PresetStore.for_addon()
+    store = module("presets").PresetStore.for_addon()
     preset = store.load(filename.removesuffix(".py")).values
     names = set(operator_property_names())
     settings.update({k: v for k, v in preset.items() if k in names and k not in UI_ONLY})

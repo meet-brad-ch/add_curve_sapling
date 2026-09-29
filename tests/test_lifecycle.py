@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Blender data lifecycle: nothing left behind by removing or regenerating a tree, clean re-register."""
+
+import unittest
+
+import bpy
+import helpers
+
+DATA = ("objects", "curves", "meshes", "armatures", "actions")
+
+
+def counts():
+    return {name: len(getattr(bpy.data, name)) for name in DATA}
+
+
+def full_tree_settings():
+    settings = helpers.resolve_preset("quaking_aspen.py")
+    settings.update(showLeaves=True, useArm=True, armAnim=True, leafAnim=True, makeMesh=True, prune=True)
+    return settings
+
+
+class DataLifecycle(unittest.TestCase):
+    def test_remove_leaves_no_data(self):
+        helpers.reset_scene()
+        empty = counts()
+        self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(), do_update=True), {"FINISHED"})
+        root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
+        helpers.module("build.tree_record").TreeRecord.remove(root)
+        self.assertEqual(counts(), empty)
+
+
+class Registration(unittest.TestCase):
+    @staticmethod
+    def menu_entries():
+        # Menu.append stores the functions on the draw method; there is no public accessor.
+        return len(getattr(bpy.types.VIEW3D_MT_curve_add.draw, "_draw_funcs", ()))
+
+    def test_disable_enable_leaves_no_menu_entries(self):
+        enabled = self.menu_entries()
+        bpy.ops.preferences.addon_disable(module=helpers.MODULE)
+        self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
+        self.assertEqual(self.menu_entries(), enabled - 1)
+        bpy.ops.preferences.addon_enable(module=helpers.MODULE)
+        self.assertEqual(self.menu_entries(), enabled)
