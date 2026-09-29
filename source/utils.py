@@ -857,11 +857,11 @@ def create_armature(armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSi
                         a4 = 0
 
                     # Add new fcurves for each sway as well as the modifiers
-                    swayX = armOb.animation_data.action.fcurves.new(
-                                            'pose.bones["' + boneName + '"].rotation_euler', index=0
+                    swayX = armOb.animation_data.action.fcurve_ensure_for_datablock(
+                                            armOb, 'pose.bones["' + boneName + '"].rotation_euler', index=0
                                             )
-                    swayY = armOb.animation_data.action.fcurves.new(
-                                            'pose.bones["' + boneName + '"].rotation_euler', index=2
+                    swayY = armOb.animation_data.action.fcurve_ensure_for_datablock(
+                                            armOb, 'pose.bones["' + boneName + '"].rotation_euler', index=2
                                             )
                     swayXMod1 = swayX.modifiers.new(type='FNGENERATOR')
                     swayXMod2 = swayX.modifiers.new(type='FNGENERATOR')
@@ -939,11 +939,11 @@ def create_armature(armAnim, leafP, cu, frameRate, leafMesh, leafObj, leafVertSi
                     byOffset = uniform(-ofstRand, ofstRand)
 
                     # Add new fcurves for each sway as well as the modifiers
-                    swayX = armOb.animation_data.action.fcurves.new(
-                                                'pose.bones["' + bname + '"].rotation_euler', index=0
+                    swayX = armOb.animation_data.action.fcurve_ensure_for_datablock(
+                                                armOb, 'pose.bones["' + bname + '"].rotation_euler', index=0
                                                 )
-                    swayY = armOb.animation_data.action.fcurves.new(
-                                                'pose.bones["' + bname + '"].rotation_euler', index=2
+                    swayY = armOb.animation_data.action.fcurve_ensure_for_datablock(
+                                                armOb, 'pose.bones["' + bname + '"].rotation_euler', index=2
                                                 )
                     # Add keyframe so noise works
                     swayX.keyframe_points.add(1)
