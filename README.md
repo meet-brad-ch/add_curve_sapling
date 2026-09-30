@@ -13,6 +13,12 @@ restructured into classes, with tests, lint and type checks.
 editing and the leaf material are complete. 79 automated tests pass in headless Blender, with
 98.7 % branch coverage. The features were also checked by hand in the Blender user interface.
 
+## Download
+
+The built extension is on the GitHub Releases page:
+<https://github.com/meet-brad-ch/add_curve_sapling/releases>. In Blender 5.2, select
+*Edit > Preferences > Get Extensions*, then *Install from Disk*, and select the zip.
+
 ## How to run
 
 The default Blender is `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (5.2.2 LTS).
@@ -35,6 +41,16 @@ The tests build the extension zip and install it into a temporary profile in `bu
 Branch coverage is measured inside Blender. The test runner adds the `coverage` package of the
 `.venv` to the `sys.path` of Blender. This works because both use Python 3.13. The run fails when
 the coverage is less than `COVERAGE_MIN` in `tools/check.py`.
+
+To release a version:
+
+1. Set `version` in `source/blender_manifest.toml` and add the version to `CHANGELOG.md`.
+2. Commit, then tag the commit `v<version>`, for example `git tag v0.4.0`.
+3. Push the tag to GitHub: `git push github v0.4.0`.
+
+The workflow `.github/workflows/build.yml` then downloads Blender 5.2.2 and checks its SHA-256.
+It builds the zip with `blender -c extension build` and publishes it as a GitHub Release. The
+workflow stops if the tag is not the manifest version.
 
 **Prerequisites:** Blender 5.2 LTS (with Python 3.13), Python 3.10 or later for the tools, and
 Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage and the Blender stubs.

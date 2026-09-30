@@ -1,0 +1,75 @@
+# Builds the extension zip with Blender's own packer.
+# A push of a tag vX.Y.Z (the manifest version) also publishes a GitHub Release with the zip.
+# A manual run (Actions > Build extension > Run workflow) builds the zip as a run artifact only.
+name: Build extension
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BLENDER_VERSION: "5.2.2"
+  # blender-5.2.2.sha256, the same on the three mirrors below
+  BLENDER_SHA256: "84098912789dc450e95697c4184fb8a90acbe5111c2ba4aede3fecb57806a168"
+  # download.blender.org answers scripts with a Cloudflare challenge; Blender's official mirrors do not
+  BLENDER_MIRRORS: >-
+    https://mirrors.ocf.berkeley.edu/blender/release/Blender5.2
+    https://ftp.nluug.nl/pub/graphics/blender/release/Blender5.2
+    https://mirror.clarkson.edu/blender/release/Blender5.2
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag is the manifest version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' source/blender_manifest.toml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not the manifest version v$version"
+            exit 1
+          fi
+
+      - name: Download Blender
+        run: |
+          file="blender-$BLENDER_VERSION-linux-x64.tar.xz"
+          for mirror in $BLENDER_MIRRORS; do
+            if curl -fsSL --retry 3 -o "$file" "$mirror/$file"; then break; fi
+            echo "::warning::$mirror failed"
+          done
+          echo "$BLENDER_SHA256  $file" | sha256sum -c -
+          tar -xf "$file"
+          echo "BLENDER=$PWD/blender-$BLENDER_VERSION-linux-x64/blender" >> "$GITHUB_ENV"
+
+      - name: Install the libraries Blender loads
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 libgl1 libice6 libsm6 libxfixes3 libxi6 libxkbcommon0 libxrender1 libxxf86vm1
+
+      - name: Validate and build
+        run: |
+          "$BLENDER" --factory-startup -c extension validate source
+          mkdir dist
+          "$BLENDER" --factory-startup -c extension build --source-dir source --output-dir dist
+          (cd dist && sha256sum -- *.zip > SHA256SUMS && cat SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sapling_tree_gen
+          path: dist/
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS \
+            --title "Sapling Tree Gen $GITHUB_REF_NAME" \
+            --notes "For Blender 5.2 LTS. Install: Edit > Preferences > Get Extensions > Install from Disk, then select the zip. Changes: CHANGELOG.md. Built from $GITHUB_SHA."
