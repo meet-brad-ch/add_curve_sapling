@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — Blender 5.2 LTS revamp (unreleased)
+## 0.4.0 — Blender 5.2 LTS revamp (2026-09-29)
 
 Requires Blender 5.2 LTS.
 
