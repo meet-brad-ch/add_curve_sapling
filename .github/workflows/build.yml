@@ -25,7 +25,7 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check that the tag is the manifest version
         if: startsWith(github.ref, 'refs/tags/')
@@ -60,7 +60,7 @@ jobs:
           "$BLENDER" --factory-startup -c extension build --source-dir source --output-dir dist
           (cd dist && sha256sum -- *.zip > SHA256SUMS && cat SHA256SUMS)
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sapling_tree_gen
           path: dist/
