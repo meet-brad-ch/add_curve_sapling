@@ -188,3 +188,20 @@ class FailureSafety(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "injected failure"):
             edit(root, makeMesh=True)
         self.assertEqual(helpers.fingerprint(), before)
+
+
+class OlderTrees(unittest.TestCase):
+    """A tree stores its settings; Edit failed on trees made before a setting existed ("missing [...]")."""
+
+    def test_edit_fills_settings_added_since(self):
+        import json
+
+        helpers.reset_scene()
+        root = add_tree()
+        stored = json.loads(root[record().SETTINGS])
+        default = helpers.operator_defaults()["rootFlare"]
+        stored["settings"].pop("rootFlare")  # as if the tree came from a version without this setting
+        root[record().SETTINGS] = json.dumps(stored)
+
+        self.assertEqual(bpy.ops.curve.tree_add(replace=root.name, do_update=True), {"FINISHED"})
+        self.assertEqual(helpers.stored_settings(helpers.active_object())["rootFlare"], default)

@@ -150,7 +150,8 @@ class AddTreeOperator(TreeProperties, Operator):
         root = TreeRecord.root_of(ob)
         TreeRecord.claim(root)
         if self.load_stored:
-            TreeRecord.settings(root).apply_to(self, TreeProperties.stored_names())
+            # A tree made before a setting existed gets that setting's default, as an older preset does
+            TreeRecord.settings(root).complete(self.defaults()).apply_to(self, TreeProperties.stored_names())
             self.load_stored = False
         context.view_layer.update()  # current world matrices of the tree and the user's objects
         return root
