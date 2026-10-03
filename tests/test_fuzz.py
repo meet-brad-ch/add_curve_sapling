@@ -19,8 +19,8 @@ import helpers
 
 CASES = 100
 SEED = 20260929
-# A case taking longer than this many seconds fails: the caps below must keep every tree small
-SLOW_CASE = 20.0
+# A case taking longer than this many seconds fails (the slowest took 0.7 s): a slow build is a defect
+SLOW_CASE = 5.0
 
 # Unbounded counts are capped so each tree stays small; (low, high) per vector element or scalar.
 CAPS: dict[str, Any] = {
@@ -31,8 +31,9 @@ CAPS: dict[str, Any] = {
     "nrings": (0, 6),
     "baseSplits": (0, 4),
     "trunks": (1, 3),
-    # splits on every segment of every level grow tens of thousands of stems (13,000-23,000 seen), and an
-    # armature with wind on such a tree takes minutes
+    # splits on every segment of every level grow tens of thousands of stems (13,000-23,000 seen); with an
+    # armature on every level that is 30,000+ bones, and Blender's own cost to create each bone, F-curve and
+    # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
     "segSplits": [(0.0, 0.5)] * 4,
     "boneStep": [(1, 3)] * 4,
     "armLevels": (0, 4),
