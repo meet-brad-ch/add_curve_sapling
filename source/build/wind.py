@@ -1,14 +1,27 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Wind animation: procedural F-curve modifiers on the rotation of branch and leaf bones."""
+"""Wind animation: procedural F-curve modifiers on the rotation of branch bones, and leaf flutter in Geometry
+Nodes."""
 
 from math import radians
 
 import bpy
-from bpy.types import FCurve, FModifierFunctionGenerator, FModifierNoise, Object, SplineBezierPoints
+from bpy.types import (
+    FCurve,
+    Float2Attribute,
+    FloatVectorAttribute,
+    FModifierFunctionGenerator,
+    Node,
+    NodeSocket,
+    NodeTree,
+    Object,
+    SplineBezierPoints,
+)
 
 from ..model.geometry import Angles
+from ..model.leaves import LeafSet
 from ..model.params import TreeParams
+from .node_groups import SharedNodeGroup
 
 
 class WindModel:
@@ -130,17 +143,130 @@ class WindAnimator:
             bend.value_offset = self.BEND_LEAN * amplitude
             bend.use_additive = True
 
-    def add_leaf_flutter(self, bone: str, strength: float, scale: float, offsets: tuple[float, float]) -> None:
-        """Noise on X and Z; a keyframe at 0 gives the noise a curve to modify."""
-        for fcurve, offset in zip(self._rotation_curves(bone), offsets, strict=True):
-            fcurve.keyframe_points.add(1)
-            fcurve.keyframe_points[0].co = (0, 0)
-            noise: FModifierNoise = fcurve.modifiers.new(type="NOISE")  # type: ignore[assignment]  # stub: new() returns the base class
-            if self.loop_frames != 0:
-                noise.use_restricted_range = True
-                noise.frame_end = self.loop_frames
-                noise.blend_in = 4
-                noise.blend_out = 4
-            noise.scale = scale
-            noise.strength = strength
-            noise.offset = offset
+    def add_leaf_flutter(self, leaves_ob: Object, leaves: LeafSet, offsets: list[float]) -> None:
+        """Leaf flutter: per leaf, its sprout point and its two noise offsets as attributes, and the modifier.
+
+        `offsets` holds two random offsets per leaf (X, then Z). The modifier comes first on the leaves, before
+        the Armature modifier: each leaf turns about its sprout at rest, then follows its branch.
+        """
+        size = leaves.verts_per_leaf
+        mesh = leaves_ob.data
+        pivots = [c for sprout in leaves.sprouts for _ in range(size) for c in sprout.co.to_tuple()]
+        per_vertex = [o for i in range(0, len(offsets), 2) for _ in range(size) for o in offsets[i : i + 2]]
+        pivot: FloatVectorAttribute = mesh.attributes.new(LeafFlutterNodes.PIVOT, "FLOAT_VECTOR", "POINT")  # type: ignore[union-attr, assignment]  # leaves are a mesh; stub: new() returns the base class
+        pivot.data.foreach_set("vector", pivots)
+        offset: Float2Attribute = mesh.attributes.new(LeafFlutterNodes.OFFSET, "FLOAT2", "POINT")  # type: ignore[union-attr, assignment]  # leaves are a mesh; stub: new() returns the base class
+        offset.data.foreach_set("vector", per_vertex)
+        strength, scale = self.model.leaf_flutter()
+        LeafFlutterNodes.add_modifier(leaves_ob, strength, scale, self.loop_frames)
+
+
+class LeafFlutterNodes:
+    """Geometry nodes that turn each leaf about its sprout point with noise over time (Leaf Animation).
+
+    The turn reproduces the leaf bones this replaces: an upright bone (roll 0) turned by noise about its X and
+    Z axes, which are the world X and -Y axes. As in Blender's Noise F-modifier, the angle is
+    (noise((frame - offset) / scale) - 0.5) * strength. With Loop Frames it fades in and out over FADE_FRAMES
+    after frame 0 and before the loop end, and is zero outside them.
+    """
+
+    GROUP = "Sapling Leaf Flutter"
+    VERSION = 1
+    PIVOT = "leaf_pivot"
+    OFFSET = "leaf_flutter_offset"
+    FADE_FRAMES = 4.0
+    INPUTS = (
+        ("Strength", "NodeSocketFloat"),
+        ("Scale", "NodeSocketFloat"),
+        ("Loop", "NodeSocketBool"),
+        ("Loop End", "NodeSocketFloat"),
+    )
+
+    @classmethod
+    def add_modifier(cls, leaves_ob: Object, strength: float, scale: float, loop_frames: int) -> None:
+        """The flutter modifier, first on the leaves (before the Armature modifier)."""
+        group = SharedNodeGroup.ensure(cls.GROUP, cls.VERSION, cls._build)
+        modifier = SharedNodeGroup.add_modifier(leaves_ob, "Leaf Flutter", group)
+        leaves_ob.modifiers.move(len(leaves_ob.modifiers) - 1, 0)
+        values = (strength, scale, loop_frames != 0, float(loop_frames))
+        for (name, _), value in zip(cls.INPUTS, values, strict=True):
+            SharedNodeGroup.set_input(modifier, name, value)
+
+    @classmethod
+    def _build(cls, group: NodeTree) -> None:
+        """Fill the empty group: Set Position turns each vertex about its leaf's pivot by the two noise angles."""
+        interface = group.interface
+        interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
+        for name, socket_type in cls.INPUTS:
+            interface.new_socket(name, in_out="INPUT", socket_type=socket_type)  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
+        interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
+
+        nodes = group.nodes
+        links = group.links
+        inputs = nodes.new("NodeGroupInput")
+        frame = nodes.new("GeometryNodeInputSceneTime").outputs["Frame"]
+        offsets = nodes.new("ShaderNodeSeparateXYZ")
+        links.new(cls._attribute(group, cls.OFFSET), offsets.inputs[0])
+        strength = cls._math(group, "MULTIPLY", inputs.outputs["Strength"], cls._fade(group, inputs, frame))
+        scale = inputs.outputs["Scale"]
+        turn = nodes.new("ShaderNodeCombineXYZ")
+        links.new(cls._angle(group, frame, offsets.outputs["X"], scale, strength), turn.inputs["X"])
+        z_angle = cls._angle(group, frame, offsets.outputs["Y"], scale, strength)
+        links.new(cls._math(group, "MULTIPLY", z_angle, -1.0), turn.inputs["Y"])  # the bone's Z axis is world -Y
+
+        rotate = nodes.new("ShaderNodeVectorRotate")
+        rotate.rotation_type = "EULER_XYZ"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        links.new(nodes.new("GeometryNodeInputPosition").outputs[0], rotate.inputs["Vector"])
+        links.new(cls._attribute(group, cls.PIVOT), rotate.inputs["Center"])
+        links.new(turn.outputs[0], rotate.inputs["Rotation"])
+        set_position = nodes.new("GeometryNodeSetPosition")
+        links.new(inputs.outputs["Geometry"], set_position.inputs["Geometry"])
+        links.new(rotate.outputs[0], set_position.inputs["Position"])
+        links.new(set_position.outputs["Geometry"], nodes.new("NodeGroupOutput").inputs["Geometry"])
+
+    @classmethod
+    def _angle(
+        cls, group: NodeTree, frame: NodeSocket, offset: NodeSocket, scale: NodeSocket, strength: NodeSocket
+    ) -> NodeSocket:
+        """(noise((frame - offset) / scale) - 0.5) * strength: the angle about one axis."""
+        noise = group.nodes.new("ShaderNodeTexNoise")
+        noise.noise_dimensions = "1D"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        noise.inputs["Detail"].default_value = 0.0  # type: ignore[attr-defined]  # stub: NodeSocket base class
+        group.links.new(cls._math(group, "SUBTRACT", frame, offset), noise.inputs["W"])
+        group.links.new(cls._math(group, "DIVIDE", 1.0, scale), noise.inputs["Scale"])
+        return cls._math(group, "MULTIPLY", cls._math(group, "SUBTRACT", noise.outputs["Fac"], 0.5), strength)
+
+    @classmethod
+    def _fade(cls, group: NodeTree, inputs: Node, frame: NodeSocket) -> NodeSocket:
+        """1 without a loop; with one, min(frame, loop end - frame) / FADE_FRAMES, clamped to 0..1."""
+        to_end = cls._math(group, "SUBTRACT", inputs.outputs["Loop End"], frame)
+        fade = cls._math(group, "DIVIDE", cls._math(group, "MINIMUM", frame, to_end), cls.FADE_FRAMES, clamp=True)
+        switch = group.nodes.new("GeometryNodeSwitch")
+        switch.input_type = "FLOAT"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        group.links.new(inputs.outputs["Loop"], switch.inputs["Switch"])
+        switch.inputs["False"].default_value = 1.0  # type: ignore[attr-defined]  # stub: NodeSocket base class
+        group.links.new(fade, switch.inputs["True"])
+        return switch.outputs[0]
+
+    @staticmethod
+    def _attribute(group: NodeTree, name: str) -> NodeSocket:
+        """A named vector attribute of the geometry (a 2D vector reads as (x, y, 0))."""
+        node = group.nodes.new("GeometryNodeInputNamedAttribute")
+        node.data_type = "FLOAT_VECTOR"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        node.inputs["Name"].default_value = name  # type: ignore[attr-defined]  # stub: NodeSocket base class
+        return node.outputs["Attribute"]
+
+    @staticmethod
+    def _math(
+        group: NodeTree, operation: str, a: NodeSocket | float, b: NodeSocket | float, clamp: bool = False
+    ) -> NodeSocket:
+        """A Math node of a and b (sockets are linked, numbers are set); returns its result."""
+        node = group.nodes.new("ShaderNodeMath")
+        node.operation = operation  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        node.use_clamp = clamp  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        for socket, value in zip(node.inputs, (a, b), strict=False):
+            if isinstance(value, float):
+                socket.default_value = value  # type: ignore[attr-defined]  # stub: NodeSocket base class
+            else:
+                group.links.new(value, socket)
+        return node.outputs[0]

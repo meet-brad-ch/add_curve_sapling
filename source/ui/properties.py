@@ -418,7 +418,9 @@ class TreeProperties:
         update=update_tree,
     )  # fmt: skip
     leafAnim: BoolProperty(
-        name="Leaf Animation", description="Whether animation is added to the leaves", default=False,
+        name="Leaf Animation",
+        description="Leaves flutter in the wind (with Armature Animation), by a Geometry Nodes modifier",
+        default=False,
         update=update_tree,
     )  # fmt: skip
     previewArm: BoolProperty(

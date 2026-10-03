@@ -15,11 +15,12 @@
    },
    "instance_type": "NONE",
    "modifiers": [
+    "NODES",
     "ARMATURE"
    ],
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "8e0df8fb7f1c0de4"
+   "vertex_groups": "5201fd8dabd65fba"
   },
   "tree": {
    "data": {
@@ -71,17 +72,17 @@
   },
   "treeArm": {
    "animation": {
-    "fcurves": 1198,
-    "groups": "df7b4fcbf3176b74",
-    "modifiers": "dfed06d4e5994e74",
-    "paths": "cfef0fc59b550401"
+    "fcurves": 316,
+    "groups": "3fd3fbe0c1560f3e",
+    "modifiers": "ee0386d120ebc08d",
+    "paths": "9945c17a0699bf4b"
    },
    "data": {
-    "bones": 599,
-    "connect": "87c6ba2c5e6e99b1",
-    "geometry": "812c6cf9f8ed3cce",
-    "names": "24bdcbf887768b50",
-    "parents": "40aa5625baffc9aa"
+    "bones": 158,
+    "connect": "41663ef0cbb633b6",
+    "geometry": "b9a413cb99732bd5",
+    "names": "b869fe8ad1b37bd6",
+    "parents": "dcb9e98e71750b96"
    },
    "instance_type": "NONE",
    "modifiers": [],

@@ -3,12 +3,13 @@
 """The leaves object: a mesh of leaf quads, or points/faces that instance a leaf object."""
 
 import bpy
-from bpy.types import Mesh, NodesModifier, NodeTree, Object, QuaternionAttribute
+from bpy.types import Mesh, NodeTree, Object, QuaternionAttribute
 from mathutils import Vector
 
 from ..model.leaves import LeafSet, LeafShape
 from ..model.params import TreeParams
 from ..settings import SettingsError
+from .node_groups import SharedNodeGroup
 from .objects import ObjectFactory
 from .tree_record import TreeRecord
 
@@ -103,37 +104,17 @@ class LeafInstancerNodes:
     VERSION = 1
     ROTATION = "leaf_rotation"
     OBJECT_INPUT = "Leaf Object"
-    VERSION_KEY = "sapling_version"
 
     @classmethod
     def add_modifier(cls, leaves_ob: Object, instance: Object) -> None:
         """A Geometry Nodes modifier on the leaves that instances `instance` on each point."""
-        group = cls.node_group()
-        modifier: NodesModifier = leaves_ob.modifiers.new("Leaf Instances", "NODES")  # type: ignore[assignment]  # stub: new() returns the base class
-        modifier.node_group = group
-        socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == cls.OBJECT_INPUT)  # type: ignore[union-attr]  # a node group has an interface
-        # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
-        getattr(modifier.properties.inputs, socket.identifier).value = instance  # type: ignore[union-attr]  # stub: optional properties; socket items
-
-    @classmethod
-    def node_group(cls) -> NodeTree:
-        """The shared node group, rebuilt if it is missing or from another version."""
-        group = bpy.data.node_groups.get(cls.GROUP)
-        if group is not None and group.bl_idname != "GeometryNodeTree":
-            raise SettingsError(f"Node group '{cls.GROUP}' exists but is not a Geometry Nodes group; rename it")
-        if group is not None and group.get(cls.VERSION_KEY) == cls.VERSION:
-            return group
-        if group is None:
-            group = bpy.data.node_groups.new(cls.GROUP, "GeometryNodeTree")
-        cls._build(group)
-        group[cls.VERSION_KEY] = cls.VERSION
-        return group
+        group = SharedNodeGroup.ensure(cls.GROUP, cls.VERSION, cls._build)
+        modifier = SharedNodeGroup.add_modifier(leaves_ob, "Leaf Instances", group)
+        SharedNodeGroup.set_input(modifier, cls.OBJECT_INPUT, instance)
 
     @classmethod
     def _build(cls, group: NodeTree) -> None:
-        """Rebuild the group: Group Input -> Instance on Points (Object Info, rotation attribute) -> Output."""
-        group.nodes.clear()
-        group.interface.clear()  # type: ignore[union-attr]  # a node group has an interface
+        """Fill the empty group: Group Input -> Instance on Points (Object Info, rotation attribute) -> Output."""
         # stub: the interface is optional, and socket_type is typed as 'DEFAULT' only (it takes socket idnames)
         group.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
         group.interface.new_socket(cls.OBJECT_INPUT, in_out="INPUT", socket_type="NodeSocketObject")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only

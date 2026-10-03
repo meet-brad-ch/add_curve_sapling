@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The armature: one bone per curve segment (or per Bone Step segments), optional leaf bones."""
+"""The armature: one bone per curve segment (or per Bone Step segments); the leaves follow the branch bones."""
 
 import random
 from collections.abc import Iterator
@@ -9,7 +9,6 @@ from typing import Literal
 
 import bpy
 from bpy.types import Armature, ArmatureModifier, Context, Curve, EditBone, Object, SplineBezierPoints
-from mathutils import Vector
 
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
@@ -30,8 +29,6 @@ class ArmatureBuilder:
     BONE_COLLECTION = "Sapling Bones"
     # Branch bones deform the curve through their envelopes, kept tight around the bone
     BRANCH_ENVELOPE = 0.001
-    # Leaf bones (Leaf Animation): short, pointing up from the leaf's sprout
-    LEAF_BONE_LENGTH = 0.02
 
     def __init__(self, params: TreeParams, rng: random.Random, objects: ObjectFactory, context: Context) -> None:
         self.params = params
@@ -40,11 +37,11 @@ class ArmatureBuilder:
         self.context = context
 
     def build(self, tree: Object, grown: GrownTree, leaves: LeafSet | None, leaves_ob: Object | None) -> Object:
-        """The armature object, a child of the tree curve, with bones for the branches (and leaves) and wind.
+        """The armature object, a child of the tree curve, with bones for the branches and wind.
 
         Adds Armature modifiers to the tree curve and the leaves. Switches the new armature into edit mode
         and back (see _editing). Draws from the rng only with Armature Animation: two phase offsets per
-        spline that gets bones, and two per leaf bone with Leaf Animation. The bones are in a bone
+        spline that gets bones, and two per leaf with Leaf Animation. The bones are in a bone
         collection, hidden unless Fast Preview. The tree curve stays the root: a click on the branches
         selects it, and moving it moves the armature and everything the armature deforms with it.
         """
@@ -74,11 +71,11 @@ class ArmatureBuilder:
         bones: dict[str, EditBone] = {}  # by name: Blender's own lookup by name costs more the more bones there are
         with self._editing(armature_ob):
             self._branch_bones(armature, bones, tree.data, grown, wind)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
-            if leaves_ob:
-                self._leaf_bones(armature, bones, grown, leaves, leaves_ob, wind)  # type: ignore[arg-type]  # leaves_ob implies leaves
             for bone in bones.values():  # an EditBone is assigned at the same cost however many bones there are
                 collection.assign(bone)
         collection.is_visible = p.preview_armature
+        if leaves_ob:
+            self._leaf_groups(set(bones), grown, leaves, leaves_ob, wind)  # type: ignore[arg-type]  # leaves_ob implies leaves
 
         for pose_bone in armature_ob.pose.bones:  # type: ignore[union-attr]  # an armature object has a pose
             pose_bone.rotation_mode = "XYZ"
@@ -185,45 +182,30 @@ class ArmatureBuilder:
             if len(points) > 1:  # a stem pruning removed has only its start point
                 yield i, link, points
 
-    def _leaf_bones(
-        self,
-        armature: Armature,
-        bones: dict[str, EditBone],
-        grown: GrownTree,
-        leaves: LeafSet,
-        leaves_ob: Object,
-        wind: WindAnimator | None,
+    def _leaf_groups(
+        self, bones: set[str], grown: GrownTree, leaves: LeafSet, leaves_ob: Object, wind: WindAnimator | None
     ) -> None:
-        """Leaves follow the nearest existing branch bone; with Leaf Animation each gets its own bone (added to
-        `bones`)."""
+        """Each leaf follows the nearest existing branch bone through that bone's vertex group.
+
+        With Leaf Animation and wind, the leaves also flutter (LeafFlutterNodes); each leaf draws its two
+        noise offsets here, after all the branch bones' draws.
+        """
         p = self.params
-        rng = self.rng
         bone_names = grown.bone_map.bones()
         size = leaves.verts_per_leaf
-        step = p.leaf_bone_step
+        randomness = p.leaf_wind[2]
+        flutter = wind if p.leaf_animation else None
         groups: dict[str, list[int]] = {}
+        offsets: list[float] = []
         for i, sprout in enumerate(leaves.sprouts):
-            parent = BoneName.rounded(sprout.parent_bone, step)
+            parent = BoneName.rounded(sprout.parent_bone, p.leaf_bone_step)
             while parent not in bones:
                 parent = bone_names[BoneName.spline(parent)]
-
-            if p.leaf_animation:
-                name = BoneName.leaf(i)
-                bone = armature.edit_bones.new(name)
-                bone.head = sprout.co
-                bone.tail = sprout.co + Vector((0, 0, self.LEAF_BONE_LENGTH))
-                bone.envelope_distance = 0.0
-                bone.parent = bones[parent]
-                bones[name] = bone
-                groups[name] = list(range(size * i, size * i + size))
-
-                if wind:
-                    strength, scale = wind.model.leaf_flutter()
-                    randomness = p.leaf_wind[2]
-                    offsets = (rng.uniform(-randomness, randomness), rng.uniform(-randomness, randomness))
-                    wind.add_leaf_flutter(name, strength, scale, offsets)
-            else:
-                groups.setdefault(parent, []).extend(range(size * i, size * i + size))
+            groups.setdefault(parent, []).extend(range(size * i, size * i + size))
+            if flutter:
+                offsets += (self.rng.uniform(-randomness, randomness), self.rng.uniform(-randomness, randomness))
 
         for name, indices in groups.items():
             leaves_ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
+        if flutter:
+            flutter.add_leaf_flutter(leaves_ob, leaves, offsets)

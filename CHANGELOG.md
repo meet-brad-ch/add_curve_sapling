@@ -17,6 +17,21 @@
 
 ### Changed
 
+- *Leaf Animation* turns the leaves with a Geometry Nodes modifier (*Sapling Leaf Flutter*) instead of
+  one bone, one vertex group and two F-curves per leaf. Each leaf still turns about its sprout with the
+  same noise, strength, frequency and random offsets, then follows its branch bone. Big trees no longer
+  take minutes: Blender's cost to create a bone, vertex group or F-curve grows with how many there already
+  are. Measured on Quaking Aspen with 3 levels, branches 100/30/10 (1,336 stems, 12,113 leaves), wind and
+  Leaf Animation on:
+
+  | | Before | After |
+  | --- | --- | --- |
+  | Build | 31.4 s | 1.6 s |
+  | Playback, frames 1–48 | 1,021 ms per frame | 92 ms per frame |
+
+  The armature has no leaf bones any more, so a rig export no longer carries them. Leaf Animation
+  without Armature Animation used to add still leaf bones; now it adds nothing. Point-instanced leaves
+  do not flutter (as before: a point does not move when it turns about itself).
 - Wind F-curves are no longer grouped per bone in the Dope Sheet and Graph Editor. Blender 5.2 takes
   about 4 times as long to create a grouped F-curve, and the cost of each grows with the number of
   curves (at 16,000 bones: 450 against 100 µs per bone).

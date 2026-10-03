@@ -37,7 +37,7 @@ class WindAnimation(unittest.TestCase):
         # fcurve_ensure_for_datablock assigns the action slot itself
         self.assertIsNotNone(armature().animation_data.action_slot)
 
-    def test_branch_and_leaf_bones_move(self):
+    def test_branch_bones_move(self):
         arm = armature()
         scene = bpy.context.scene
         poses = {}
@@ -46,9 +46,8 @@ class WindAnimation(unittest.TestCase):
             poses[frame] = {p.name: tuple(p.rotation_euler) for p in arm.pose.bones}
         moved = {name for name in poses[1] if poses[1][name] != poses[17][name]}
         self.assertTrue(any(n.startswith("bone") for n in moved), "no branch bone moves")
-        self.assertTrue(any(n.startswith("leaf") for n in moved), "no leaf bone moves")
 
-    def test_each_leaf_bone_owns_its_x_and_z_sway(self):
+    def test_each_bone_owns_its_x_and_z_sway(self):
         channels = defaultdict(set)
         for fc in helpers.fcurves_of(armature()):
             match = re.match(r'pose\.bones\["(.+)"\]\.rotation_euler', fc.data_path)
@@ -58,9 +57,9 @@ class WindAnimation(unittest.TestCase):
             channels[bone].add(fc.array_index)
             # ungrouped: a grouped F-curve costs Blender about 4 times as much to create on big trees
             self.assertIsNone(fc.group, fc.data_path)
-        leaf_bones = [b.name for b in armature().data.bones if b.name.startswith("leaf")]
-        self.assertTrue(leaf_bones)
-        for name in leaf_bones:
+        names = [b.name for b in armature().data.bones]
+        self.assertTrue(names)
+        for name in names:
             self.assertEqual(channels[name], {0, 2}, name)
 
 

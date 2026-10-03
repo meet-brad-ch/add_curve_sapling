@@ -16,17 +16,11 @@ class BoneName:
     """Branch bones are named bone<spline>.<point>: the spline and point index where they start."""
 
     PREFIX = "bone"
-    LEAF_PREFIX = "leaf"
 
     @classmethod
     def of(cls, spline_index: int, point_index: int) -> str:
         """Name of the bone that starts at point `point_index` of spline `spline_index` (bone007.012)."""
         return cls.PREFIX + str(spline_index).rjust(3, "0") + "." + str(point_index).rjust(3, "0")
-
-    @classmethod
-    def leaf(cls, leaf_index: int) -> str:
-        """Name of the bone of one leaf (Leaf Animation)."""
-        return cls.LEAF_PREFIX + str(leaf_index)
 
     @staticmethod
     def rounded(bone: str, step: int) -> str:
