@@ -29,6 +29,24 @@ class TreeSettings:
         "leafRotateV": "rotateV",
     }
 
+    # Setting ids renamed when the wind moved to Geometry Nodes; presets, stored trees and scripts may use the old
+    # ids, which load under the new ones
+    RENAMED = {
+        "useArm": "useRig",
+        "armAnim": "windAnim",
+        "previewArm": "fastPreview",
+        "armLevels": "jointLevels",
+        "boneStep": "jointStep",
+        "leafAnim": "leafFlutter",
+        "wind": "windStrength",
+        "gust": "gustStrength",
+        "gustF": "gustFrequency",
+        "frameRate": "animationSpeed",
+        "af1": "flutterStrength",
+        "af2": "flutterSpeed",
+        "af3": "flutterRandomness",
+    }
+
     def __init__(self, values: object) -> None:
         if not isinstance(values, dict):
             raise SettingsError(f"Settings must be a dictionary, not {type(values).__name__}")
@@ -59,6 +77,7 @@ class TreeSettings:
 
         Raises KeyError/IndexError/TypeError when the preset lacks what the migration needs.
         """
+        self.rename_keys()
         v = self.values
         for key in self.OBSOLETE_KEYS:
             v.pop(key, None)  # only the oldest presets have them
@@ -71,6 +90,21 @@ class TreeSettings:
                 v[leaf_key] = v[branch_key][last]
         # Leaf Bend has no control in the panel; a preset never bends the leaves
         v["bend"] = 0
+        return self
+
+    def rename_keys(self) -> Self:
+        """Settings under their old ids (RENAMED) move to the new ids; raises SettingsError when both are given
+        with different values."""
+        values = self.values
+        for old, new in self.RENAMED.items():
+            if old not in values:
+                continue
+            value = values.pop(old)
+            if new in values and values[new] != value:
+                raise SettingsError(
+                    f"Settings give both {old} (the old name of {new}) and {new}, with different values"
+                )
+            values[new] = value
         return self
 
     def to_json(self) -> str:

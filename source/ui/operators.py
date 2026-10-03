@@ -13,7 +13,7 @@ from ..generator import TreeGenerator
 from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
 from .pages import SettingsPages
-from .properties import TreeProperties
+from .properties import OldSettingNames, TreeProperties
 
 if TYPE_CHECKING:
     from bpy.stub_internal.rna_enums import OperatorReturnItems
@@ -39,7 +39,7 @@ class PresetChoice:
         return cls._items
 
 
-class AddTreeOperator(TreeProperties, Operator):
+class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
     """Add a parametric tree (or re-generate a Sapling tree with changed settings)"""
 
     bl_idname = "curve.tree_add"
@@ -110,6 +110,7 @@ class AddTreeOperator(TreeProperties, Operator):
             self.showLeaves = False
 
     def _generate(self, context: Context) -> "set[OperatorReturnItems]":
+        self.forward_old_names()
         if self.preset_pending:
             self._load_preset()
         placement = None
@@ -151,7 +152,8 @@ class AddTreeOperator(TreeProperties, Operator):
         TreeRecord.claim(root)
         if self.load_stored:
             # A tree made before a setting existed gets that setting's default, as an older preset does
-            TreeRecord.settings(root).complete(self.defaults()).apply_to(self, TreeProperties.stored_names())
+            stored = TreeRecord.settings(root).rename_keys().complete(self.defaults())
+            stored.apply_to(self, TreeProperties.stored_names())
             self.load_stored = False
         context.view_layer.update()  # current world matrices of the tree and the user's objects
         return root

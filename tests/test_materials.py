@@ -28,7 +28,7 @@ class LeafMaterial(unittest.TestCase):
         self.assertEqual(material.thickness_mode, "SLAB")
 
     def test_bark_on_branches_and_skin_mesh(self):
-        self.generate(useArm=True, makeMesh=True)
+        self.generate(useRig=True, makeMesh=True)
         for name in ("tree", "treemesh"):
             with self.subTest(object=name):
                 self.assertEqual([m.name for m in bpy.data.objects[name].data.materials], ["Sapling Bark"])

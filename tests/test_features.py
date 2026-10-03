@@ -27,7 +27,7 @@ class SeveralTrunks(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, trunks=cls.TRUNKS, useArm=True, armAnim=True)
+        settings.update(levels=2, trunks=cls.TRUNKS, useRig=True, windAnim=True)
         cls.settings = settings
         cls.result = helpers.generate(settings)
 
@@ -102,7 +102,7 @@ class LeafFlutter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, showLeaves=True, useArm=True, armAnim=True, leafAnim=True)
+        settings.update(levels=2, showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         cls.result = helpers.generate(settings)
         cls.rest = [v.co.copy() for v in bpy.data.objects["leaves"].data.vertices]
         cls.pivots = [a.vector.copy() for a in bpy.data.objects["leaves"].data.attributes["leaf_pivot"].data]
@@ -132,7 +132,7 @@ class LeafFlutter(unittest.TestCase):
 class LeafFlutterOptions(unittest.TestCase):
     def generate(self, **overrides):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, showLeaves=True, useArm=True, armAnim=True, leafAnim=True)
+        settings.update(levels=2, showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         settings.update(overrides)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
 
@@ -148,11 +148,11 @@ class LeafFlutterOptions(unittest.TestCase):
         self.assertGreater(largest_move(24), 1e-3)
 
     def test_no_flutter_without_leaf_animation(self):
-        self.generate(leafAnim=False)
+        self.generate(leafFlutter=False)
         leaves = bpy.data.objects["leaves"]
         self.assertEqual([m.type for m in leaves.modifiers], ["ARMATURE"])
         self.assertNotIn("leaf_pivot", leaves.data.attributes)
 
     def test_no_flutter_without_wind(self):
-        self.generate(armAnim=False)
+        self.generate(windAnim=False)
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["ARMATURE"])

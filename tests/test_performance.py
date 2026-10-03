@@ -25,7 +25,7 @@ class LeafScaling(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(
             levels=3, branches=(0, 50, 30, 10), leaves=leaves, showLeaves=leaves > 0,
-            useArm=True, armAnim=True, leafAnim=True,
+            useRig=True, windAnim=True, leafFlutter=True,
         )  # fmt: skip
         times = []
         for _ in range(self.RUNS):

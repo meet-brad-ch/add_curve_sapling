@@ -117,10 +117,10 @@ class ReEdit(unittest.TestCase):
         self.assertLess((a.to_scale() - b.to_scale()).length, 1e-5)
 
     def test_settings_stored_on_root(self):
-        root = self.generate(useArm=True)
+        root = self.generate(useRig=True)
         self.assertEqual((root.name, root.type), ("tree", "CURVE"))
         stored = helpers.stored_settings(root)
-        self.assertTrue(stored["useArm"])
+        self.assertTrue(stored["useRig"])
         self.assertEqual(stored["leafDupliObj"], "leaf_card")
         tree_id = root["sapling_tree"]
         tagged = sorted(ob.name for ob in bpy.data.objects if ob.get("sapling_tree") == tree_id)
@@ -188,7 +188,7 @@ class ArmatureContext(unittest.TestCase):
         builder._branch_bones = recording
         self.addCleanup(setattr, builder, "_branch_bones", original)
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(useArm=True)
+        settings.update(useRig=True)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         self.assertEqual(modes, ["OBJECT"], "the other armature stays in Object Mode while bones are made")
         self.assertEqual(len(other.data.bones), 0)
@@ -202,7 +202,7 @@ class ArmatureDisplay(unittest.TestCase):
     def add(self, **changes):
         helpers.reset_scene()
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(useArm=True, **changes)
+        settings.update(useRig=True, **changes)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         root = helpers.active_object()
         self.assertEqual((root.name, root.type), ("tree", "CURVE"))
@@ -227,13 +227,13 @@ class ArmatureDisplay(unittest.TestCase):
         self.assert_selected_and_movable(root)
 
     def test_fast_preview_draws_the_tree_as_bounds_and_shows_the_bones(self):
-        root, _armature, collection = self.add(previewArm=True)
+        root, _armature, collection = self.add(fastPreview=True)
         self.assertTrue(collection.is_visible)
         self.assertEqual(root.display_type, "BOUNDS")
         self.assert_selected_and_movable(root)
 
     def test_hidden_bones_still_deform(self):
-        self.add(showLeaves=True, armAnim=True)
+        self.add(showLeaves=True, windAnim=True)
         leaves = bpy.data.objects["leaves"]
         scene = bpy.context.scene
         positions = []

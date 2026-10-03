@@ -20,11 +20,12 @@ class PresetApplication(unittest.TestCase):
 
     # The settings the old willow preset (0.3.7) did not have: a real preset from an older version
     OLD_PRESET_LACKS = (
-        "af1", "af2", "af3", "armLevels", "attractOut", "autoTaper", "baseSize_s", "boneStep", "branchDist",
-        "closeTip", "customShape", "gust", "gustF", "horzLeaves", "leafAnim", "leafDownAngle", "leafDownAngleV",
+        "flutterStrength", "flutterSpeed", "flutterRandomness", "jointLevels", "attractOut", "autoTaper",
+        "baseSize_s", "jointStep", "branchDist", "closeTip", "customShape", "gustStrength", "gustFrequency",
+        "horzLeaves", "leafFlutter", "leafDownAngle", "leafDownAngleV",
         "leafRotate", "leafRotateV", "leafScaleT", "leafScaleV", "leafangle", "loopFrames", "makeMesh", "minRadius",
-        "nrings", "previewArm", "pruneBase", "rMode", "radiusTweak", "rootFlare", "shapeS", "splitBias",
-        "splitByLen", "splitHeight", "taperCrown", "useOldDownAngle", "useParentAngle", "wind",
+        "nrings", "fastPreview", "pruneBase", "rMode", "radiusTweak", "rootFlare", "shapeS", "splitBias",
+        "splitByLen", "splitHeight", "taperCrown", "useOldDownAngle", "useParentAngle", "windStrength",
     )  # fmt: skip
 
     def test_order_independent(self):

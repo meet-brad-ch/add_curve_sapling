@@ -29,7 +29,7 @@ class WindAnimation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(showLeaves=True, useArm=True, armAnim=True, leafAnim=True)
+        settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         cls.result = helpers.generate(settings)
 
     def test_generates(self):
@@ -93,14 +93,14 @@ class PrunedArmature(unittest.TestCase):
         for preset in ("callistemon.py", "quaking_aspen.py"):
             with self.subTest(preset=preset):
                 settings = helpers.resolve_preset(preset)
-                settings.update(prune=True, useArm=True, showLeaves=True)
+                settings.update(prune=True, useRig=True, showLeaves=True)
                 self.assertEqual(helpers.generate(settings), {"FINISHED"})
                 self.assert_bones_on_their_splines()
                 self.assertNotIn("sapling_prune_scratch", bpy.data.curves)
 
     def test_unpruned_bones_on_their_splines(self):
         settings = helpers.resolve_preset("callistemon.py")
-        settings.update(useArm=True)
+        settings.update(useRig=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         self.assert_bones_on_their_splines()
 
@@ -110,7 +110,7 @@ class SecondTree(unittest.TestCase):
 
     def test_skin_mesh_uses_its_own_armature(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(useArm=True, makeMesh=True)
+        settings.update(useRig=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         for mesh_name, arm_name in (("treemesh", "treeArm"), ("treemesh.001", "treeArm.001")):
@@ -158,7 +158,7 @@ class BoneStep(unittest.TestCase):
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
         # Bone Step only applies together with Make Mesh (armature simplification for the skin mesh)
-        settings.update(useArm=True, armAnim=True, makeMesh=True, boneStep=(2, 2, 1, 1))
+        settings.update(useRig=True, windAnim=True, makeMesh=True, jointStep=(2, 2, 1, 1))
         cls.result = helpers.generate(settings)
 
     def test_tail_radius_from_tail_point(self):
@@ -247,8 +247,8 @@ class LeafObjectSetting(unittest.TestCase):
 
 
 class ArmatureLevels(unittest.TestCase):
-    """Armature Levels 0 ("all levels") read boneStep[-1] (the 4th level's step) for the leaves, so
-    with Make Mesh they hung on the parent branch's bones; above 4 levels it indexed past boneStep."""
+    """Armature Levels 0 ("all levels") read jointStep[-1] (the 4th level's step) for the leaves, so
+    with Make Mesh they hung on the parent branch's bones; above 4 levels it indexed past jointStep."""
 
     def test_all_levels_leaves_hang_on_their_own_branch(self):
         level_ends = []
@@ -263,7 +263,7 @@ class ArmatureLevels(unittest.TestCase):
         grower.grow = recording
         self.addCleanup(setattr, grower, "grow", original)
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(showLeaves=True, useArm=True, makeMesh=True, armLevels=0, boneStep=(1, 2, 1, 1))
+        settings.update(showLeaves=True, useRig=True, makeMesh=True, jointLevels=0, jointStep=(1, 2, 1, 1))
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         groups = [g.name for g in bpy.data.objects["leaves"].vertex_groups]
         self.assertTrue(groups)
@@ -273,7 +273,7 @@ class ArmatureLevels(unittest.TestCase):
 
     def test_more_armature_levels_than_parameter_levels(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=5, branches=(0, 6, 3, 2), armLevels=6, showLeaves=True, useArm=True, makeMesh=True)
+        settings.update(levels=5, branches=(0, 6, 3, 2), jointLevels=6, showLeaves=True, useRig=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
 
 
@@ -349,7 +349,7 @@ class MoveByTheBranches(unittest.TestCase):
 
     def test_moving_the_clicked_curve_moves_the_whole_tree(self):
         settings = helpers.resolve_preset("callistemon.py")
-        settings.update(showLeaves=True, useArm=True, armAnim=True, leafAnim=True)
+        settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         curve = bpy.data.objects["tree"]  # what a click on the branches selects
         before = {(name, f): self.world_vertices(name, f) for name in ("tree", "leaves") for f in self.FRAMES}
@@ -379,7 +379,7 @@ class PrunedAwayStems(unittest.TestCase):
 
     def test_removed_stems_keep_only_their_start_point(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(prune=True, pruneRatio=1.0, pruneWidth=0.25, useArm=True, armAnim=True, makeMesh=True)
+        settings.update(prune=True, pruneRatio=1.0, pruneWidth=0.25, useRig=True, windAnim=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         splines = bpy.data.objects["tree"].data.splines
         removed = [i for i, s in enumerate(splines) if i > 0 and len(s.bezier_points) == 1]

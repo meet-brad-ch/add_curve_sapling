@@ -37,7 +37,7 @@ class Ownership(unittest.TestCase):
     def test_duplicated_tree_survives_editing_its_twin(self):
         """Duplicating copies the custom properties; editing one copy used to delete both."""
         helpers.reset_scene()
-        root = add_tree(showLeaves=True, useArm=True)
+        root = add_tree(showLeaves=True, useRig=True)
         parts = record().owned(root)
         copies = {}
         for ob in parts:  # like Shift+D on the whole tree: custom properties are copied too
@@ -57,7 +57,7 @@ class Ownership(unittest.TestCase):
 
     def test_skin_mesh_without_armature_belongs_to_the_tree(self):
         helpers.reset_scene()
-        root = add_tree(makeMesh=True, useArm=False)
+        root = add_tree(makeMesh=True, useRig=False)
         mesh = bpy.data.objects["treemesh"]
         self.assertEqual(mesh.parent, root)
         self.assertTrue(record().is_tree(mesh))
@@ -123,7 +123,7 @@ class Placement(unittest.TestCase):
 
     def test_moved_armature_tree_stays_on_edit(self):
         helpers.reset_scene()
-        root = add_tree(useArm=True, armAnim=True)
+        root = add_tree(useRig=True, windAnim=True)
         self.assertEqual(root.name, "tree")
         root.location = (3.0, 0.0, 1.0)
 
@@ -175,7 +175,7 @@ class FailureSafety(unittest.TestCase):
         before = counts()
         self.fail_during_skin_mesh()
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(showLeaves=True, useArm=True, makeMesh=True, prune=True)
+        settings.update(showLeaves=True, useRig=True, makeMesh=True, prune=True)
         with self.assertRaisesRegex(RuntimeError, "injected failure"):
             bpy.ops.curve.tree_add(**settings, do_update=True)
         self.assertEqual(counts(), before)

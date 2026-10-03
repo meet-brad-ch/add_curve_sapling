@@ -16,6 +16,7 @@ from bpy.types import Context
 from ..model.branching import BranchingMode
 from ..model.geometry import CrownShape
 from ..model.leaves import LeafShape
+from ..settings import SettingsError, TreeSettings
 
 
 class Choices:
@@ -394,42 +395,44 @@ class TreeProperties:
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
     )
 
-    # Armature
-    useArm: BoolProperty(
-        name="Use Armature", description="Whether the armature is generated", default=False, update=update_tree
-    )
-    makeMesh: BoolProperty(
-        name="Make Mesh",
-        description="Convert curves to mesh, uses skin modifier, enables armature simplification",
+    # Rig and skin mesh
+    useRig: BoolProperty(
+        name="Armature Rig",
+        description="Generate an armature with a bone per stem segment (Joint Length); with Wind, the wind animates "
+        "its bones",
         default=False, update=update_tree,
     )  # fmt: skip
-    armLevels: IntProperty(
-        name="Armature Levels", description="Number of branching levels to make bones for, 0 is all levels", min=0,
-        default=2, update=update_tree,
+    makeMesh: BoolProperty(
+        name="Make Mesh",
+        description="Also build a skin-modifier mesh of the branches (welded junctions), weighted to the rig",
+        default=False, update=update_tree,
     )  # fmt: skip
-    boneStep: IntVectorProperty(
-        name="Bone Length", description="Number of stem segments per bone (with Make Mesh)", min=1,
+    jointLevels: IntProperty(
+        name="Joint Levels", description="Number of branching levels that bend with joints of their own (with Make "
+        "Mesh; 0 is all levels)", min=0, default=2, update=update_tree,
+    )  # fmt: skip
+    jointStep: IntVectorProperty(
+        name="Joint Length", description="Number of stem segments per joint (with Make Mesh)", min=1,
         default=[1, 1, 1, 1], size=4, update=update_tree,
     )  # fmt: skip
 
-    # Animation
-    armAnim: BoolProperty(
-        name="Armature Animation", description="Whether animation is added to the armature", default=False,
-        update=update_tree,
-    )  # fmt: skip
-    leafAnim: BoolProperty(
-        name="Leaf Animation",
-        description="Leaves flutter in the wind (with Armature Animation), by a Geometry Nodes modifier",
-        default=False,
-        update=update_tree,
-    )  # fmt: skip
-    previewArm: BoolProperty(
-        name="Fast Preview",
-        description="Disable the armature modifier, draw the tree as its bounds and the bones as wire, for fast "
-        "playback",
+    # Wind
+    windAnim: BoolProperty(
+        name="Wind",
+        description="Branches sway in the wind: in Geometry Nodes, or on the rig's bones with Armature Rig",
         default=False, update=update_tree,
     )  # fmt: skip
-    frameRate: FloatProperty(
+    leafFlutter: BoolProperty(
+        name="Leaf Flutter", description="Leaves flutter in the wind (with Wind), in Geometry Nodes", default=False,
+        update=update_tree,
+    )  # fmt: skip
+    fastPreview: BoolProperty(
+        name="Fast Preview",
+        description="Fast playback: the branches are drawn as their curves (with the rig: the tree as its bounds and "
+        "the bones as wire)",
+        default=False, update=update_tree,
+    )  # fmt: skip
+    animationSpeed: FloatProperty(
         name="Animation Speed", description="Adjust speed of animation, relative to scene frame rate", min=0.001,
         default=1, update=update_tree,
     )  # fmt: skip
@@ -437,21 +440,27 @@ class TreeProperties:
         name="Loop Frames", description="Number of frames to make the animation loop for, zero is disabled", min=0,
         default=0, update=update_tree,
     )  # fmt: skip
-    wind: FloatProperty(
-        name="Overall Wind Strength", description="The intensity of the wind to apply to the armature", default=1.0,
-        update=update_tree,
+    windStrength: FloatProperty(
+        name="Wind Strength", description="The intensity of the wind", default=1.0, update=update_tree,
     )  # fmt: skip
-    gust: FloatProperty(
-        name="Wind Gust Strength", description="The amount of directional movement (from the positive Y direction)",
+    gustStrength: FloatProperty(
+        name="Gust Strength", description="The amount of directional movement (from the positive Y direction)",
         default=1.0, update=update_tree,
     )  # fmt: skip
-    gustF: FloatProperty(
-        name="Wind Gust Frequency", description="The frequency of directional movement", default=0.075,
+    gustFrequency: FloatProperty(
+        name="Gust Frequency", description="The frequency of directional movement", default=0.075,
         update=update_tree,
     )  # fmt: skip
-    af1: FloatProperty(name="Amplitude", description="Multiplier for noise amplitude", default=1.0, update=update_tree)
-    af2: FloatProperty(name="Frequency", description="Multiplier for noise frequency", default=1.0, update=update_tree)
-    af3: FloatProperty(name="Randomness", description="Random offset in noise", default=4.0, update=update_tree)
+    flutterStrength: FloatProperty(
+        name="Flutter Strength", description="Multiplier for the leaves' noise amplitude", default=1.0,
+        update=update_tree,
+    )  # fmt: skip
+    flutterSpeed: FloatProperty(
+        name="Flutter Speed", description="Multiplier for the leaves' noise frequency", default=1.0, update=update_tree,
+    )  # fmt: skip
+    flutterRandomness: FloatProperty(
+        name="Flutter Randomness", description="Random offset in the leaves' noise", default=4.0, update=update_tree,
+    )  # fmt: skip
 
     # Presets (UI state)
     presetName: StringProperty(
@@ -477,3 +486,36 @@ class TreeProperties:
     def stored_names(cls) -> list[str]:
         """What a generated tree stores for re-editing: the generation settings and the leaf object."""
         return [*cls.generation_names(), *cls.SCENE_BOUND]
+
+
+class OldSettingNames:
+    """The setting ids from before the rename (TreeSettings.RENAMED), so scripts calling the operator with them
+    keep working. They are hidden and not saved; a value given under an old id moves to its new id."""
+
+    HIDDEN = {"HIDDEN", "SKIP_SAVE"}
+
+    useArm: BoolProperty(name="useArm", options=HIDDEN)
+    armAnim: BoolProperty(name="armAnim", options=HIDDEN)
+    previewArm: BoolProperty(name="previewArm", options=HIDDEN)
+    armLevels: IntProperty(name="armLevels", options=HIDDEN)
+    boneStep: IntVectorProperty(name="boneStep", size=4, options=HIDDEN)
+    leafAnim: BoolProperty(name="leafAnim", options=HIDDEN)
+    wind: FloatProperty(name="wind", options=HIDDEN)
+    gust: FloatProperty(name="gust", options=HIDDEN)
+    gustF: FloatProperty(name="gustF", options=HIDDEN)
+    frameRate: FloatProperty(name="frameRate", options=HIDDEN)
+    af1: FloatProperty(name="af1", options=HIDDEN)
+    af2: FloatProperty(name="af2", options=HIDDEN)
+    af3: FloatProperty(name="af3", options=HIDDEN)
+
+    def forward_old_names(self) -> None:
+        """Move values a script gave under old ids to the new ids; SettingsError when both disagree."""
+        props = self.properties  # type: ignore[attr-defined]  # mixed into an Operator
+        for old, new in TreeSettings.RENAMED.items():
+            if not props.is_property_set(old):
+                continue
+            value = TreeSettings.plain(getattr(self, old))
+            if props.is_property_set(new) and TreeSettings.plain(getattr(self, new)) != value:
+                raise SettingsError(f"Both {old} (the old name of {new}) and {new} are given, with different values")
+            setattr(self, new, value)
+            props.property_unset(old)  # the redo panel then works on the new id only

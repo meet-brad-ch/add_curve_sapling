@@ -165,27 +165,27 @@ class SettingsPages:
     @staticmethod
     def armature(props: Any, box: UILayout) -> None:
         """Armature, skin mesh and armature simplification."""
-        box.prop(props, "useArm")
+        box.prop(props, "useRig")
         box.prop(props, "makeMesh")
         box.label(text="Armature Simplification:")
-        box.prop(props, "armLevels")
-        box.prop(props, "boneStep")
+        box.prop(props, "jointLevels")
+        box.prop(props, "jointStep")
 
     @staticmethod
     def animation(props: Any, box: UILayout) -> None:
         """Armature and leaf wind animation."""
         box.label(text="Finalize All Other Settings First!")
-        box.prop(props, "armAnim")
-        box.prop(props, "leafAnim")
-        box.prop(props, "previewArm")
-        box.prop(props, "frameRate")
+        box.prop(props, "windAnim")
+        box.prop(props, "leafFlutter")
+        box.prop(props, "fastPreview")
+        box.prop(props, "animationSpeed")
         box.prop(props, "loopFrames")
         box.label(text="Wind Settings:")
-        box.prop(props, "wind")
+        box.prop(props, "windStrength")
         row = box.row()
-        row.prop(props, "gust")
-        row.prop(props, "gustF")
+        row.prop(props, "gustStrength")
+        row.prop(props, "gustFrequency")
         box.label(text="Leaf Wind Settings:")
-        box.prop(props, "af1")
-        box.prop(props, "af2")
-        box.prop(props, "af3")
+        box.prop(props, "flutterStrength")
+        box.prop(props, "flutterSpeed")
+        box.prop(props, "flutterRandomness")

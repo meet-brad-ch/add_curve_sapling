@@ -16,7 +16,7 @@ def counts():
 
 def full_tree_settings():
     settings = helpers.resolve_preset("quaking_aspen.py")
-    settings.update(showLeaves=True, useArm=True, armAnim=True, leafAnim=True, makeMesh=True, prune=True)
+    settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True, makeMesh=True, prune=True)
     return settings
 
 

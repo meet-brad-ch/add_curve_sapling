@@ -93,20 +93,20 @@ class TreeParams:
         self.res_u = s.resU
         self.handles: Literal["AUTO", "VECTOR"] = Bezier.AUTO if s.handleType == "0" else Bezier.VECTOR
 
-        self.use_armature = s.useArm
-        self.preview_armature = s.previewArm
-        self.armature_animation = s.armAnim
-        self.leaf_animation = s.leafAnim
-        self.frame_rate = s.frameRate
+        self.use_armature = s.useRig
+        self.preview_armature = s.fastPreview
+        self.armature_animation = s.windAnim
+        self.leaf_animation = s.leafFlutter
+        self.frame_rate = s.animationSpeed
         self.loop_frames = s.loopFrames
-        self.wind = s.wind
-        self.gust = s.gust
-        self.gust_f = s.gustF
-        self.leaf_wind = (s.af1, s.af2, s.af3)
+        self.wind = s.windStrength
+        self.gust = s.gustStrength
+        self.gust_f = s.gustFrequency
+        self.leaf_wind = (s.flutterStrength, s.flutterSpeed, s.flutterRandomness)
         self.make_mesh = s.makeMesh
-        self.armature_levels = s.armLevels
+        self.armature_levels = s.jointLevels
         # Bone Step simplifies the armature for the skin mesh only
-        self.bone_step = s.boneStep if s.makeMesh else [1, 1, 1, 1]
+        self.bone_step = s.jointStep if s.makeMesh else [1, 1, 1, 1]
         # Index of the last level with its own bones; -1 when every level has them (Armature Levels 0)
         self.bone_levels = min(self.armature_levels, self.levels) - 1
         leaf_level = self.levels - 1 if self.bone_levels == -1 else self.bone_levels

@@ -35,8 +35,8 @@ CAPS: dict[str, Any] = {
     # armature on every level that is 30,000+ bones, and Blender's own cost to create each bone, F-curve and
     # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
     "segSplits": [(0.0, 0.5)] * 4,
-    "boneStep": [(1, 3)] * 4,
-    "armLevels": (0, 4),
+    "jointStep": [(1, 3)] * 4,
+    "jointLevels": (0, 4),
     "loopFrames": (0, 60),
     "bevelRes": (0, 3),
     "resU": (1, 6),
@@ -105,7 +105,7 @@ class SettingsFuzz(unittest.TestCase):
         return self.rng.uniform(low, high)
 
     FEATURES = (
-        "prune", "useArm", "armAnim", "leafAnim", "makeMesh", "showLeaves", "levels_4",
+        "prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves", "levels_4",
         "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks",
     )  # fmt: skip
 
@@ -113,7 +113,7 @@ class SettingsFuzz(unittest.TestCase):
     def features(settings):
         """The features a case exercises, so the run can prove it covered all of them."""
         flags = [
-            name for name in ("prune", "useArm", "armAnim", "leafAnim", "makeMesh", "showLeaves") if settings[name]
+            name for name in ("prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves") if settings[name]
         ]
         if settings["levels"] == 4:
             flags.append("levels_4")
@@ -164,7 +164,7 @@ class SettingsFuzz(unittest.TestCase):
         if leaves and settings["leafShape"] != "dVert":
             per_leaf = FACES_PER_LEAF[settings["leafShape"]]
             self.assertEqual(len(leaves.data.polygons) % per_leaf, 0, "whole leaves")
-        if settings["useArm"]:
+        if settings["useRig"]:
             self.assert_bones_on_splines()
 
     def assert_finite(self, name, values):
