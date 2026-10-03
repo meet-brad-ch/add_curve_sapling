@@ -17,6 +17,9 @@
 
 ### Changed
 
+- Wind F-curves are no longer grouped per bone in the Dope Sheet and Graph Editor. Blender 5.2 takes
+  about 4 times as long to create a grouped F-curve, and the cost of each grows with the number of
+  curves (at 16,000 bones: 450 against 100 µs per bone).
 - *Douglas Fir* and *Willow* are replaced with tree-gen's Douglas fir and weeping willow. The old
   presets loaded bare: Douglas Fir had leaves off and hexagon leaves, and Willow had only 2 of its
   4 levels and almost no leaves.

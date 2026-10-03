@@ -56,8 +56,8 @@ class WindAnimation(unittest.TestCase):
             assert match is not None
             bone = match.group(1)
             channels[bone].add(fc.array_index)
-            self.assertIsNotNone(fc.group, fc.data_path)
-            self.assertEqual(fc.group.name, bone, "each sway curve is grouped under its bone")
+            # ungrouped: a grouped F-curve costs Blender about 4 times as much to create on big trees
+            self.assertIsNone(fc.group, fc.data_path)
         leaf_bones = [b.name for b in armature().data.bones if b.name.startswith("leaf")]
         self.assertTrue(leaf_bones)
         for name in leaf_bones:

@@ -98,13 +98,14 @@ class WindAnimator:
         self.action = action
 
     def _rotation_curves(self, bone: str) -> tuple[FCurve, FCurve]:
-        """The X and Z rotation curves of a bone, grouped under the bone's name (as keyframing does)."""
+        """The X and Z rotation curves of a bone.
+
+        Not grouped per bone (as keyframing does): Blender 5.2 takes about 4 times as long to create a grouped
+        F-curve, and both costs grow with the number of curves (measured at 16,000 bones: 450 against 100 µs).
+        """
         path = 'pose.bones["' + bone + '"].rotation_euler'
         ensure = self.action.fcurve_ensure_for_datablock
-        return (
-            ensure(self.armature_ob, path, index=0, group_name=bone),
-            ensure(self.armature_ob, path, index=2, group_name=bone),
-        )
+        return ensure(self.armature_ob, path, index=0), ensure(self.armature_ob, path, index=2)
 
     def add_branch_sway(self, bone: str, sway: BranchSway) -> None:
         """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend."""
