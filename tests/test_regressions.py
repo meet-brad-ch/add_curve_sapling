@@ -295,6 +295,18 @@ class FailFast(unittest.TestCase):
         with self.assertRaisesRegex(IndexError, "beyond the 5 grown splines"):
             grown.level_of(5)
 
+    def test_bone_geometry_must_match_the_bones(self):
+        helpers.reset_scene()
+        armature = bpy.data.armatures.new("probe")
+        ob = bpy.data.objects.new("probe", armature)
+        bpy.context.scene.collection.objects.link(ob)
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.mode_set(mode="EDIT")
+        self.addCleanup(bpy.ops.object.mode_set, mode="OBJECT")
+        armature.edit_bones.new("extra")  # a bone the geometry does not know
+        with self.assertRaisesRegex(RuntimeError, "1 bones for the geometry of 0"):
+            helpers.module("build.armature").BoneGeometry().write(armature, 0.001)
+
     def test_foreign_node_group_with_the_instancer_name(self):
         helpers.reset_scene()
         nodes = helpers.module("build.leaf_object").LeafInstancerNodes
