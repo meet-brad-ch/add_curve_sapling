@@ -16,6 +16,8 @@
   with 40 the trunk forks spread into near-horizontal limbs in Sapling.
 - *Quaking Aspen* has 3 levels again, as in the original preset from 2011. A 2016 rewrite had cut it to
   2, which left it nearly bare (882 leaves, now about 12,000).
+- *Quaking Aspen* and *Weeping Willow* load with their leaves. Both were saved with Show Leaves off
+  since 2011, so they were the only presets whose leaves had to be turned on by hand.
 - *Limit Import* is off by default. With it on, every preset loaded with 2 levels and no leaves, so
   trees with more levels looked bare when the leaves were turned on.
 

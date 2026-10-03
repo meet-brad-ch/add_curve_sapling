@@ -1,6 +1,24 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
+  "leaves": {
+   "data": {
+    "co": "e164ae7fddcbea71",
+    "edges": 218190,
+    "faces": 62340,
+    "topology": "457f750cbf008c2a",
+    "uv": "0591ca1256fb5a14",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 187020
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
+  },
   "tree": {
    "data": {
     "bevel_depth": 1.0,
@@ -1443,7 +1461,7 @@
   ],
   "shape": "4",
   "shapeS": "4",
-  "showLeaves": false,
+  "showLeaves": true,
   "splitAngle": [
    12.0,
    30.0,

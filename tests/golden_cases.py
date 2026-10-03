@@ -24,7 +24,7 @@ PRESETS = (
     "silver_birch",
 )
 
-# Cases on quaking_aspen pin its former 2 levels, so they keep testing the trees they were recorded with
+# Cases on quaking_aspen pin its former 2 levels and leaves off, so they keep testing the trees they were recorded with
 CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for name in PRESETS] + [
     # Leaf shapes and placement.
     ("leaf_rect", "callistemon", {"showLeaves": True, "leafShape": "rect"}),
@@ -35,17 +35,29 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("leaf_not_horizontal", "quaking_aspen", {"levels": 2, "showLeaves": True, "horzLeaves": False, "leafangle": 30.0}),
     ("leaf_bend", "quaking_aspen", {"levels": 2, "showLeaves": True, "bend": 0.5}),
     # Branching options.
-    ("rings", "quaking_aspen", {"levels": 2, "nrings": 5}),
-    ("rmode_original", "quaking_aspen", {"levels": 2, "rMode": "original"}),
-    ("rmode_random", "quaking_aspen", {"levels": 2, "rMode": "random"}),
-    ("new_down_angle", "quaking_aspen", {"levels": 2, "useOldDownAngle": False, "useParentAngle": False}),
-    ("vector_handles", "quaking_aspen", {"levels": 2, "handleType": "1"}),
-    ("levels_1", "quaking_aspen", {"levels": 1}),
-    ("levels_4", "quaking_aspen", {"levels": 4, "branches": (0, 20, 5, 3)}),
-    ("levels_5_close_tip", "quaking_aspen", {"levels": 5, "branches": (0, 8, 3, 2), "closeTip": True}),
+    ("rings", "quaking_aspen", {"levels": 2, "showLeaves": False, "nrings": 5}),
+    ("rmode_original", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "original"}),
+    ("rmode_random", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "random"}),
+    (
+        "new_down_angle",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": False, "useOldDownAngle": False, "useParentAngle": False},
+    ),
+    ("vector_handles", "quaking_aspen", {"levels": 2, "showLeaves": False, "handleType": "1"}),
+    ("levels_1", "quaking_aspen", {"showLeaves": False, "levels": 1}),
+    ("levels_4", "quaking_aspen", {"showLeaves": False, "levels": 4, "branches": (0, 20, 5, 3)}),
+    (
+        "levels_5_close_tip",
+        "quaking_aspen",
+        {"showLeaves": False, "levels": 5, "branches": (0, 8, 3, 2), "closeTip": True},
+    ),
     ("no_split_by_len", "callistemon", {"splitByLen": False}),
-    ("custom_shape", "quaking_aspen", {"levels": 2, "shape": "8", "customShape": (0.3, 1.0, 0.4, 0.6)}),
-    ("no_bevel", "quaking_aspen", {"levels": 2, "bevel": False}),
+    (
+        "custom_shape",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": False, "shape": "8", "customShape": (0.3, 1.0, 0.4, 0.6)},
+    ),
+    ("no_bevel", "quaking_aspen", {"levels": 2, "showLeaves": False, "bevel": False}),
     # Pruning, armature, animation, skin mesh.
     ("prune", "callistemon", {"prune": True}),
     ("prune_armature", "callistemon", {"prune": True, "useArm": True, "showLeaves": True}),
@@ -57,7 +69,11 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
         "quaking_aspen",
         {"levels": 2, "showLeaves": True, "useArm": True, "armAnim": True, "leafAnim": True},
     ),
-    ("wind_loop", "quaking_aspen", {"levels": 2, "useArm": True, "armAnim": True, "loopFrames": 48}),
+    (
+        "wind_loop",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": False, "useArm": True, "armAnim": True, "loopFrames": 48},
+    ),
     ("skin_mesh", "quaking_aspen", {"levels": 2, "showLeaves": True, "useArm": True, "makeMesh": True}),
     (
         "armature_all_levels",
@@ -67,7 +83,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     (
         "skin_mesh_step",
         "quaking_aspen",
-        {"levels": 2, "useArm": True, "armAnim": True, "makeMesh": True, "boneStep": (2, 2, 1, 1)},
+        {"levels": 2, "showLeaves": False, "useArm": True, "armAnim": True, "makeMesh": True, "boneStep": (2, 2, 1, 1)},
     ),
     (
         "prune_armature_wind",
