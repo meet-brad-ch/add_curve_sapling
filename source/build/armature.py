@@ -44,9 +44,9 @@ class ArmatureBuilder:
 
         Adds Armature modifiers to the tree curve and the leaves. Switches the new armature into edit mode
         and back (see _editing). Draws from the rng only with Armature Animation: two phase offsets per
-        spline that gets bones, and two per leaf bone with Leaf Animation. The bones are hidden (see
-        _collect_bones). The tree curve stays the root: a click on the branches selects it, and moving it
-        moves the armature and everything the armature deforms with it.
+        spline that gets bones, and two per leaf bone with Leaf Animation. The bones are in a bone
+        collection, hidden unless Fast Preview. The tree curve stays the root: a click on the branches
+        selects it, and moving it moves the armature and everything the armature deforms with it.
         """
         p = self.params
         armature = bpy.data.armatures.new(self.DATA_NAME)
@@ -68,27 +68,21 @@ class ArmatureBuilder:
         if leaves_ob:
             self.deform(leaves_ob, armature_ob, by_envelopes=False)
 
+        # Every bone goes into one bone collection, shown only when asked (Fast Preview). Hiding the bones, not
+        # the armature object, keeps the armature an ordinary part of the tree; bones in no collection are shown.
+        collection = armature.collections.new(self.BONE_COLLECTION)
+        bones: dict[str, EditBone] = {}  # by name: Blender's own lookup by name costs more the more bones there are
         with self._editing(armature_ob):
-            self._branch_bones(armature, tree.data, grown, wind)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
+            self._branch_bones(armature, bones, tree.data, grown, wind)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
             if leaves_ob:
-                self._leaf_bones(armature, grown, leaves, leaves_ob, wind)  # type: ignore[arg-type]  # leaves_ob implies leaves
+                self._leaf_bones(armature, bones, grown, leaves, leaves_ob, wind)  # type: ignore[arg-type]  # leaves_ob implies leaves
+            for bone in bones.values():  # an EditBone is assigned at the same cost however many bones there are
+                collection.assign(bone)
+        collection.is_visible = p.preview_armature
 
         for pose_bone in armature_ob.pose.bones:  # type: ignore[union-attr]  # an armature object has a pose
             pose_bone.rotation_mode = "XYZ"
-        self._collect_bones(armature, visible=p.preview_armature)
         return armature_ob
-
-    @classmethod
-    def _collect_bones(cls, armature: Armature, visible: bool) -> None:
-        """Put every bone into one bone collection, shown only when asked (Fast Preview).
-
-        Hiding the bones, not the armature object, keeps the armature an ordinary part of the tree.
-        Bones in no collection are always shown.
-        """
-        collection = armature.collections.new(cls.BONE_COLLECTION)
-        for bone in armature.bones:
-            collection.assign(bone)
-        collection.is_visible = visible
 
     @classmethod
     def deform(cls, ob: Object, armature_ob: Object, by_envelopes: bool) -> ArmatureModifier:
@@ -136,8 +130,11 @@ class ArmatureBuilder:
         if bpy.ops.object.mode_set(mode=mode) != {"FINISHED"}:
             raise RuntimeError(f"Could not switch the new armature to {mode} mode")
 
-    def _branch_bones(self, armature: Armature, curve: Curve, grown: GrownTree, wind: WindAnimator | None) -> None:
-        """Bones along each spline (Bone Step points per bone), chained; with wind, each bone gets its sway."""
+    def _branch_bones(
+        self, armature: Armature, bones: dict[str, EditBone], curve: Curve, grown: GrownTree, wind: WindAnimator | None
+    ) -> None:
+        """Bones along each spline (Bone Step points per bone), chained, added to `bones`; with wind, each bone
+        gets its sway."""
         p = self.params
         rng = self.rng
         for i, link, points in self._bone_splines(curve, grown):
@@ -154,7 +151,7 @@ class ArmatureBuilder:
             for n in range(0, segments, step):
                 previous = bone
                 name = BoneName.of(i, n)
-                bone = armature.edit_bones.new(name)
+                bone = bones[name] = armature.edit_bones.new(name)
                 bone.head = points[n].co
                 tail = min(tail + step, segments)
                 bone.tail = points[tail].co
@@ -164,7 +161,7 @@ class ArmatureBuilder:
                 if n == 0:
                     # the first bone hangs from the bone of the parent branch
                     if link.bone:
-                        bone.parent = armature.edit_bones[link.bone]
+                        bone.parent = bones[link.bone]
                 else:
                     bone.parent = previous
                     bone.use_connect = True
@@ -179,21 +176,28 @@ class ArmatureBuilder:
     def _bone_splines(self, curve: Curve, grown: GrownTree) -> Iterator[tuple[int, BoneLink, SplineBezierPoints]]:
         """(spline index, bone link, points) of every spline that gets bones."""
         p = self.params
-        for i, link in enumerate(grown.bone_map):
+        # one walk over the splines: curve.splines[i] walks the spline list up to i
+        for i, (link, spline) in enumerate(zip(grown.bone_map, curve.splines, strict=True)):
             # Make Mesh simplifies the armature: deeper levels use their parent's bones
             if p.make_mesh and i >= grown.level_ends[p.bone_levels]:
                 continue
-            points = curve.splines[i].bezier_points
+            points = spline.bezier_points
             if len(points) > 1:  # a stem pruning removed has only its start point
                 yield i, link, points
 
     def _leaf_bones(
-        self, armature: Armature, grown: GrownTree, leaves: LeafSet, leaves_ob: Object, wind: WindAnimator | None
+        self,
+        armature: Armature,
+        bones: dict[str, EditBone],
+        grown: GrownTree,
+        leaves: LeafSet,
+        leaves_ob: Object,
+        wind: WindAnimator | None,
     ) -> None:
-        """Leaves follow the nearest existing branch bone; with Leaf Animation each gets its own bone."""
+        """Leaves follow the nearest existing branch bone; with Leaf Animation each gets its own bone (added to
+        `bones`)."""
         p = self.params
         rng = self.rng
-        bones = set(armature.edit_bones.keys())
         bone_names = grown.bone_map.bones()
         size = leaves.verts_per_leaf
         step = p.leaf_bone_step
@@ -209,7 +213,8 @@ class ArmatureBuilder:
                 bone.head = sprout.co
                 bone.tail = sprout.co + Vector((0, 0, self.LEAF_BONE_LENGTH))
                 bone.envelope_distance = 0.0
-                bone.parent = armature.edit_bones[parent]
+                bone.parent = bones[parent]
+                bones[name] = bone
                 groups[name] = list(range(size * i, size * i + size))
 
                 if wind:

@@ -3,7 +3,7 @@
 """Make Mesh: the branches as a vertex skeleton with a Skin modifier, weighted to the armature."""
 
 import bpy
-from bpy.types import Curve, Object, SkinModifier, Spline
+from bpy.types import Object, SkinModifier, Spline
 from mathutils import Vector
 
 from ..model.geometry import BezierSegment
@@ -51,26 +51,28 @@ class SkinMeshBuilder:
     def build(self, tree: Object, grown: GrownTree, armature_ob: Object | None) -> Object:
         """The skin mesh object, under the armature (deformed by it) or else under the tree curve."""
         skeleton = SkinSkeleton()
-        for i, spline in enumerate(tree.data.splines):  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
+        # a list, not curve.splines[i], which walks the spline list up to i
+        splines = list(tree.data.splines)  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
+        for i, spline in enumerate(splines):
             if len(spline.bezier_points) < 2:
                 skeleton.add_removed_stem()
             else:
-                self._add_spline(skeleton, tree.data, grown, i, spline)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
+                self._add_spline(skeleton, splines, grown, i)
         return self._object(skeleton, tree, armature_ob)
 
-    def _add_spline(self, skeleton: SkinSkeleton, curve: Curve, grown: GrownTree, i: int, spline: Spline) -> None:
+    def _add_spline(self, skeleton: SkinSkeleton, splines: list[Spline], grown: GrownTree, i: int) -> None:
         """Vertices along spline i (Resolution U per segment), their edges and bone vertex groups."""
         p = self.params
         res = p.res_u
         link = grown.bone_map[i]
-        points = spline.bezier_points
+        points = splines[i].bezier_points
         step = p.bone_step[grown.level_of(i)]
         vindex = len(skeleton.verts)
         p1 = points[0]
 
         # A split starts with an extra vertex on its parent, just before the split point
         if link.is_split:
-            parent_points = curve.splines[BoneName.spline(link.bone)].bezier_points
+            parent_points = splines[BoneName.spline(link.bone)].bezier_points
             segment = BezierSegment.between(parent_points[link.split_point], parent_points[link.split_point + 1])
             skeleton.add_vertex(segment.point(1 - 1 / (res + 1)), p1.radius * self.SPLIT_JOINT_RADIUS)
             skeleton.edges.append([vindex, vindex + 1])
