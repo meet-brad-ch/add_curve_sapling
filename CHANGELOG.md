@@ -8,6 +8,17 @@
   (friggog/tree-gen, GPL-3.0). Its Weber–Penn values are mapped to the settings of Sapling, and the
   mapping was checked against renders of tree-gen's own trees in Blender 5.2.
 
+### Changed
+
+- *Douglas Fir* and *Willow* are replaced with tree-gen's Douglas fir and weeping willow. The old
+  presets loaded bare: Douglas Fir had leaves off and hexagon leaves, and Willow had only 2 of its
+  4 levels and almost no leaves. The willow's trunk split angle is 20 instead of tree-gen's 40, because
+  with 40 the trunk forks spread into near-horizontal limbs in Sapling.
+- *Quaking Aspen* has 3 levels again, as in the original preset from 2011. A 2016 rewrite had cut it to
+  2, which left it nearly bare (882 leaves, now about 12,000).
+- *Limit Import* is off by default. With it on, every preset loaded with 2 levels and no leaves, so
+  trees with more levels looked bare when the leaves were turned on.
+
 ## 0.4.0 — Blender 5.2 LTS revamp (2026-09-29)
 
 Requires Blender 5.2 LTS.

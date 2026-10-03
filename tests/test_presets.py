@@ -18,14 +18,30 @@ class PresetApplication(unittest.TestCase):
         names = helpers.generation_names()
         store().load(name).complete(defaults).apply_to(props, names)
 
+    # The settings the old willow preset (0.3.7) did not have: a real preset from an older version
+    OLD_PRESET_LACKS = (
+        "af1", "af2", "af3", "armLevels", "attractOut", "autoTaper", "baseSize_s", "boneStep", "branchDist",
+        "closeTip", "customShape", "gust", "gustF", "horzLeaves", "leafAnim", "leafDownAngle", "leafDownAngleV",
+        "leafRotate", "leafRotateV", "leafScaleT", "leafScaleV", "leafangle", "loopFrames", "makeMesh", "minRadius",
+        "nrings", "previewArm", "pruneBase", "rMode", "radiusTweak", "rootFlare", "shapeS", "splitBias",
+        "splitByLen", "splitHeight", "taperCrown", "useOldDownAngle", "useParentAngle", "wind",
+    )  # fmt: skip
+
     def test_order_independent(self):
-        """A preset sets every setting: before, willow kept ~35 values of the preset loaded before it."""
+        """A preset sets every setting: before, an older preset (willow lacked 39) kept the values of the one loaded
+        before it."""
         defaults = helpers.operator_defaults()
+        callistemon = store().load("callistemon").values
+        partial = {k: v for k, v in callistemon.items() if k not in self.OLD_PRESET_LACKS}
+        path = store().user_folder(create=True) / "old tree.py"
+        path.write_text(repr(partial), encoding="utf-8")
+        self.addCleanup(path.unlink)
+
         after_other = SimpleNamespace(**defaults)
-        self.apply(after_other, "callistemon", defaults)
-        self.apply(after_other, "willow", defaults)
+        self.apply(after_other, "small_pine", defaults)
+        self.apply(after_other, "old tree", defaults)
         fresh = SimpleNamespace(**defaults)
-        self.apply(fresh, "willow", defaults)
+        self.apply(fresh, "old tree", defaults)
         self.assertEqual(vars(after_other), vars(fresh))
 
     def test_unknown_key_rejected(self):
