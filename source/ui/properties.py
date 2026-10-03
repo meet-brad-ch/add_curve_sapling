@@ -453,7 +453,7 @@ class TreeProperties:
         update=no_update_tree,
     )  # fmt: skip
     limitImport: BoolProperty(
-        name="Limit Import", description="Limit loaded presets to 2 levels and no leaves, for speed", default=True,
+        name="Limit Import", description="Limit loaded presets to 2 levels and no leaves, for speed", default=False,
         update=no_update_tree,
     )  # fmt: skip
     overwrite: BoolProperty(

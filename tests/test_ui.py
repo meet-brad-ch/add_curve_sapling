@@ -28,6 +28,11 @@ class Presets(unittest.TestCase):
     def store(self):
         return helpers.module("presets").PresetStore.for_addon()
 
+    def test_limit_import_is_off_by_default(self):
+        """With Limit Import on, presets loaded with 2 levels and no leaves, and multi-level trees looked bare."""
+        prop = bpy.ops.curve.tree_add.get_rna_type().properties["limitImport"]
+        self.assertFalse(prop.default)
+
     def test_builtin_presets_load(self):
         names = [e.name for e in self.store().entries() if e.builtin]
         self.assertEqual(sorted(names), sorted(PRESETS))
@@ -56,14 +61,24 @@ class Presets(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(helpers.module("presets").PresetError):
                 store.save(name, settings, overwrite=True)
 
-    def test_operator_applies_preset(self):
+    def add_preset(self, **options):
         helpers.reset_scene()
-        self.assertEqual(bpy.ops.curve.tree_add(preset="douglas_fir", do_update=True), {"FINISHED"})
-        stored = helpers.module("build.tree_record").TreeRecord.settings(bpy.context.active_object).values
+        self.assertEqual(bpy.ops.curve.tree_add(preset="douglas_fir", do_update=True, **options), {"FINISHED"})
+        return helpers.module("build.tree_record").TreeRecord.settings(bpy.context.active_object).values
+
+    def test_operator_applies_preset(self):
+        stored = self.add_preset()
         preset = self.store().load("douglas_fir").values
-        self.assertEqual(stored["levels"], min(preset["levels"], 2))  # Limit Import
-        self.assertFalse(stored["showLeaves"])
+        self.assertEqual(stored["levels"], preset["levels"])
+        self.assertEqual(stored["showLeaves"], preset["showLeaves"])
         self.assertEqual(stored["branches"], list(preset["branches"]))
+
+    def test_limit_import_caps_levels_and_hides_leaves(self):
+        stored = self.add_preset(limitImport=True)
+        preset = self.store().load("douglas_fir").values
+        self.assertGreater(preset["levels"], 2)
+        self.assertEqual(stored["levels"], 2)
+        self.assertFalse(stored["showLeaves"])
 
 
 class Placement(unittest.TestCase):
