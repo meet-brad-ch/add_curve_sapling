@@ -4,16 +4,24 @@
 
 ### Added
 
-- Presets *Black Tupelo*, *European Larch* and *Silver Birch*, ported from tree-gen
-  (friggog/tree-gen, GPL-3.0). Its Weber–Penn values are mapped to the settings of Sapling, and the
-  mapping was checked against renders of tree-gen's own trees in Blender 5.2.
+- 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
+  Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
+  Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. Its Weber–Penn values are mapped to the
+  settings of Sapling by `tools/port_treegen.py`, checked against renders of tree-gen's own trees in
+  Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak, Sphere Tree) and
+  random branch bending, which Sapling does not have. *Cambridge Oak* takes about 20 s to generate.
+  tree-gen's palm, fan palm and bamboo are not ported (no multi-stem clumps or fronds in Sapling).
 
 ### Changed
 
 - *Douglas Fir* and *Willow* are replaced with tree-gen's Douglas fir and weeping willow. The old
   presets loaded bare: Douglas Fir had leaves off and hexagon leaves, and Willow had only 2 of its
-  4 levels and almost no leaves. The willow's trunk split angle is 20 instead of tree-gen's 40, because
-  with 40 the trunk forks spread into near-horizontal limbs in Sapling.
+  4 levels and almost no leaves.
+- Split angles from tree-gen are halved: tree-gen tilts each fork by half its split angle, Sapling by the
+  full angle, so the trunk forks spread into near-horizontal limbs (seen first on the willow).
+- Ported presets take tree-gen's defaults for values a species leaves out: *Black Tupelo* and *Douglas Fir*
+  get its slight upward bend of the fine branches. *Silver Birch* leaves are 0.7 as wide as long (the
+  heart-shaped leaf's real proportion), not 1.0.
 - *Quaking Aspen* has 3 levels again, as in the original preset from 2011. A 2016 rewrite had cut it to
   2, which left it nearly bare (882 leaves, now about 12,000).
 - *Quaking Aspen* and *Weeping Willow* load with their leaves. Both were saved with Show Leaves off

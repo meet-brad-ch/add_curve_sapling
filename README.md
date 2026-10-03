@@ -31,6 +31,7 @@ git config core.hooksPath tools/hooks                   # one time: the fast che
 python tools/check.py            # all checks: ruff, format, mypy, manifest, tests with branch coverage
 python tools/check.py --fast     # all checks except the Blender tests (the pre-commit hook runs this)
 python tools/run_tests.py        # tests only (-k NAME selects tests, --record-golden writes new golden files)
+python tools/port_treegen.py <tree-gen clone> acer ...   # convert tree-gen species to presets
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
 ```
@@ -63,8 +64,10 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   *Limit Import* (off by default) loads a preset with 2 levels and no leaves, which is faster but makes
   trees with more levels look bare. To save
   your settings, type a name and click *Save Preset*. Your presets are in the user folder of the
-  extension (`extensions/.user/<repo>/sapling_tree_gen/presets`). Five built-in presets come from
-  tree-gen: *Black Tupelo*, *Douglas Fir*, *European Larch*, *Silver Birch* and *Willow* (see Credits).
+  extension (`extensions/.user/<repo>/sapling_tree_gen/presets`). Fifteen built-in presets come from
+  tree-gen: *Acer*, *Apple*, *Balsam Fir*, *Black Oak*, *Black Tupelo*, *Cambridge Oak*, *Douglas Fir*,
+  *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch*,
+  *Sphere Tree* and *Willow* (see Credits). *Cambridge Oak* takes about 20 s to generate.
 - **Edit Sapling Tree:** Select a part of a generated tree. Click *Edit Sapling Tree* in the
   *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
   again, and the tree is made again in the same place. The tree keeps its transform, its parent
@@ -113,9 +116,9 @@ vertex. The benchmark is not part of the checks, because the times depend on the
   - `build/` — the Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
   - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
-  - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 5 from tree-gen
+  - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 15 from tree-gen
 - `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
-  fingerprints of 41 generated trees. `test_fuzz` grows 100 trees from random settings.
+  fingerprints of 51 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
 - `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
   `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`
@@ -161,7 +164,11 @@ Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7). 
 Kutsniashvili and many Blender contributors maintained it (see `git log`). The license is
 GPL-3.0-or-later (see `source/blender_manifest.toml`).
 
-The presets `black_tupelo`, `douglas_fir`, `european_larch`, `silver_birch` and `willow` (tree-gen's
-weeping willow) are ported from tree-gen
+Fifteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `black_oak`, `black_tupelo`,
+`cambridge_oak`, `douglas_fir`, `european_larch`, `hill_cherry`, `lombardy_poplar`,
+`quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and `willow` (tree-gen's weeping
+willow). They come from tree-gen
 (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and contributors. Their Weber–Penn values
-are mapped to the settings of Sapling. These five files are GPL-3.0-only, as tree-gen is.
+are mapped to the settings of Sapling by `tools/port_treegen.py`, which documents the mapping. These
+files are GPL-3.0-only, as tree-gen is. Its palm, fan palm and bamboo are not ported: Sapling cannot grow
+several stems from one root, and their fronds do not map to Sapling's leaves.

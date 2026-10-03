@@ -19,9 +19,19 @@ PRESETS = (
     "white_birch",
     "willow",
     # Ported from tree-gen (friggog/tree-gen, GPL-3.0)
+    "acer",
+    "apple",
+    "balsam_fir",
+    "black_oak",
     "black_tupelo",
+    "cambridge_oak",
     "european_larch",
+    "hill_cherry",
+    "lombardy_poplar",
+    "quaking_aspen_treegen",
+    "sassafras",
     "silver_birch",
+    "sphere_tree",
 )
 
 # Cases on quaking_aspen pin its former 2 levels and leaves off, so they keep testing the trees they were recorded with
