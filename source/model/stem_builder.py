@@ -3,37 +3,13 @@
 """Growing each stem of a level to full length, shortened by the pruning envelope when pruning is on."""
 
 from random import Random
-from typing import TYPE_CHECKING
 
+from .curve_data import CurveData, CurveSpline
 from .geometry import Bezier
 from .growth import StemGrower
 from .params import TreeParams
 from .sprouting import SproutPlanner
 from .stem import BoneLink, BoneMap, ChildPoint, Stem
-
-if TYPE_CHECKING:
-    import bpy
-
-
-class SplineCopier:
-    """Exact copies of bezier splines."""
-
-    ATTRIBUTES = (("co", 3), ("handle_left", 3), ("handle_right", 3), ("radius", 1), ("tilt", 1))
-
-    @staticmethod
-    def copy_points(source: "bpy.types.Spline", target: "bpy.types.Spline") -> None:
-        """Make the points of target (at least one) an exact copy of the points of source."""
-        count = len(source.bezier_points)
-        if count > len(target.bezier_points):
-            target.bezier_points.add(count - len(target.bezier_points))
-        for s, t in zip(source.bezier_points, target.bezier_points, strict=False):
-            t.handle_left_type = s.handle_left_type
-            t.handle_right_type = s.handle_right_type
-        # foreach_set stores the values without recalculating the handles, so the copy is exact
-        for attribute, width in SplineCopier.ATTRIBUTES:
-            values = [0.0] * (count * width)
-            source.bezier_points.foreach_get(attribute, values)
-            target.bezier_points.foreach_set(attribute, values)
 
 
 class PruningSearch:
@@ -99,8 +75,8 @@ class StemBuilder:
         self,
         params: TreeParams,
         rng: Random,
-        curve: "bpy.types.Curve",
-        scratch: "bpy.types.Curve | None",
+        curve: CurveData,
+        scratch: CurveData | None,
         scale: float,
         bone_map: BoneMap,
     ) -> None:
@@ -150,9 +126,7 @@ class StemBuilder:
                 return self.planner.plan(stems, level, base_size)
             restart = True
 
-    def _restart_in_scratch(
-        self, stem: Stem, original: "_StemStart", tree_spline: "bpy.types.Spline", restart: bool
-    ) -> None:
+    def _restart_in_scratch(self, stem: Stem, original: "_StemStart", tree_spline: CurveSpline, restart: bool) -> None:
         """Start the stem again from its first point, in the scratch curve."""
         scratch = self.scratch
         if scratch is None:
@@ -170,7 +144,7 @@ class StemBuilder:
             stem.segment = original.segment
             point.radius = stem.radius_start
         else:
-            SplineCopier.copy_points(tree_spline, spline)
+            spline.copy_from(tree_spline)
         stem.spline = spline
         stem.point = spline.bezier_points[-1]
 
@@ -216,7 +190,7 @@ class StemBuilder:
         if inside:
             search.inside()
 
-    def _remove(self, stem: Stem, tree_spline: "bpy.types.Spline", bones: list[BoneLink]) -> list[ChildPoint]:
+    def _remove(self, stem: Stem, tree_spline: CurveSpline, bones: list[BoneLink]) -> list[ChildPoint]:
         """A stem pruning removes: its tree spline keeps only its start point (so spline indices and the bone map
         stay aligned), its splits are dropped, and it has no sprouts: no children, no leaves."""
         self.bone_map.restore(bones)
@@ -224,14 +198,14 @@ class StemBuilder:
         stem.point = tree_spline.bezier_points[-1]
         return []
 
-    def _copy_to_tree(self, stems: list[Stem], tree_spline: "bpy.types.Spline") -> None:
+    def _copy_to_tree(self, stems: list[Stem], tree_spline: CurveSpline) -> None:
         """Move the final pass from the scratch curve into the tree curve."""
         stem = stems[0]
-        SplineCopier.copy_points(stem.spline, tree_spline)
+        tree_spline.copy_from(stem.spline)
         stem.spline = tree_spline
         for split in stems[1:]:
             spline = self.curve.splines.new(Bezier.SPLINE)
-            SplineCopier.copy_points(split.spline, spline)
+            spline.copy_from(split.spline)
             split.spline = spline
         for s in stems:
             s.point = s.spline.bezier_points[-1]

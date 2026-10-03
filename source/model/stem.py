@@ -4,12 +4,10 @@
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from mathutils import Quaternion, Vector
 
-if TYPE_CHECKING:
-    import bpy
+from .curve_data import CurveSpline
 
 
 class BoneName:
@@ -39,7 +37,7 @@ class Stem:
 
     def __init__(
         self,
-        spline: "bpy.types.Spline",
+        spline: CurveSpline,
         curvature: float,
         curvature_v: float,
         attract_up: float,

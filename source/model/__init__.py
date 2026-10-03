@@ -2,6 +2,6 @@
 
 """Tree growth model: stems, branching, pruning and leaf geometry.
 
-Stems grow on real Blender curve splines: Blender recalculates bezier handles in C on every point
-write and stores values as float32, and the generated trees depend on both.
+Stems grow on an in-memory curve (CurveData) that reproduces Blender's bezier handle recalculation and
+float32 storage to the bit: the generated trees depend on both. The model uses no Blender data (bpy).
 """

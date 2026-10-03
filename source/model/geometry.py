@@ -8,12 +8,25 @@ reordering an expression changes the generated trees.
 
 from collections.abc import Iterable, Sequence
 from math import acos, atan2, cos, degrees, pi, radians, sin
-from typing import TYPE_CHECKING, Final, Self
+from typing import Final, Protocol, Self
 
 from mathutils import Euler, Quaternion, Vector
 
-if TYPE_CHECKING:
-    import bpy
+
+class BezierPoint(Protocol):
+    """What a segment reads from a curve point: the model's CurvePoint and Blender's BezierSplinePoint alike."""
+
+    @property
+    def co(self) -> Vector:
+        """The point's position."""
+
+    @property
+    def handle_left(self) -> Vector:
+        """The handle towards the previous point."""
+
+    @property
+    def handle_right(self) -> Vector:
+        """The handle towards the next point."""
 
 
 class Axes:
@@ -208,7 +221,7 @@ class BezierSegment:
         self.p2 = p2
 
     @classmethod
-    def between(cls, point_a: "bpy.types.BezierSplinePoint", point_b: "bpy.types.BezierSplinePoint") -> Self:
+    def between(cls, point_a: BezierPoint, point_b: BezierPoint) -> Self:
         """The segment from `point_a` to the next point `point_b` of a spline, through their facing handles."""
         return cls(point_a.co, point_a.handle_right, point_b.handle_left, point_b.co)
 

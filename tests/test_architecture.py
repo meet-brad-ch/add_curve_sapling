@@ -42,6 +42,19 @@ class Architecture(unittest.TestCase):
                 with self.subTest(module=str(path.relative_to(SOURCE))):
                     self.assertNotIn(target[0] if target else "", forbidden, f"imports {'.'.join(target)}")
 
+    def test_model_does_not_use_blender_data(self):
+        """The model grows the tree in memory; only build/ writes Blender data (bpy), in bulk."""
+        for path in (SOURCE / "model").rglob("*.py"):
+            for node in ast.walk(parse(path)):
+                names = []
+                if isinstance(node, ast.Import):
+                    names = [alias.name for alias in node.names]
+                elif isinstance(node, ast.ImportFrom) and not node.level:
+                    names = [node.module or ""]
+                for name in names:
+                    with self.subTest(module=str(path.relative_to(SOURCE)), name=name):
+                        self.assertNotEqual(name.split(".")[0], "bpy")
+
     def test_project_imports_are_classes(self):
         for path in modules():
             for target, names in project_imports(path, parse(path)):

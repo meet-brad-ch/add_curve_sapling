@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The tree curve object, and the pruning envelope shown with it."""
-
-from collections.abc import Iterator
-from contextlib import contextmanager
+"""The tree curve object, the bulk writer that fills it, and the pruning envelope shown with it."""
 
 import bpy
 from bpy.types import Curve, Object
 from mathutils import Vector
 
+from ..model.curve_data import CurveData
 from ..model.geometry import Bezier
 from ..model.params import TreeParams
 from .objects import ObjectFactory
@@ -35,19 +33,28 @@ class TreeCurveBuilder:
         curve.resolution_u = p.res_u
         return tree
 
+
+class CurveWriter:
+    """Writes the grown curve into the empty tree curve: per spline one new(), one add() and one foreach_set per
+    attribute. Writing point by point costs Blender time in proportion to the number of splines; this does not.
+
+    foreach_set stores the values without recalculating handles, so the handles are the model's, exactly.
+    """
+
     @staticmethod
-    @contextmanager
-    def pruning_scratch(curve: Curve, needed: bool) -> Iterator[Curve | None]:
-        """A curve for the pruning search (stems grown and thrown away), removed afterwards; None if not needed."""
-        if not needed:
-            yield None
-            return
-        scratch = bpy.data.curves.new("sapling_prune_scratch", "CURVE")
-        scratch.dimensions = curve.dimensions
-        try:
-            yield scratch
-        finally:
-            bpy.data.curves.remove(scratch)
+    def write(source: CurveData, target: Curve) -> None:
+        """Append every spline of `source` to `target`, in order, with the model's handles."""
+        for spline in source.splines:
+            spline.ensure_handles()
+            points = target.splines.new(Bezier.SPLINE).bezier_points
+            if len(spline.co) > 1:
+                points.add(len(spline.co) - 1)
+            points.foreach_set("handle_left_type", spline.h1)
+            points.foreach_set("handle_right_type", spline.h2)
+            points.foreach_set("co", [c for v in spline.co for c in v.to_tuple()])
+            points.foreach_set("handle_left", [c for v in spline.left for c in v.to_tuple()])
+            points.foreach_set("handle_right", [c for v in spline.right for c in v.to_tuple()])
+            points.foreach_set("radius", spline.radius)
 
 
 class EnvelopeBuilder:

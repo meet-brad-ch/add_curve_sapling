@@ -14,7 +14,8 @@ from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
 from .build.objects import ObjectFactory
 from .build.skin_mesh import SkinMeshBuilder
-from .build.tree_curve import EnvelopeBuilder, TreeCurveBuilder
+from .build.tree_curve import CurveWriter, EnvelopeBuilder, TreeCurveBuilder
+from .model.curve_data import CurveData
 from .model.leaves import LeafGenerator, LeafShape
 from .model.params import TreeParams
 from .model.tree import TreeGrower
@@ -76,8 +77,10 @@ class TreeGenerator:
         if p.prune:
             EnvelopeBuilder(p, objects).build(tree, scale)
 
-        with TreeCurveBuilder.pruning_scratch(tree.data, p.prune) as scratch:  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
-            grown = TreeGrower(p, rng).grow(tree.data, scratch, scale)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
+        # The model grows in memory (every write O(1)); the curve is then written to Blender in bulk
+        grown_curve = CurveData()
+        grown = TreeGrower(p, rng).grow(grown_curve, CurveData() if p.prune else None, scale)
+        CurveWriter.write(grown_curve, tree.data)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
 
         leaf_set = leaves_ob = None
         leaf_builder = LeafObjectBuilder(p, objects)

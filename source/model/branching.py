@@ -4,16 +4,13 @@
 
 from math import atan2, copysign, cos, pi, radians, sin, sqrt
 from random import Random
-from typing import TYPE_CHECKING
 
 from mathutils import Euler, Matrix, Vector
 
+from .curve_data import CurveData, CurveSpline
 from .geometry import Angles, Axes, Bezier, CrownShape
 from .params import TreeParams
 from .stem import BoneMap, BoneName, ChildPoint, Stem
-
-if TYPE_CHECKING:
-    import bpy
 
 
 class BranchingMode:
@@ -70,7 +67,7 @@ class BranchSpawner:
     # Keeps (1 - base_size) away from zero
     MAX_BASE_SIZE = 0.999
 
-    def __init__(self, params: TreeParams, rng: Random, curve: "bpy.types.Curve") -> None:
+    def __init__(self, params: TreeParams, rng: Random, curve: CurveData) -> None:
         self.params = params
         self.rng = rng
         self.curve = curve
@@ -153,7 +150,7 @@ class BranchSpawner:
 
     def _stem(
         self,
-        spline: "bpy.types.Spline",
+        spline: CurveSpline,
         level: int,
         length: float,
         children: float,

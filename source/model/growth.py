@@ -4,16 +4,13 @@
 
 from math import atan2, pi, radians
 from random import Random
-from typing import TYPE_CHECKING
 
 from mathutils import Euler, Matrix, Quaternion, Vector
 
+from .curve_data import CurvePoint, CurveSpline
 from .geometry import Angles, Axes, Bezier
 from .params import TreeParams
 from .stem import BoneMap, BoneName, Stem
-
-if TYPE_CHECKING:
-    import bpy
 
 
 class StemGrower:
@@ -161,7 +158,7 @@ class StemGrower:
         p = self.params
         rng = self.rng
         uniform = rng.uniform
-        cu: bpy.types.Curve = stem.spline.id_data  # type: ignore[assignment]  # stub: id_data is ID | None; a stem's spline belongs to a Curve
+        cu = stem.spline.id_data
 
         split_angle = p.split_angle[level]
         split_angle_v = p.split_angle_v[level]
@@ -250,9 +247,7 @@ class StemGrower:
         stem.split_last = 1
         return direction_vec
 
-    def _append_point(
-        self, spline: "bpy.types.Spline", from_point: "bpy.types.BezierSplinePoint", direction_vec: Vector
-    ) -> "bpy.types.BezierSplinePoint":
+    def _append_point(self, spline: CurveSpline, from_point: CurvePoint, direction_vec: Vector) -> CurvePoint:
         """A new last point on `spline`, `direction_vec` away from `from_point`, with the tree's handles."""
         end_co = from_point.co.copy()  # before add(): adding points can move the point array
         spline.bezier_points.add(1)

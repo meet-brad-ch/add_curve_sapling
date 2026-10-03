@@ -3,15 +3,12 @@
 """Growing the whole branch structure, level by level, on the tree curve."""
 
 from random import Random
-from typing import TYPE_CHECKING
 
 from .branching import BranchSpawner
+from .curve_data import CurveData
 from .params import TreeParams
 from .stem import BoneMap, ChildPoint
 from .stem_builder import StemBuilder
-
-if TYPE_CHECKING:
-    import bpy
 
 
 class GrownTree:
@@ -42,7 +39,7 @@ class TreeGrower:
         self.params = params
         self.rng = rng
 
-    def grow(self, curve: "bpy.types.Curve", scratch: "bpy.types.Curve | None", scale: float) -> GrownTree:
+    def grow(self, curve: CurveData, scratch: CurveData | None, scale: float) -> GrownTree:
         """Fill `curve` with the tree's splines; `scratch` is a curve for the pruning search (None without pruning).
 
         `scale` is the tree's overall size (Scale with its random variation), in Blender units.
