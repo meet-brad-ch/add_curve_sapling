@@ -118,13 +118,13 @@ class ReEdit(unittest.TestCase):
 
     def test_settings_stored_on_root(self):
         root = self.generate(useRig=True)
-        self.assertEqual((root.name, root.type), ("tree", "CURVE"))
+        self.assertEqual((root.name, root.type), ("tree", "MESH"))
         stored = helpers.stored_settings(root)
         self.assertTrue(stored["useRig"])
         self.assertEqual(stored["leafDupliObj"], "leaf_card")
         tree_id = root["sapling_tree"]
         tagged = sorted(ob.name for ob in bpy.data.objects if ob.get("sapling_tree") == tree_id)
-        self.assertEqual(tagged, ["leaves", "tree", "treeArm"])
+        self.assertEqual(tagged, ["leaves", "tree", "treeArm", "tree_curves"])
 
     def test_regenerate_in_place(self):
         root = self.generate()
@@ -148,12 +148,12 @@ class ReEdit(unittest.TestCase):
 
     def test_edit_changes_settings(self):
         root = self.generate()
-        splines = len(root.data.splines)
+        splines = len(helpers.spline_points())
         self.assertEqual(
             bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **self._stored(), levels=1, do_update=True),
             {"FINISHED"},
         )
-        self.assertLess(len(bpy.data.objects["tree"].data.splines), splines)
+        self.assertLess(len(helpers.spline_points()), splines)
         self.assertNotIn("tree.001", bpy.data.objects)
 
     def test_not_a_tree(self):
@@ -197,7 +197,7 @@ class ArmatureContext(unittest.TestCase):
 
 
 class ArmatureDisplay(unittest.TestCase):
-    """The tree curve is the root, the armature its child; the bones are hidden, the root never is."""
+    """The tree mesh is the root, the armature its child; the bones are hidden, the root never is."""
 
     def add(self, **changes):
         helpers.reset_scene()
@@ -205,7 +205,7 @@ class ArmatureDisplay(unittest.TestCase):
         settings.update(useRig=True, **changes)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         root = helpers.active_object()
-        self.assertEqual((root.name, root.type), ("tree", "CURVE"))
+        self.assertEqual((root.name, root.type), ("tree", "MESH"))
         (armature,) = [ob for ob in root.children if ob.type == "ARMATURE"]
         (collection,) = armature.data.collections
         return root, armature, collection

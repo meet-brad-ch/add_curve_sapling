@@ -7,31 +7,39 @@ import unittest
 import bpy
 import helpers
 
-DATA = ("objects", "curves", "meshes", "armatures", "actions")
+DATA = ("objects", "curves", "hair_curves", "meshes", "armatures", "actions")
 
 
 def counts():
     return {name: len(getattr(bpy.data, name)) for name in DATA}
 
 
-def full_tree_settings():
+def full_tree_settings(rig=True):
+    """Everything on, with the armature rig or with the node wind."""
     settings = helpers.resolve_preset("quaking_aspen.py")
-    settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True, makeMesh=True, prune=True)
+    settings.update(showLeaves=True, useRig=rig, windAnim=True, leafFlutter=True, makeMesh=True, prune=True)
     return settings
 
 
 class DataLifecycle(unittest.TestCase):
     def test_remove_leaves_no_data(self):
-        helpers.reset_scene()
-        empty = counts()
-        self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(), do_update=True), {"FINISHED"})
-        root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
-        helpers.module("build.tree_record").TreeRecord.remove(root)
-        self.assertEqual(counts(), empty)
+        for rig in (True, False):
+            with self.subTest(rig=rig):
+                helpers.reset_scene()
+                empty = counts()
+                self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(rig), do_update=True), {"FINISHED"})
+                root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
+                helpers.module("build.tree_record").TreeRecord.remove(root)
+                self.assertEqual(counts(), empty)
 
     def test_regenerate_leaves_no_orphans(self):
+        for rig in (True, False):
+            with self.subTest(rig=rig):
+                self.regenerate_three_times(full_tree_settings(rig))
+
+    def regenerate_three_times(self, settings):
         helpers.reset_scene()
-        self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(), do_update=True), {"FINISHED"})
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         after_first = counts()
         materials = len(bpy.data.materials)
         node_groups = len(bpy.data.node_groups)

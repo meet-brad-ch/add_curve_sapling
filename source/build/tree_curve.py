@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The tree curve object, the bulk writer that fills it, and the pruning envelope shown with it."""
+"""The bulk writer of legacy curves (the rig's curve source), and the pruning envelope shown with the tree."""
 
 import bpy
 from bpy.types import Curve, Object
@@ -10,28 +10,6 @@ from ..model.curve_data import CurveData
 from ..model.geometry import Bezier
 from ..model.params import TreeParams
 from .objects import ObjectFactory
-
-
-class TreeCurveBuilder:
-    """Creates the (still empty) curve that the branches grow into."""
-
-    ROLE = "tree"
-
-    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
-        self.params = params
-        self.objects = objects
-
-    def build(self) -> Object:
-        """The tree object: a 3D curve with the bevel and resolution of the params, no splines yet."""
-        p = self.params
-        curve = bpy.data.curves.new(self.ROLE, "CURVE")
-        tree = self.objects.new(self.ROLE, curve)
-        curve.dimensions = "3D"
-        curve.fill_mode = "FULL"
-        curve.bevel_depth = p.bevel_depth
-        curve.bevel_resolution = p.bevel_res
-        curve.resolution_u = p.res_u
-        return tree
 
 
 class CurveWriter:

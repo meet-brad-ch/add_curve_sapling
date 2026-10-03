@@ -8,6 +8,12 @@ import bpy
 import helpers
 
 
+def evaluated_materials(name):
+    """The materials an object renders with (a node modifier's mesh carries its own)."""
+    ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
+    return [slot.material.name if slot.material else None for slot in ob.material_slots]
+
+
 def principled(material):
     return next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
 
@@ -31,12 +37,12 @@ class LeafMaterial(unittest.TestCase):
         self.generate(useRig=True, makeMesh=True)
         for name in ("tree", "treemesh"):
             with self.subTest(object=name):
-                self.assertEqual([m.name for m in bpy.data.objects[name].data.materials], ["Sapling Bark"])
+                self.assertEqual(evaluated_materials(name), ["Sapling Bark"])
 
     def test_option_off(self):
         self.generate(leafMaterial=False)
         self.assertEqual(len(bpy.data.objects["leaves"].data.materials), 0)
-        self.assertEqual(len(bpy.data.objects["tree"].data.materials), 1)
+        self.assertEqual(evaluated_materials("tree"), ["Sapling Bark"])
 
     def test_instanced_leaves_keep_their_object_material(self):
         self.generate(leafShape="dFace")

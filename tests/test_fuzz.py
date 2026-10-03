@@ -155,10 +155,9 @@ class SettingsFuzz(unittest.TestCase):
     def check_tree(self, settings):
         bone_links, splines = self.grown[-1]
         self.assertEqual(bone_links, splines, "one bone link per spline")
+        self.assert_finite("tree_curves", [c for points in helpers.spline_points() for co, _r in points for c in co])
         for ob in bpy.data.objects:
-            if ob.type == "CURVE" and ob.name.startswith("tree"):
-                self.assert_finite(ob.name, [c for s in ob.data.splines for p in s.bezier_points for c in p.co])
-            elif ob.type == "MESH" and ob.name != "leaf_card":
+            if ob.type == "MESH" and ob.name != "leaf_card":
                 self.assert_finite(ob.name, [c for v in ob.data.vertices for c in v.co])
         leaves = bpy.data.objects.get("leaves")
         if leaves and settings["leafShape"] != "dVert":
@@ -172,7 +171,7 @@ class SettingsFuzz(unittest.TestCase):
 
     def assert_bones_on_splines(self):
         arm = next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
-        splines = bpy.data.objects["tree"].data.splines
+        splines = helpers.tree_curves().data.splines
         for bone in arm.data.bones:
             match = BONE_NAME.match(bone.name)
             if match:

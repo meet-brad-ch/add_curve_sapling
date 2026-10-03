@@ -3,7 +3,9 @@
 """Wind animation: procedural F-curve modifiers on the rotation of branch bones, and leaf flutter in Geometry
 Nodes."""
 
+from collections.abc import Callable
 from math import radians
+from random import Random
 
 import bpy
 from bpy.types import (
@@ -18,6 +20,7 @@ from bpy.types import (
     SplineBezierPoints,
 )
 
+from ..model.curve_data import CurvePoints
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
@@ -54,7 +57,7 @@ class WindModel:
         return freq1, freq2
 
     def branch_amplitudes(
-        self, points: SplineBezierPoints, n: int, tail: int, step: int, spline_length: float
+        self, points: SplineBezierPoints | CurvePoints, n: int, tail: int, step: int, spline_length: float
     ) -> tuple[float, float, float, float]:
         """Sway amplitudes (radians) of the bone from point n to point tail: stronger for thin bones far up."""
         p = self.params
@@ -94,38 +97,68 @@ class BranchSway:
 
 
 class WindAnimator:
-    """Adds the sway F-curves to the armature's action."""
+    """The rig's wind: sway F-curves on the bones' X and Z rotation, written when the rig is complete.
+
+    Up to CHUNK bones, one action "windAction" is the armature's action, as keyframing makes it. Larger rigs
+    split the curves over several actions, each in its own NLA strip: creating an F-curve costs Blender time in
+    proportion to the curves already in its action (measured at 30,000 bones: 6.8 s in one action, 0.2 s in 32;
+    playback the same).
+    """
 
     # The second wave's phase trails the first by this fraction of the random offset
     SECOND_WAVE_PHASE = 0.7
     # The gust bend oscillates around this fraction of its amplitude (it leans with the wind)
     BEND_LEAN = 0.6
+    ACTION = "windAction"
+    CHUNK = 1000
 
     def __init__(self, armature_ob: Object, model: WindModel) -> None:
         self.armature_ob = armature_ob
         self.model = model
         self.loop_frames = model.params.loop_frames
-        action = bpy.data.actions.new(name="windAction")
-        armature_ob.animation_data_create()
-        armature_ob.animation_data.action = action  # type: ignore[union-attr]  # created on the line above
-        self.action = action
-
-    def _rotation_curves(self, bone: str) -> tuple[FCurve, FCurve]:
-        """The X and Z rotation curves of a bone.
-
-        Not grouped per bone (as keyframing does): Blender 5.2 takes about 4 times as long to create a grouped
-        F-curve, and both costs grow with the number of curves (measured at 16,000 bones: 450 against 100 µs).
-        """
-        path = 'pose.bones["' + bone + '"].rotation_euler'
-        ensure = self.action.fcurve_ensure_for_datablock
-        return ensure(self.armature_ob, path, index=0), ensure(self.armature_ob, path, index=2)
+        self.sways: list[tuple[str, BranchSway]] = []
 
     def add_branch_sway(self, bone: str, sway: BranchSway) -> None:
-        """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend."""
+        """The sway of one bone, written by finish()."""
+        self.sways.append((bone, sway))
+
+    def finish(self) -> None:
+        """Write every bone's F-curves: one action, or one action per CHUNK bones in NLA strips."""
+        ob = self.armature_ob
+        ob.animation_data_create()
+        if len(self.sways) <= self.CHUNK:
+            action = bpy.data.actions.new(name=self.ACTION)
+            ob.animation_data.action = action  # type: ignore[union-attr]  # created above
+            for bone, sway in self.sways:
+                self._write(bone, sway, lambda path, index: action.fcurve_ensure_for_datablock(ob, path, index=index))
+            return
+        for start in range(0, len(self.sways), self.CHUNK):
+            self._chunk(self.sways[start : start + self.CHUNK], start // self.CHUNK)
+
+    def _chunk(self, sways: list[tuple[str, BranchSway]], number: int) -> None:
+        """One action with these bones' curves, played by its own NLA strip."""
+        ob = self.armature_ob
+        action = bpy.data.actions.new(name=f"{self.ACTION}.{number:03d}")
+        slot = action.slots.new(id_type="OBJECT", name=ob.name)
+        channelbag = action.layers.new("Wind").strips.new(type="KEYFRAME").channelbags.new(slot)  # type: ignore[attr-defined]  # stub: keyframe strips have channelbags
+        for bone, sway in sways:
+            self._write(bone, sway, lambda path, index: channelbag.fcurves.new(path, index=index))
+        track = ob.animation_data.nla_tracks.new()  # type: ignore[union-attr]  # created by finish()
+        track.name = action.name
+        strip = track.strips.new(action.name, 1, action)
+        strip.action_slot = slot
+
+    def _write(self, bone: str, sway: BranchSway, new_curve: Callable[[str, int], FCurve]) -> None:
+        """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend.
+
+        The curves are not grouped per bone (as keyframing does): Blender 5.2 takes about 4 times as long to
+        create a grouped F-curve (measured at 16,000 bones: 450 against 100 µs).
+        """
+        path = 'pose.bones["' + bone + '"].rotation_euler'
+        sway_x, sway_z = new_curve(path, 0), new_curve(path, 2)
         a1, a2, a3, a4 = sway.amplitudes
         x_offset, z_offset = sway.offsets
         freq1, freq2 = sway.frequencies
-        sway_x, sway_z = self._rotation_curves(bone)
         for fcurve, offset in ((sway_x, x_offset), (sway_z, z_offset)):
             first: FModifierFunctionGenerator = fcurve.modifiers.new(type="FNGENERATOR")  # type: ignore[assignment]  # stub: new() returns the base class
             first.amplitude = a1
@@ -143,11 +176,16 @@ class WindAnimator:
             bend.value_offset = self.BEND_LEAN * amplitude
             bend.use_additive = True
 
-    def add_leaf_flutter(self, leaves_ob: Object, leaves: LeafSet, offsets: list[float]) -> None:
-        """Leaf flutter: per leaf, its sprout point and its two noise offsets as attributes, and the modifier.
 
-        `offsets` holds two random offsets per leaf (X, then Z). The modifier comes first on the leaves, before
-        the Armature modifier: each leaf turns about its sprout at rest, then follows its branch.
+class LeafFlutter:
+    """Leaf flutter on the leaves object, with the rig or with the node wind."""
+
+    @staticmethod
+    def add(leaves_ob: Object, leaves: LeafSet, offsets: list[float], model: WindModel) -> None:
+        """Per leaf, its sprout point and its two noise offsets as attributes, and the flutter modifier.
+
+        `offsets` holds two random offsets per leaf (X, then Z). The modifier comes first on the leaves: each
+        leaf turns about its sprout at rest, then follows its branch (the rig or the node wind).
         """
         size = leaves.verts_per_leaf
         mesh = leaves_ob.data
@@ -157,8 +195,16 @@ class WindAnimator:
         pivot.data.foreach_set("vector", pivots)
         offset: Float2Attribute = mesh.attributes.new(LeafFlutterNodes.OFFSET, "FLOAT2", "POINT")  # type: ignore[union-attr, assignment]  # leaves are a mesh; stub: new() returns the base class
         offset.data.foreach_set("vector", per_vertex)
-        strength, scale = self.model.leaf_flutter()
-        LeafFlutterNodes.add_modifier(leaves_ob, strength, scale, self.loop_frames)
+        strength, scale = model.leaf_flutter()
+        LeafFlutterNodes.add_modifier(leaves_ob, strength, scale, model.params.loop_frames)
+
+    @staticmethod
+    def offsets(leaves: LeafSet, randomness: float, rng: Random) -> list[float]:
+        """Two random noise offsets per leaf (X, then Z), drawn in leaf order."""
+        values: list[float] = []
+        for _ in leaves.sprouts:
+            values += (rng.uniform(-randomness, randomness), rng.uniform(-randomness, randomness))
+        return values
 
 
 class LeafFlutterNodes:

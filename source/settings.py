@@ -96,6 +96,7 @@ class TreeSettings:
         """Settings under their old ids (RENAMED) move to the new ids; raises SettingsError when both are given
         with different values."""
         values = self.values
+        still = self.old_wind_without_rig(values)
         for old, new in self.RENAMED.items():
             if old not in values:
                 continue
@@ -105,7 +106,17 @@ class TreeSettings:
                     f"Settings give both {old} (the old name of {new}) and {new}, with different values"
                 )
             values[new] = value
+        if still:
+            values["windAnim"] = False
         return self
+
+    @staticmethod
+    def old_wind_without_rig(values: dict[str, Any]) -> bool:
+        """Old settings with armAnim but no armature: the old wind ran on the armature only, so they had none.
+
+        windAnim without the rig now makes the node wind; these settings keep their still tree.
+        """
+        return bool(values.get("armAnim")) and not values.get("useArm", values.get("useRig", False))
 
     def to_json(self) -> str:
         """The settings as versioned JSON, the form a generated tree stores (read back with from_json())."""

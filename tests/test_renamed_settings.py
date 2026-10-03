@@ -39,6 +39,18 @@ class RenameKeys(unittest.TestCase):
         with self.assertRaisesRegex(helpers.module("settings").SettingsError, "wind .*windStrength"):
             settings_class()({"wind": 2.0, "windStrength": 1.0}).rename_keys()
 
+    def test_old_wind_without_armature_stays_still(self):
+        """The old wind ran on the armature only; windAnim alone now makes the node wind."""
+        for values, wind in (
+            ({"armAnim": True, "useArm": False}, False),
+            ({"armAnim": True}, False),
+            ({"armAnim": True, "useArm": True}, True),
+            ({"armAnim": True, "useRig": True}, True),
+            ({"armAnim": False, "useArm": True}, False),
+        ):
+            with self.subTest(values=values):
+                self.assertEqual(settings_class()(dict(values)).rename_keys().values["windAnim"], wind)
+
 
 class OldTrees(unittest.TestCase):
     """A tree generated before the rename stores the old ids; Edit loads them under the new ones."""
@@ -84,6 +96,15 @@ class OldScriptCalls(unittest.TestCase):
         stored = helpers.stored_settings(helpers.active_object())
         self.assertEqual((stored["useRig"], stored["windAnim"], stored["windStrength"]), (True, True, 2.0))
         self.assertEqual(stored["jointStep"], [1, 1, 2, 1])
+
+    def test_old_wind_keyword_without_armature_stays_still(self):
+        helpers.reset_scene()
+        settings = with_old_names(helpers.resolve_preset("quaking_aspen.py"))
+        settings.update(armAnim=True)  # useArm stays off: the old wind needed the armature
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+        stored = helpers.stored_settings(helpers.active_object())
+        self.assertEqual((stored["useRig"], stored["windAnim"]), (False, False))
+        self.assertFalse(helpers.tree_curves().modifiers, "no node wind")
 
     def test_old_and_new_keyword_disagree(self):
         helpers.reset_scene()

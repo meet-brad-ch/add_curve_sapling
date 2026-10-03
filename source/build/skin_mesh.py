@@ -1,17 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Make Mesh: the branches as a vertex skeleton with a Skin modifier, weighted to the armature."""
+"""Make Mesh: the branches as a vertex skeleton with a Skin modifier, weighted to the rig or moved by the node wind."""
 
 import bpy
-from bpy.types import Object, SkinModifier, Spline
+from bpy.types import Object, SkinModifier
 from mathutils import Vector
 
+from ..model.curve_data import CurveData, CurveSpline
 from ..model.geometry import BezierSegment
 from ..model.params import TreeParams
 from ..model.stem import BoneMap, BoneName
 from ..model.tree import GrownTree
 from .armature import ArmatureBuilder
-from .objects import ObjectFactory
+from .node_wind import NodeWind, WindJoints
+from .objects import ObjectFactory, VertexGroupWriter
 
 
 class SkinSkeleton:
@@ -48,19 +50,26 @@ class SkinMeshBuilder:
         self.params = params
         self.objects = objects
 
-    def build(self, tree: Object, grown: GrownTree, armature_ob: Object | None) -> Object:
-        """The skin mesh object, under the armature (deformed by it) or else under the tree curve."""
+    def build(
+        self,
+        root: Object,
+        curve: CurveData,
+        grown: GrownTree,
+        armature_ob: Object | None,
+        wind: tuple[Object, WindJoints] | None = None,
+    ) -> Object:
+        """The skin mesh object: under the rig (deformed by it), or under the root (moved by the node wind when
+        `wind` gives the tree's curves and joints)."""
         skeleton = SkinSkeleton()
-        # a list, not curve.splines[i], which walks the spline list up to i
-        splines = list(tree.data.splines)  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
+        splines = list(curve.splines)
         for i, spline in enumerate(splines):
             if len(spline.bezier_points) < 2:
                 skeleton.add_removed_stem()
             else:
                 self._add_spline(skeleton, splines, grown, i)
-        return self._object(skeleton, tree, armature_ob)
+        return self._object(skeleton, root, armature_ob, wind)
 
-    def _add_spline(self, skeleton: SkinSkeleton, splines: list[Spline], grown: GrownTree, i: int) -> None:
+    def _add_spline(self, skeleton: SkinSkeleton, splines: list[CurveSpline], grown: GrownTree, i: int) -> None:
         """Vertices along spline i (Resolution U per segment), their edges and bone vertex groups."""
         p = self.params
         res = p.res_u
@@ -90,7 +99,8 @@ class SkinMeshBuilder:
         if inherited:
             group = self._nearest_group(skeleton, grown.bone_map, i)
 
-        for n, p2 in enumerate(points[1:]):
+        for n in range(len(points) - 1):
+            p2 = points[n + 1]
             if not inherited:
                 group = BoneName.rounded(BoneName.of(i, n), step)
                 skeleton.groups.setdefault(group, [])
@@ -123,17 +133,26 @@ class SkinMeshBuilder:
             group = links[index].bone
         return group
 
-    def _object(self, skeleton: SkinSkeleton, tree: Object, armature_ob: Object | None) -> Object:
-        """The mesh object from the skeleton, with vertex groups, the Armature modifier and the Skin modifier."""
+    def _object(
+        self, skeleton: SkinSkeleton, root: Object, armature_ob: Object | None, wind: tuple[Object, WindJoints] | None
+    ) -> Object:
+        """The mesh object from the skeleton, with vertex groups, the rig or the node wind, and the Skin modifier."""
         mesh = bpy.data.meshes.new(self.ROLE)
-        # Part of the tree: under the armature that deforms it, or under the tree curve
-        ob = self.objects.new(self.ROLE, mesh, parent=armature_ob or tree)
+        # Part of the tree: under the rig that deforms it, or under the root
+        ob = self.objects.new(self.ROLE, mesh, parent=armature_ob or root)
         mesh.from_pydata(skeleton.verts, skeleton.edges, (), shade_flat=False)  # edges only: nothing to shade
-        for name, indices in skeleton.groups.items():
-            ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
+        VertexGroupWriter.assign(ob, skeleton.groups)
 
         if armature_ob:
             ArmatureBuilder.deform(ob, armature_ob, by_envelopes=False)
+        elif wind:
+            curves_ob, joints = wind
+            vertex_joints = [0] * len(skeleton.verts)
+            for name, indices in skeleton.groups.items():
+                joint = joints.joint_of(name)
+                for index in indices:
+                    vertex_joints[index] = joint
+            NodeWind.follow(ob, curves_ob, vertex_joints)
 
         skin: SkinModifier = ob.modifiers.new("Skin", "SKIN")  # type: ignore[assignment]  # stub: new() returns the base class
         skin.use_smooth_shade = True

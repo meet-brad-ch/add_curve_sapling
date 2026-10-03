@@ -21,9 +21,45 @@
   },
   "tree": {
    "data": {
-    "bevel_depth": 1.0,
+    "co": "da39a3ee5e6b4b0d",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 0
+   },
+   "evaluated": {
+    "co": "09cb6c0369f7d0f1",
+    "edges": 494768,
+    "faces": 234656,
+    "verts": 260112
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "NODES"
+   ],
+   "node_inputs": {
+    "Sapling Tree": {
+     "group": "Sapling Tree",
+     "inputs": {
+      "Bevel Depth": 1.0,
+      "Bevel Resolution": 2,
+      "Curves": "tree_curves",
+      "Fast Preview": false,
+      "Fill Caps": false,
+      "Material": "Sapling Bark",
+      "Resolution U": 4,
+      "Wind": false
+     }
+    }
+   },
+   "parent": null,
+   "type": "MESH",
+   "vertex_groups": ""
+  },
+  "tree_curves": {
+   "data": {
     "points": 10515,
-    "resolution_u": 4,
     "spline_digests": [
      "207b892b62df278e",
      "00e7c100d2505946",
@@ -3212,17 +3248,13 @@
    },
    "instance_type": "NONE",
    "modifiers": [],
-   "parent": null,
-   "type": "CURVE",
+   "parent": "tree",
+   "type": "CURVES",
    "vertex_groups": ""
   }
  },
  "settings": {
-  "af1": 1.0,
-  "af2": 1.0,
-  "af3": 4.0,
-  "armAnim": false,
-  "armLevels": 2,
+  "animationSpeed": 1.0,
   "attractOut": [
    0.0,
    0.4000000059604645,
@@ -3242,12 +3274,6 @@
   "bend": 0,
   "bevel": true,
   "bevelRes": 2,
-  "boneStep": [
-   1,
-   1,
-   1,
-   1
-  ],
   "branchDist": 1.25,
   "branches": [
    0,
@@ -3298,15 +3324,25 @@
    10.0,
    10.0
   ],
-  "frameRate": 1.0,
-  "gust": 1.0,
-  "gustF": 0.07500000298023224,
+  "fastPreview": false,
+  "flutterRandomness": 4.0,
+  "flutterSpeed": 1.0,
+  "flutterStrength": 1.0,
+  "gustFrequency": 0.07500000298023224,
+  "gustStrength": 1.0,
   "handleType": "0",
   "horzLeaves": true,
-  "leafAnim": false,
+  "jointLevels": 2,
+  "jointStep": [
+   1,
+   1,
+   1,
+   1
+  ],
   "leafDist": "6",
   "leafDownAngle": 45.0,
   "leafDownAngleV": 10.0,
+  "leafFlutter": false,
   "leafMaterial": true,
   "leafRotate": 137.5,
   "leafRotateV": 0.0,
@@ -3334,7 +3370,6 @@
   "makeMesh": false,
   "minRadius": 0.0020000000949949026,
   "nrings": 0,
-  "previewArm": false,
   "prune": false,
   "pruneBase": 0.30000001192092896,
   "prunePowerHigh": 0.5,
@@ -3402,9 +3437,10 @@
   ],
   "taperCrown": 0.20000000298023224,
   "trunks": 1,
-  "useArm": false,
   "useOldDownAngle": false,
   "useParentAngle": true,
-  "wind": 1.0
+  "useRig": false,
+  "windAnim": false,
+  "windStrength": 1.0
  }
 }

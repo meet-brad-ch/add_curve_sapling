@@ -19,6 +19,7 @@ def reset_scene() -> None:
     collections: tuple[Any, ...] = (
         bpy.data.objects,
         bpy.data.curves,
+        bpy.data.hair_curves,
         bpy.data.meshes,
         bpy.data.armatures,
         bpy.data.actions,
@@ -149,6 +150,83 @@ def _curve_fp(curve) -> dict:
     }
 
 
+HANDLE_TYPE_NAMES = ("FREE", "AUTO", "VECTOR", "ALIGNED")
+
+
+def _curves_fp(curves) -> dict:
+    """A Curves object hashed exactly as _curve_fp hashes a legacy curve: the digests match for the same points."""
+    sizes = [len(c.points) for c in curves.curves]
+    co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
+    attrs = curves.attributes
+    left = _floats(attrs["handle_left"].data, "vector", 3).reshape(-1, 3)
+    right = _floats(attrs["handle_right"].data, "vector", 3).reshape(-1, 3)
+    radius = _floats(attrs["radius"].data, "value", 1)
+    h1 = _ints(attrs["handle_type_left"].data, "value")
+    h2 = _ints(attrs["handle_type_right"].data, "value")
+    digests = []
+    start = 0
+    for size in sizes:
+        span = slice(start, start + size)
+        parts = [co[span].ravel(), left[span].ravel(), right[span].ravel(), radius[span]]
+        types = [f"{HANDLE_TYPE_NAMES[a]}/{HANDLE_TYPE_NAMES[b]}" for a, b in zip(h1[span], h2[span], strict=True)]
+        digests.append(_hash(b"".join(a.tobytes() for a in parts) + "|".join(types).encode()))
+        start += size
+    return {"splines": len(sizes), "points": sum(sizes), "spline_digests": digests}
+
+
+def _evaluated_fp(ob) -> dict:
+    """What a node modifier makes of an object at the current frame: element counts and positions."""
+    evaluated = ob.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    geometry = evaluated.evaluated_geometry()
+    mesh = geometry.mesh
+    if mesh is None:
+        return {"mesh": None}
+    return {
+        "verts": len(mesh.vertices),
+        "edges": len(mesh.edges),
+        "faces": len(mesh.polygons),
+        "co": _hash(_floats(mesh.vertices, "co", 3).tobytes()),
+    }
+
+
+def _modifier_inputs(ob) -> dict:
+    """The input values of an object's node modifiers (objects by name)."""
+    out = {}
+    for modifier in ob.modifiers:
+        if modifier.type != "NODES" or modifier.node_group is None:
+            continue
+        values = {}
+        for item in modifier.node_group.interface.items_tree:
+            if getattr(item, "in_out", "") != "INPUT" or item.socket_type == "NodeSocketGeometry":
+                continue
+            value = getattr(modifier.properties.inputs, item.identifier).value
+            values[item.name] = value.name if hasattr(value, "name") else plain(value)
+        out[modifier.name] = {"group": modifier.node_group.name, "inputs": values}
+    return out
+
+
+def tree_curves():
+    """The tree's curve source: a legacy Curve (with the armature rig) or a Curves object."""
+    return bpy.data.objects["tree_curves"]
+
+
+def spline_points() -> list[list[tuple[tuple[float, ...], float]]]:
+    """Per spline of the tree, its points as ((x, y, z), radius), from either kind of curve source."""
+    source = tree_curves()
+    if source.type == "CURVE":
+        return [[(p.co.to_tuple(), p.radius) for p in s.bezier_points] for s in source.data.splines]
+    curves = source.data
+    co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
+    radius = _floats(curves.attributes["radius"].data, "value", 1)
+    out = []
+    start = 0
+    for c in curves.curves:
+        size = len(c.points)
+        out.append([(tuple(float(v) for v in co[i]), float(radius[i])) for i in range(start, start + size)])
+        start += size
+    return out
+
+
 def _mesh_fp(mesh) -> dict:
     out = {
         "verts": len(mesh.vertices),
@@ -182,11 +260,17 @@ def _armature_fp(armature) -> dict:
 
 
 def fcurves_of(ob) -> list:
+    """Every F-curve animating ob: its action's, then those of the actions in its NLA strips (a large rig)."""
     ad = ob.animation_data
-    if not ad or not ad.action or not ad.action_slot:
+    if not ad:
         return []
-    channelbag = anim_utils.action_get_channelbag_for_slot(ad.action, ad.action_slot)
-    return list(channelbag.fcurves) if channelbag else []
+    slots = [(ad.action, ad.action_slot)] if ad.action and ad.action_slot else []
+    slots += [(s.action, s.action_slot) for track in ad.nla_tracks for s in track.strips if s.action]
+    out = []
+    for action, slot in slots:
+        channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+        out += list(channelbag.fcurves) if channelbag else []
+    return out
 
 
 _MODIFIER_PARAMS = {
@@ -232,10 +316,16 @@ def fingerprint() -> dict:
         }
         if ob.type == "CURVE":
             entry["data"] = _curve_fp(ob.data)
+        elif ob.type == "CURVES":
+            entry["data"] = _curves_fp(ob.data)
         elif ob.type == "MESH":
             entry["data"] = _mesh_fp(ob.data)
         elif ob.type == "ARMATURE":
             entry["data"] = _armature_fp(ob.data)
             entry["animation"] = _animation_fp(ob)
+        if any(m.type == "NODES" for m in ob.modifiers):
+            entry["node_inputs"] = _modifier_inputs(ob)
+            if ob.type == "MESH" and not ob.hide_viewport:
+                entry["evaluated"] = _evaluated_fp(ob)
         out[ob.name] = entry
     return out

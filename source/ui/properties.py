@@ -511,6 +511,8 @@ class OldSettingNames:
     def forward_old_names(self) -> None:
         """Move values a script gave under old ids to the new ids; SettingsError when both disagree."""
         props = self.properties  # type: ignore[attr-defined]  # mixed into an Operator
+        given = {name: getattr(self, name) for name in ("armAnim", "useArm", "useRig") if props.is_property_set(name)}
+        still = TreeSettings.old_wind_without_rig(given)
         for old, new in TreeSettings.RENAMED.items():
             if not props.is_property_set(old):
                 continue
@@ -519,3 +521,5 @@ class OldSettingNames:
                 raise SettingsError(f"Both {old} (the old name of {new}) and {new} are given, with different values")
             setattr(self, new, value)
             props.property_unset(old)  # the redo panel then works on the new id only
+        if still:
+            self.windAnim = False

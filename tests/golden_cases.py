@@ -115,4 +115,12 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
         "quaking_aspen",
         {"levels": 2, "prune": True, "showLeaves": True, "useRig": True, "windAnim": True, "leafFlutter": True},
     ),
+    # Wind without the rig: forward kinematics in Geometry Nodes.
+    ("node_wind", "quaking_aspen", {"levels": 2, "showLeaves": True, "windAnim": True}),
+    (
+        "node_wind_leaves_skin",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": True, "windAnim": True, "leafFlutter": True, "makeMesh": True, "loopFrames": 48},
+    ),
+    ("fast_preview", "quaking_aspen", {"levels": 2, "showLeaves": False, "fastPreview": True}),
 ]

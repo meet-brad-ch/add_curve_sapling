@@ -17,10 +17,6 @@ def armature():
     return next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
 
 
-def tree_curve():
-    return next(ob for ob in bpy.data.objects if ob.type == "CURVE" and ob.name.startswith("tree"))
-
-
 class WindAnimation(unittest.TestCase):
     """Blender 5.0 removed Action.fcurves; wind animation crashed on every 5.x release."""
 
@@ -34,8 +30,12 @@ class WindAnimation(unittest.TestCase):
 
     def test_generates(self):
         self.assertEqual(self.result, {"FINISHED"})
-        # fcurve_ensure_for_datablock assigns the action slot itself
-        self.assertIsNotNone(armature().animation_data.action_slot)
+        # fcurve_ensure_for_datablock assigns the action slot itself; a big rig's actions sit in NLA strips
+        animation = armature().animation_data
+        strips = [strip for track in animation.nla_tracks for strip in track.strips]
+        slots = [animation.action_slot] if animation.action else [strip.action_slot for strip in strips]
+        self.assertTrue(slots)
+        self.assertTrue(all(slot is not None for slot in slots))
 
     def test_branch_bones_move(self):
         arm = armature()
@@ -76,7 +76,7 @@ class PrunedArmature(unittest.TestCase):
     """Issue #4: armature on a pruned tree raised KeyError; bones must sit on their own spline."""
 
     def assert_bones_on_their_splines(self):
-        splines = tree_curve().data.splines
+        splines = helpers.tree_curves().data.splines
         checked = 0
         for bone in armature().data.bones:
             match = BONE_NAME.match(bone.name)
@@ -141,7 +141,7 @@ class DeepTrees(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=5, branches=(0, 8, 3, 2), closeTip=close_tip)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        return [s.bezier_points[-1].radius for s in tree_curve().data.splines]
+        return [points[-1][1] for points in helpers.spline_points()]
 
     def test_close_tip_on_five_levels(self):
         closed = self.tip_radii(True)
@@ -163,7 +163,7 @@ class BoneStep(unittest.TestCase):
 
     def test_tail_radius_from_tail_point(self):
         self.assertEqual(self.result, {"FINISHED"})
-        splines = tree_curve().data.splines
+        splines = helpers.tree_curves().data.splines
         checked = 0
         for bone in armature().data.bones:
             match = BONE_NAME.match(bone.name)
@@ -347,14 +347,14 @@ class MoveByTheBranches(unittest.TestCase):
         ob.to_mesh_clear()
         return points
 
-    def test_moving_the_clicked_curve_moves_the_whole_tree(self):
+    def test_moving_the_clicked_tree_moves_the_whole_tree(self):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        curve = bpy.data.objects["tree"]  # what a click on the branches selects
+        root = bpy.data.objects["tree"]  # what a click on the branches selects: the mesh that draws the bark
         before = {(name, f): self.world_vertices(name, f) for name in ("tree", "leaves") for f in self.FRAMES}
 
-        curve.location += Vector(self.OFFSET)
+        root.location += Vector(self.OFFSET)
         bpy.context.view_layer.update()
         for (name, frame), points in before.items():
             with self.subTest(object=name, frame=frame):
@@ -381,7 +381,7 @@ class PrunedAwayStems(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(prune=True, pruneRatio=1.0, pruneWidth=0.25, useRig=True, windAnim=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        splines = bpy.data.objects["tree"].data.splines
+        splines = helpers.tree_curves().data.splines
         removed = [i for i, s in enumerate(splines) if i > 0 and len(s.bezier_points) == 1]
         self.assertGreater(len(removed), 10)
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}

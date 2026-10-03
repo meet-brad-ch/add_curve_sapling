@@ -24,8 +24,8 @@ from ..model.leaves import LeafSet
 from ..model.params import TreeParams
 from ..model.stem import BoneLink, BoneName
 from ..model.tree import GrownTree
-from .objects import ObjectFactory
-from .wind import BranchSway, WindAnimator, WindModel
+from .objects import ObjectFactory, VertexGroupWriter
+from .wind import BranchSway, LeafFlutter, WindAnimator, WindModel
 
 
 class BoneGeometry:
@@ -78,32 +78,34 @@ class ArmatureBuilder:
         self.objects = objects
         self.context = context
 
-    def build(self, tree: Object, grown: GrownTree, leaves: LeafSet | None, leaves_ob: Object | None) -> Object:
-        """The armature object, a child of the tree curve, with bones for the branches and wind.
+    def build(
+        self, root: Object, curve_ob: Object, grown: GrownTree, leaves: LeafSet | None, leaves_ob: Object | None
+    ) -> Object:
+        """The armature object (the rig), a child of the root, with bones for the branches and wind.
 
-        Adds Armature modifiers to the tree curve and the leaves. Switches the new armature into edit mode
-        and back (see _editing). Draws from the rng only with Armature Animation: two phase offsets per
-        spline that gets bones, and two per leaf with Leaf Animation. The bones are in a bone
-        collection, hidden unless Fast Preview. The tree curve stays the root: a click on the branches
-        selects it, and moving it moves the armature and everything the armature deforms with it.
+        The bones deform the tree's curve source `curve_ob` (a legacy Curve, by bone envelopes on its points,
+        as before) and the leaves (vertex groups). Switches the new armature into edit mode and back (see
+        _editing). Draws from the rng only with Wind: two phase offsets per spline that gets bones, and two
+        per leaf with Leaf Flutter. The bones are in a bone collection, hidden unless Fast Preview. The root
+        stays the tree: a click on the branches selects it, and moving it moves the rig and all it deforms.
         """
         p = self.params
         armature = bpy.data.armatures.new(self.DATA_NAME)
         # Both are at the origin with no rotation while the tree is built, so no parent inverse is needed
-        armature_ob = self.objects.new(self.ROLE, armature, parent=tree)
+        armature_ob = self.objects.new(self.ROLE, armature, parent=root)
         armature.display_type = "STICK"
         scene = self.context.scene
         fps = scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene
         wind = WindAnimator(armature_ob, WindModel(p, fps)) if p.armature_animation else None
 
         # Curves have no vertex groups: the bone envelopes deform them
-        modifier = self.deform(tree, armature_ob, by_envelopes=True)
+        modifier = self.deform(curve_ob, armature_ob, by_envelopes=True)
         modifier.use_apply_on_spline = True
         if p.preview_armature:
             modifier.show_viewport = False
             armature.display_type = "WIRE"
             # Drawn as its bounds, not hidden: a hidden root is deselected and left out of Move/Rotate/Scale
-            tree.display_type = "BOUNDS"
+            root.display_type = "BOUNDS"
         if leaves_ob:
             self.deform(leaves_ob, armature_ob, by_envelopes=False)
 
@@ -112,12 +114,14 @@ class ArmatureBuilder:
         collection = armature.collections.new(self.BONE_COLLECTION)
         bones: dict[str, EditBone] = {}  # by name: Blender's own lookup by name costs more the more bones there are
         with self._editing(armature_ob):
-            self._branch_bones(armature, bones, tree.data, grown, wind)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
+            self._branch_bones(armature, bones, curve_ob.data, grown, wind)  # type: ignore[arg-type]  # the curve source of a rig is a legacy Curve
             for bone in bones.values():  # an EditBone is assigned at the same cost however many bones there are
                 collection.assign(bone)
         collection.is_visible = p.preview_armature
         if leaves_ob:
             self._leaf_groups(set(bones), grown, leaves, leaves_ob, wind)  # type: ignore[arg-type]  # leaves_ob implies leaves
+        if wind:
+            wind.finish()
 
         for pose_bone in armature_ob.pose.bones:  # type: ignore[union-attr]  # an armature object has a pose
             pose_bone.rotation_mode = "XYZ"
@@ -236,16 +240,14 @@ class ArmatureBuilder:
         randomness = p.leaf_wind[2]
         flutter = wind if p.leaf_animation else None
         groups: dict[str, list[int]] = {}
-        offsets: list[float] = []
         for i, sprout in enumerate(leaves.sprouts):
             parent = BoneName.rounded(sprout.parent_bone, p.leaf_bone_step)
             while parent not in bones:
                 parent = bone_names[BoneName.spline(parent)]
             groups.setdefault(parent, []).extend(range(size * i, size * i + size))
-            if flutter:
-                offsets += (self.rng.uniform(-randomness, randomness), self.rng.uniform(-randomness, randomness))
+        # two noise offsets per leaf, after all the branch bones' draws
+        offsets = LeafFlutter.offsets(leaves, randomness, self.rng) if flutter else []
 
-        for name, indices in groups.items():
-            leaves_ob.vertex_groups.new(name=name).add(indices, 1.0, "ADD")
+        VertexGroupWriter.assign(leaves_ob, groups)
         if flutter:
-            flutter.add_leaf_flutter(leaves_ob, leaves, offsets)
+            LeafFlutter.add(leaves_ob, leaves, offsets, flutter.model)

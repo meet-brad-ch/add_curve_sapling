@@ -3,10 +3,11 @@
 """Creating the tree's objects in the scene, and removing them again."""
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
+import bmesh
 import bpy
-from bpy.types import ID, Collection, Object
+from bpy.types import ID, Collection, Mesh, Object
 
 
 class ObjectFactory:
@@ -65,6 +66,59 @@ class ObjectFactory:
     def _owned_data(ob: Object) -> list[ID]:
         """The object's data and animation action: the blocks it may be the only user of."""
         blocks: list[ID] = [ob.data] if ob.data is not None else []
-        if ob.animation_data and ob.animation_data.action:
-            blocks.append(ob.animation_data.action)
+        animation = ob.animation_data
+        if animation and animation.action:
+            blocks.append(animation.action)
+        if animation:  # a large rig's wind is split over actions in NLA strips
+            blocks += [strip.action for track in animation.nla_tracks for strip in track.strips if strip.action]
         return blocks
+
+
+class VertexGroupWriter:
+    """Vertex groups in one pass: the groups by name, then every weight through a bmesh deform layer.
+
+    VertexGroup.add costs Blender time in proportion to the number of groups (it looks the group up in a list),
+    so adding the weights group by group was quadratic in the bones; the deform layer is written in O(1) per vertex.
+    """
+
+    @staticmethod
+    def assign(ob: Object, groups: Mapping[str, Sequence[int]]) -> None:
+        """One group per name, in order, with each listed vertex in it at weight 1.0 (ob has no groups yet).
+
+        Raises RuntimeError if the bmesh round trip changed the mesh's attributes (it must not lose data).
+        """
+        for name in groups:
+            ob.vertex_groups.new(name=name)
+        mesh: Mesh = ob.data  # type: ignore[assignment]  # vertex groups are written on mesh objects
+        before = VertexGroupWriter.attributes(mesh)
+        bm = bmesh.new()
+        try:
+            bm.from_mesh(mesh)
+            layer = bm.verts.layers.deform.verify()
+            bm.verts.ensure_lookup_table()
+            for group, indices in enumerate(groups.values()):
+                for index in indices:
+                    bm.verts[index][layer][group] = 1.0
+            bm.to_mesh(mesh)
+        finally:
+            bm.free()
+        after = VertexGroupWriter.attributes(mesh)
+        if after != before:
+            raise RuntimeError(f"Writing the vertex groups changed the mesh's attributes: {before} -> {after}")
+
+    @staticmethod
+    def attributes(mesh: Mesh) -> list[tuple[str, str, str]]:
+        """(name, domain, type) of every attribute that holds data, sorted.
+
+        Left out: Blender's internal storage (names starting with "."; bmesh adds topology and UV selection
+        layers), and attributes on a domain with no elements (bmesh drops sharp_face from a mesh without faces).
+        """
+        sizes = {
+            "POINT": len(mesh.vertices),
+            "EDGE": len(mesh.edges),
+            "FACE": len(mesh.polygons),
+            "CORNER": len(mesh.loops),
+        }
+        return sorted(
+            (a.name, a.domain, a.data_type) for a in mesh.attributes if not a.name.startswith(".") and sizes[a.domain]
+        )

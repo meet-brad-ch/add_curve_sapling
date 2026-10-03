@@ -36,7 +36,7 @@ class SeveralTrunks(unittest.TestCase):
 
     def test_trunks_stand_on_the_ground_apart(self):
         self.assertEqual(self.result, {"FINISHED"})
-        splines = bpy.data.objects["tree"].data.splines
+        splines = helpers.tree_curves().data.splines
         bases = [s.bezier_points[0].co.copy() for s in splines if s.bezier_points[0].co.z == 0.0]
         self.assertEqual(len(bases), self.TRUNKS)
         s = self.settings

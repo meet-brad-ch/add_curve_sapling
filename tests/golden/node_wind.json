@@ -1,6 +1,40 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
+  "leaves": {
+   "data": {
+    "co": "64213326c2034c26",
+    "edges": 3087,
+    "faces": 882,
+    "topology": "83ffb3597209477b",
+    "uv": "8b943bb927f2cc15",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 2646
+   },
+   "evaluated": {
+    "co": "e72186dc38637c85",
+    "edges": 3087,
+    "faces": 882,
+    "verts": 2646
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "NODES"
+   ],
+   "node_inputs": {
+    "Sapling Follow Wind": {
+     "group": "Sapling Follow Wind",
+     "inputs": {
+      "Curves": "tree_curves"
+     }
+    }
+   },
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
+  },
   "tree": {
    "data": {
     "co": "da39a3ee5e6b4b0d",
@@ -11,7 +45,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "c35dcb43274c6be5",
+    "co": "23819bf1f5150486",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -31,7 +65,7 @@
       "Fill Caps": false,
       "Material": "Sapling Bark",
       "Resolution U": 4,
-      "Wind": false
+      "Wind": true
      }
     }
    },
@@ -44,41 +78,53 @@
     "points": 189,
     "spline_digests": [
      "34f1d6afbe8687e2",
-     "82e61bd81bb5a096",
-     "be4c929961f3ca04",
-     "53dc982943b48d3a",
-     "9ddb8681de2add98",
-     "5ab652f392993862",
-     "a5ad3dcc75ca38e6",
-     "bb3fd1e72282009b",
-     "465cd954f52c38c9",
-     "aeacfe516258cd77",
-     "27357f0ad3012214",
-     "49130a51669c0d76",
-     "efcb3a50e557fc5d",
-     "8d802f5285dd8d67",
-     "d472b3553b23b9a2",
-     "229be73bd888e3f2",
-     "8df461801e6e36e2",
-     "f3379f257e655ec4",
-     "19e2fccf40a57770",
-     "a9534ef2bffbb23d",
-     "51c95486907d2ca4",
-     "26705ab7de2de3b8",
-     "5797aa0ca08dbc08",
-     "d767e5116187fdc0",
-     "e47222a8d942d322",
-     "3bcdadfb173cb55a",
-     "1a3a116394646037",
-     "05811c092d6af677",
-     "3e343ec388afbf31",
-     "1e3ed2e4b7a57c16",
-     "f40fae39a895c2a4"
+     "60591d3ec4338e82",
+     "2fcdc188fe633c20",
+     "a4ab5c97194c959b",
+     "509e28fe11c15a87",
+     "a46dead0a8b328c5",
+     "1ed5e557c5d24fc3",
+     "a0a04d6e761687e3",
+     "872344a24d0d00f1",
+     "41c135ee1540ad43",
+     "c223b01e434de9a3",
+     "e4e667aa195276d8",
+     "7ad6744b2990eee3",
+     "08a7ff5d6257c3cf",
+     "38c5ad49bb36a790",
+     "a2ecf4bea4988dac",
+     "ab06214c4e28cde7",
+     "ddcdc00f754cf5fe",
+     "3a2176d652134349",
+     "c9646eafb592d309",
+     "346a7e7cde9ef0aa",
+     "387711851a5588d2",
+     "f5f354549b2684f1",
+     "92c7824bc665622f",
+     "c26b3105d67bf744",
+     "b1157ac174508f5d",
+     "737f1d2f9fb18fab",
+     "058d86269349312f",
+     "fd6ca46b3e5253f2",
+     "434dd6adab40be58",
+     "549233272c0cafb6"
     ],
     "splines": 31
    },
    "instance_type": "NONE",
-   "modifiers": [],
+   "modifiers": [
+    "NODES"
+   ],
+   "node_inputs": {
+    "Sapling Wind": {
+     "group": "Sapling Wind",
+     "inputs": {
+      "Depth Passes": 1,
+      "Gust": 0.019634954631328583,
+      "Scan Passes": 4
+     }
+    }
+   },
    "parent": "tree",
    "type": "CURVES",
    "vertex_groups": ""
@@ -208,7 +254,7 @@
   "pruneRatio": 1.0,
   "pruneWidth": 0.4000000059604645,
   "pruneWidthPeak": 0.6000000238418579,
-  "rMode": "random",
+  "rMode": "rotate",
   "radiusTweak": [
    1.0,
    1.0,
@@ -244,7 +290,7 @@
   ],
   "shape": "7",
   "shapeS": "4",
-  "showLeaves": false,
+  "showLeaves": true,
   "splitAngle": [
    0.0,
    0.0,
@@ -271,7 +317,7 @@
   "useOldDownAngle": false,
   "useParentAngle": true,
   "useRig": false,
-  "windAnim": false,
+  "windAnim": true,
   "windStrength": 1.0
  }
 }
