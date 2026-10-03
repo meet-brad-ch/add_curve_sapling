@@ -56,6 +56,10 @@ class SkinMeshBuilder:
         res = p.res_u
         link = grown.bone_map[i]
         points = spline.bezier_points
+        if len(points) < 2:
+            # a stem pruning removed has no vertices; it has no children, so its entry is never read
+            skeleton.last_verts.append(-1)
+            return
         step = p.bone_step[grown.level_of(i)]
         vindex = len(skeleton.verts)
         p1 = points[0]

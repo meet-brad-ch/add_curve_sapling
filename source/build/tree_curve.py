@@ -51,7 +51,11 @@ class TreeCurveBuilder:
 
 
 class EnvelopeBuilder:
-    """Two profile curves (in the XZ and YZ planes) that show the pruning envelope."""
+    """Two profile curves (in the XZ and YZ planes) that show the pruning envelope.
+
+    A guide, not part of the tree's look: hidden in viewports and renders after generation (Object Properties
+    > Visibility shows it again).
+    """
 
     ROLE = "envelope"
     POINTS = 128
@@ -65,7 +69,9 @@ class EnvelopeBuilder:
         p = self.params
         prune_base = p.prune_base_clamped
         curve = bpy.data.curves.new(self.ROLE, "CURVE")
-        self.objects.new(self.ROLE, curve, parent=tree)
+        envelope = self.objects.new(self.ROLE, curve, parent=tree)
+        envelope.hide_viewport = True
+        envelope.hide_render = True
         for axis in (0, 1):
             spline = curve.splines.new(Bezier.SPLINE)
             point = spline.bezier_points[-1]

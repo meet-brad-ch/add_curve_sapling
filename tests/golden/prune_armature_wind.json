@@ -20,15 +20,15 @@
   },
   "leaves": {
    "data": {
-    "co": "eff694d9855610a4",
-    "edges": 3087,
-    "faces": 882,
-    "topology": "83ffb3597209477b",
-    "uv": "8b943bb927f2cc15",
+    "co": "2f416f060dd2901c",
+    "edges": 2891,
+    "faces": 826,
+    "topology": "7302a6291051d541",
+    "uv": "150517d6f73a7de1",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 2646
+    "verts": 2478
    },
    "instance_type": "NONE",
    "modifiers": [
@@ -36,12 +36,12 @@
    ],
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "8e0df8fb7f1c0de4"
+   "vertex_groups": "0a6ce4492f12a2e0"
   },
   "tree": {
    "data": {
     "bevel_depth": 1.0,
-    "points": 189,
+    "points": 179,
     "resolution_u": 4,
     "spline_digests": [
      "34f1d6afbe8687e2",
@@ -73,8 +73,8 @@
      "7143048fbfb1ace6",
      "0f47c86317824909",
      "615b3ee5ca511a73",
-     "8828e46b07f3d22e",
-     "c1b6aee328d4ef90"
+     "b808666d32a681f2",
+     "48a8283ad1337880"
     ],
     "splines": 31
    },
@@ -88,17 +88,17 @@
   },
   "treeArm": {
    "animation": {
-    "fcurves": 1198,
-    "groups": "5547b7ee4a73386b",
-    "modifiers": "7bcd559c8a8b0ed0",
-    "paths": "cfef0fc59b550401"
+    "fcurves": 1122,
+    "groups": "5c139570ec7843a1",
+    "modifiers": "5d3911ad3a61aff9",
+    "paths": "ac6f2616eb3c98f0"
    },
    "data": {
-    "bones": 599,
-    "connect": "87c6ba2c5e6e99b1",
-    "geometry": "72ecb030876cd728",
-    "names": "24bdcbf887768b50",
-    "parents": "40aa5625baffc9aa"
+    "bones": 561,
+    "connect": "e52fa79572787fb4",
+    "geometry": "f70eaffb4bd90985",
+    "names": "0ffaf18098622e8e",
+    "parents": "c4fa96df3a5c2460"
    },
    "instance_type": "NONE",
    "modifiers": [],

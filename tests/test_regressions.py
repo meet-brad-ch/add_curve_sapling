@@ -351,3 +351,35 @@ class MoveByTheBranches(unittest.TestCase):
                 self.assertEqual(len(after), len(points))
                 worst = max((b - a - Vector(self.OFFSET)).length for a, b in zip(points, after, strict=True))
                 self.assertLess(worst, 1e-5, "the part moved away from its bones")
+
+
+class PrunedAwayStems(unittest.TestCase):
+    """Pruning shrank some stems to ~1 cm stubs: invisible, but their leaves floated next to the branches."""
+
+    def search(self, scale):
+        search = helpers.module("model.stem_builder").PruningSearch()
+        search.scale = scale
+        return search
+
+    def test_only_short_stems_at_full_ratio_are_removed(self):
+        self.assertTrue(self.search(0.1).removes_stem(1.0))
+        self.assertFalse(self.search(0.2).removes_stem(1.0))
+        self.assertFalse(self.search(0.1).removes_stem(0.8))  # a partial ratio keeps part of the stem anyway
+
+    def test_removed_stems_keep_only_their_start_point(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(prune=True, pruneRatio=1.0, pruneWidth=0.25, useArm=True, armAnim=True, makeMesh=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        splines = bpy.data.objects["tree"].data.splines
+        removed = [i for i, s in enumerate(splines) if i > 0 and len(s.bezier_points) == 1]
+        self.assertGreater(len(removed), 10)
+        bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
+        self.assertFalse(any(name.startswith(f"bone{i:03d}.") for name in bones for i in removed))
+
+    def test_envelope_is_hidden(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(prune=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        envelope = bpy.data.objects["envelope"]
+        self.assertTrue(envelope.hide_viewport)
+        self.assertTrue(envelope.hide_render)

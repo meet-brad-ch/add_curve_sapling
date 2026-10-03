@@ -147,6 +147,8 @@ class ArmatureBuilder:
             spline = curve.splines[i]
             points = spline.bezier_points
             segments = len(points) - 1
+            if segments == 0:
+                continue  # a stem pruning removed: only its start point is left
             step = p.bone_step[grown.level_of(i)]
 
             if wind:

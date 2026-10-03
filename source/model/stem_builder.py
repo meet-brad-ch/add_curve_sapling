@@ -9,7 +9,7 @@ from .geometry import Bezier
 from .growth import StemGrower
 from .params import TreeParams
 from .sprouting import SproutPlanner
-from .stem import BoneMap, ChildPoint, Stem
+from .stem import BoneLink, BoneMap, ChildPoint, Stem
 
 if TYPE_CHECKING:
     import bpy
@@ -43,6 +43,9 @@ class PruningSearch:
     TOLERANCE = 0.005
     # The pass that starts with an interval narrower than this is the last one
     LAST_PASS = 0.01
+    # With the full Prune Ratio, a stem that would keep less than this share of its length is removed (as
+    # tree-gen does); a stub that short is invisible but still carries its leaves
+    REMOVE_BELOW = 0.15
 
     def __init__(self) -> None:
         self.low = 0.0
@@ -59,6 +62,10 @@ class PruningSearch:
     def last_pass(self) -> bool:
         """The pass after which the search stops; it also applies the pruning ratio."""
         return (self.high - self.low) < self.LAST_PASS
+
+    def removes_stem(self, ratio: float) -> bool:
+        """Whether the stem is removed: the full Prune Ratio and less than REMOVE_BELOW of its length left."""
+        return ratio >= 1 and self.scale < self.REMOVE_BELOW
 
     def apply_ratio(self, ratio: float) -> None:
         """Prune Ratio: how much of the found shortening is applied (1 = all of it)."""
@@ -137,6 +144,8 @@ class StemBuilder:
             stems = self._grow_segments(stem, level, close_tip)
             self._check_envelope(stems, level, search)
             if search.converged or last_pass:
+                if level > 0 and search.removes_stem(p.prune_ratio):
+                    return self._remove(stem, tree_spline, bones)
                 self._copy_to_tree(stems, tree_spline)
                 return self.planner.plan(stems, level, base_size)
             restart = True
@@ -206,6 +215,14 @@ class StemBuilder:
                 break
         if inside:
             search.inside()
+
+    def _remove(self, stem: Stem, tree_spline: "bpy.types.Spline", bones: list[BoneLink]) -> list[ChildPoint]:
+        """A stem pruning removes: its tree spline keeps only its start point (so spline indices and the bone map
+        stay aligned), its splits are dropped, and it has no sprouts: no children, no leaves."""
+        self.bone_map.restore(bones)
+        stem.spline = tree_spline
+        stem.point = tree_spline.bezier_points[-1]
+        return []
 
     def _copy_to_tree(self, stems: list[Stem], tree_spline: "bpy.types.Spline") -> None:
         """Move the final pass from the scratch curve into the tree curve."""

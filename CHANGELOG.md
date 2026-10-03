@@ -9,7 +9,7 @@
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. Its Weber–Penn values are mapped to the
   settings of Sapling by `tools/port_treegen.py`, checked against renders of tree-gen's own trees in
   Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak, Sphere Tree) and
-  random branch bending, which Sapling does not have. *Cambridge Oak* takes about 20 s to generate.
+  random branch bending, which Sapling does not have. *Cambridge Oak* takes about 15 s to generate.
   tree-gen's palm, fan palm and bamboo are not ported (no multi-stem clumps or fronds in Sapling).
 
 ### Changed
@@ -26,6 +26,11 @@
   2, which left it nearly bare (882 leaves, now about 12,000).
 - *Quaking Aspen* and *Weeping Willow* load with their leaves. Both were saved with Show Leaves off
   since 2011, so they were the only presets whose leaves had to be turned on by hand.
+- Pruning removes a stem that would keep less than 15 % of its length when *Prune Ratio* is 1, as
+  tree-gen does. Before, such stems became stubs of about 1 cm: invisible, but their leaves floated
+  next to the branches.
+- The pruning envelope is hidden after generation. Its two profile curves showed as lines in the
+  viewport; *Object Properties > Visibility* shows them again.
 - *Limit Import* is off by default. With it on, every preset loaded with 2 levels and no leaves, so
   trees with more levels looked bare when the leaves were turned on.
 

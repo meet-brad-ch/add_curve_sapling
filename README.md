@@ -67,7 +67,7 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   extension (`extensions/.user/<repo>/sapling_tree_gen/presets`). Fifteen built-in presets come from
   tree-gen: *Acer*, *Apple*, *Balsam Fir*, *Black Oak*, *Black Tupelo*, *Cambridge Oak*, *Douglas Fir*,
   *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch*,
-  *Sphere Tree* and *Willow* (see Credits). *Cambridge Oak* takes about 20 s to generate.
+  *Sphere Tree* and *Willow* (see Credits). *Cambridge Oak* takes about 15 s to generate.
 - **Edit Sapling Tree:** Select a part of a generated tree. Click *Edit Sapling Tree* in the
   *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
   again, and the tree is made again in the same place. The tree keeps its transform, its parent
@@ -81,6 +81,9 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   generation, the bones are hidden in the bone collection *Sapling Bones*. To show them, click the
   eye icon of that collection in *Armature Properties > Bone Collections*. *Fast Preview* shows the
   bones and shows the tree as its bounding box.
+- **Pruning:** stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a stem
+  that would keep less than 15 % of its length is removed, with its leaves. The envelope (two profile
+  curves) is hidden after generation; *Object Properties > Visibility* shows it.
 - **Instance Points** leaves: A Geometry Nodes modifier (*Sapling Leaf Instancer*) puts your leaf
   object on each leaf point, with a rotation for each leaf. The leaf object itself does not move.
 
