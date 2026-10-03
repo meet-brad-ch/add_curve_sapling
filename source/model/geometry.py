@@ -107,7 +107,7 @@ class CrownShape:
     def ratio(shape: int, ratio: float, custom: Sequence[float] | None = None) -> float:
         """The shape's factor at `ratio` (0..1); CUSTOM takes its four control values in `custom`."""
         if shape == CrownShape.CUSTOM:
-            return CrownShape._custom(ratio, custom)  # type: ignore[arg-type]
+            return CrownShape._custom(ratio, custom)  # type: ignore[arg-type]  # only the main shape can be CUSTOM, and it always comes with custom
         if shape not in CrownShape._SHAPES:
             raise ValueError(f"unknown crown shape {shape}")
         return CrownShape._SHAPES[shape](ratio)

@@ -178,7 +178,7 @@ class LeafGenerator:
         if (count > 0) and (rotate > 0) and p.horizontal_leaves:
             turns.append(Matrix.Rotation(-rotation + rotate, 3, "Z"))
         if count > 0:
-            turns.append(down)  # type: ignore[arg-type]
+            turns.append(down)  # type: ignore[arg-type]  # down is None only for palmate leaves (count < 0)
         turns.extend((spin, sprout.quat))
         if (p.leaf_bend != 0.0) and (count > 0):
             turns.extend(self._bend_rotations(sprout, p.leaf_bend))
@@ -192,7 +192,7 @@ class LeafGenerator:
             normal = verts[0]
             normal.normalize()
             leaves.vertices.append([sprout.co.x, sprout.co.y, sprout.co.z])
-            leaves.normals.extend(normal)  # type: ignore[arg-type]
+            leaves.normals.extend(normal)  # type: ignore[arg-type]  # stub: Vector is not typed as an Iterable
         else:
             for v in verts:
                 v += sprout.co

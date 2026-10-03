@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The gate: lint, format, types, manifest, then the test suite with branch coverage.
+"""The gate: lint, format, types, manifest, then the test suite with line and branch coverage.
 
 python tools/check.py          # everything (run before merging)
 python tools/check.py --fast   # without the Blender test suite (the pre-commit hook)
@@ -12,8 +12,9 @@ import sys
 
 from blender_env import ROOT, SOURCE, install_fresh, run, run_script, venv_python, venv_site_packages
 
-# Branch coverage of the add-on the test suite must reach, in percent
-COVERAGE_MIN = 98
+# Coverage of the add-on the test suite must reach, in percent (measured 99.2 and 96.2 on 2026-10-02)
+LINE_COVERAGE_MIN = 99
+BRANCH_COVERAGE_MIN = 96
 
 
 def step(title: str, cmd: list[str]) -> bool:
@@ -39,7 +40,11 @@ def main() -> int:
     print("== extension validate: ok", flush=True)
     if not args.fast:
         install_fresh()
-        coverage = [f"--coverage={COVERAGE_MIN}", f"--site={venv_site_packages()}"]
+        coverage = [
+            f"--line-min={LINE_COVERAGE_MIN}",
+            f"--branch-min={BRANCH_COVERAGE_MIN}",
+            f"--site={venv_site_packages()}",
+        ]
         results.append(run_script(ROOT / "tests" / "run.py", coverage) == 0)
         print("== tests:", "ok" if results[-1] else "FAILED")
     return 0 if all(results) else 1

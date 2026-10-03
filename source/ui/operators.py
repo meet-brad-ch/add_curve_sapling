@@ -71,22 +71,22 @@ class AddTreeOperator(TreeProperties, Operator):
 
     @override
     @classmethod
-    def poll(cls, context: Context) -> bool:  # type: ignore[override]
+    def poll(cls, context: Context) -> bool:  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         return context.mode == "OBJECT"
 
     @override
-    def draw(self, context: Context) -> None:  # type: ignore[override]
-        SettingsPages.draw(self, self.layout)  # type: ignore[arg-type]
+    def draw(self, context: Context) -> None:  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
+        SettingsPages.draw(self, self.layout)  # type: ignore[arg-type]  # stub: layout is optional; an operator's draw always has one
 
     @override
-    def invoke(self, context: Context, event: Event) -> "set[OperatorReturnItems]":  # type: ignore[override]
+    def invoke(self, context: Context, event: Event) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         if not self.replace:
             self.preset = self.DEFAULT_PRESET
         self.do_update = True
         return self.execute(context)
 
     @override
-    def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]
+    def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         # In the redo panel, changing a page or other UI state keeps the tree as it is
         if self.options.is_repeat and not self.do_update:
             return {"PASS_THROUGH"}
@@ -128,7 +128,7 @@ class AddTreeOperator(TreeProperties, Operator):
         TreeRecord.tag(result, settings)
 
         if placement is None:
-            result.root.location = context.scene.cursor.location  # type: ignore[union-attr]
+            result.root.location = context.scene.cursor.location  # type: ignore[union-attr]  # an operator context has a scene
         else:
             placement.detach()
             TreeRecord.remove(placement.root)
@@ -136,10 +136,10 @@ class AddTreeOperator(TreeProperties, Operator):
             unattached = placement.apply(result, context.view_layer)  # type: ignore[arg-type]  # an operator context has a view layer
             if unattached:
                 self.report({"WARNING"}, f"Left unparented (their part of the tree is gone): {', '.join(unattached)}")
-        for ob in context.selected_objects:  # type: ignore[union-attr]
+        for ob in context.selected_objects:  # type: ignore[union-attr]  # an operator context has selected objects
             ob.select_set(False)
         result.root.select_set(True)
-        context.view_layer.objects.active = result.root  # type: ignore[union-attr]
+        context.view_layer.objects.active = result.root  # type: ignore[union-attr]  # an operator context has a view layer
         return {"FINISHED"}
 
     def _tree_to_replace(self, context: Context) -> Object:

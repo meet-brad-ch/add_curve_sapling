@@ -118,7 +118,7 @@ class SproutPlanner:
         tip = points[-1]
         sprouts.append(
             ChildPoint(
-                Vector(tip.co),  # type: ignore[arg-type]
+                Vector(tip.co),  # type: ignore[arg-type]  # stub: Vector is not typed as a Sequence
                 (tip.handle_right - tip.co).to_track_quat("Z", "Y"),
                 (stem.radius_start, tip.radius),
                 1,

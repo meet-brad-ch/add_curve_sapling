@@ -43,10 +43,6 @@ LINEAR = 2  # tree-gen leaf shape ids: 1 ovate, 2 linear, 3 cordate, ... 8 ellip
 DEFAULT_LEAF = 8
 NEUTRAL_RADIUS = [1, 1, 1, 1]
 
-# Changes from tree-gen's values that render wrong in Sapling, each found by comparing renders.
-# species: ({setting: (level or None, value)}, note for the preset header)
-CORRECTIONS: dict[str, tuple[dict[str, tuple[int | None, float]], str]] = {}
-
 
 def literal_dict(path: Path) -> dict[str, Any]:
     """The first dictionary literal in a tree-gen parameter file."""
@@ -93,8 +89,8 @@ class Porter:
         settings_cls = sys.modules[MODULE + ".settings"].TreeSettings
         self.defaults = settings_cls.defaults_from_rna(self.rna, self.names).values
 
-    def convert(self, species: str) -> tuple[dict[str, Any], list, str]:
-        """(Sapling settings, clamped values, header note) for one tree-gen species."""
+    def convert(self, species: str) -> tuple[dict[str, Any], list]:
+        """(Sapling settings, clamped values) for one tree-gen species."""
         tg = {**self.defaults_tg, **literal_dict(self.params_dir / f"{species}.py")}
         s = dict(self.defaults)
         levels = int(tg["levels"])
@@ -161,18 +157,10 @@ class Porter:
                 prunePowerHigh=float(tg["prune_power_high"]),
                 pruneBase=float(base[0]),
             )
-        note = ""
-        if species in CORRECTIONS:
-            changes, note = CORRECTIONS[species]
-            for key, (level, value) in changes.items():
-                if level is None:
-                    s[key] = value
-                else:
-                    s[key] = tuple(value if i == level else v for i, v in enumerate(s[key]))
         clamped = self.clamp(s)
         if set(s) != set(self.names):
             raise SystemExit(f"{species}: settings do not match the add-on's generation settings")
-        return s, clamped, note
+        return s, clamped
 
     @staticmethod
     def taper(value: float) -> float:
@@ -196,7 +184,7 @@ class Porter:
                 s[key] = tuple(fixed) if vector else fixed[0]
         return clamped
 
-    def header(self, species: str, note: str) -> str:
+    def header(self, species: str) -> str:
         text = (self.params_dir / f"{species}.py").read_text(encoding="utf-8")
         title = text.split('"""')[1].strip().title()
         lines = [
@@ -208,7 +196,6 @@ class Porter:
             f"# {title}. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),",
             f"# parametric/tree_params/{species}.py at commit {self.commit}: its Weber-Penn parameters mapped to"
             " Sapling's.",
-            *(f"# {line}" for line in note.splitlines()),
         ]
         return "\n".join(lines) + "\n\n"
 
@@ -220,10 +207,10 @@ def main() -> None:
     porter = Porter(treegen, commit)
     for spec in args[3:]:
         species, _, preset = spec.partition(":")
-        settings, clamped, note = porter.convert(species)
+        settings, clamped = porter.convert(species)
         path = presets / f"{preset or species}.py"
         path.write_text(
-            porter.header(species, note) + repr(dict(sorted(settings.items()))) + "\n", encoding="utf-8", newline="\n"
+            porter.header(species) + repr(dict(sorted(settings.items()))) + "\n", encoding="utf-8", newline="\n"
         )
         print(f"PORTED {species} -> {path.name}; clamped: {clamped or 'nothing'}")
     sys.stdout.flush()

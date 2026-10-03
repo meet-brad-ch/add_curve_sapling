@@ -5,7 +5,7 @@
 python tools/run_tests.py                 # all tests
 python tools/run_tests.py -k golden       # tests whose id contains "golden"
 python tools/run_tests.py --record-golden # rewrite tests/golden/*.json from the current code
-python tools/run_tests.py --coverage 90   # with branch coverage; fails below 90 %
+python tools/run_tests.py --coverage 99 96   # with coverage; fails below 99 % lines or 96 % branches
 """
 
 import argparse
@@ -19,7 +19,13 @@ def main() -> int:
     parser.add_argument("-k", dest="pattern", action="append", default=[], help="run only tests matching")
     parser.add_argument("--record-golden", action="store_true", help="rewrite the golden fingerprints")
     parser.add_argument("--no-install", action="store_true", help="reuse the last installed build")
-    parser.add_argument("--coverage", type=float, metavar="MIN", help="measure branch coverage; fail below MIN %%")
+    parser.add_argument(
+        "--coverage",
+        type=float,
+        nargs=2,
+        metavar=("LINE_MIN", "BRANCH_MIN"),
+        help="measure line and branch coverage; fail below either minimum (in %%)",
+    )
     args = parser.parse_args()
 
     if not args.no_install:
@@ -28,7 +34,8 @@ def main() -> int:
     if args.record_golden:
         script_args.append("--record-golden")
     if args.coverage is not None:
-        script_args += [f"--coverage={args.coverage}", f"--site={venv_site_packages()}"]
+        line_min, branch_min = args.coverage
+        script_args += [f"--line-min={line_min}", f"--branch-min={branch_min}", f"--site={venv_site_packages()}"]
     return run_script(ROOT / "tests" / "run.py", script_args)
 
 

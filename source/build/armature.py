@@ -8,13 +8,13 @@ from contextlib import contextmanager
 from typing import Literal
 
 import bpy
-from bpy.types import Armature, ArmatureModifier, Context, Curve, EditBone, Object
+from bpy.types import Armature, ArmatureModifier, Context, Curve, EditBone, Object, SplineBezierPoints
 from mathutils import Vector
 
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
-from ..model.stem import BoneName
+from ..model.stem import BoneLink, BoneName
 from ..model.tree import GrownTree
 from .objects import ObjectFactory
 from .wind import BranchSway, WindAnimator, WindModel
@@ -140,15 +140,8 @@ class ArmatureBuilder:
         """Bones along each spline (Bone Step points per bone), chained; with wind, each bone gets its sway."""
         p = self.params
         rng = self.rng
-        for i, link in enumerate(grown.bone_map):
-            # Make Mesh simplifies the armature: deeper levels use their parent's bones
-            if p.make_mesh and i >= grown.level_ends[p.bone_levels]:
-                continue
-            spline = curve.splines[i]
-            points = spline.bezier_points
+        for i, link, points in self._bone_splines(curve, grown):
             segments = len(points) - 1
-            if segments == 0:
-                continue  # a stem pruning removed: only its start point is left
             step = p.bone_step[grown.level_of(i)]
 
             if wind:
@@ -182,6 +175,17 @@ class ArmatureBuilder:
                     if (i == 0) and (n <= step):
                         sway = (0, 0, 0, 0)
                     wind.add_branch_sway(name, BranchSway(sway, offsets, frequencies, wind.model.gust_frequency))
+
+    def _bone_splines(self, curve: Curve, grown: GrownTree) -> Iterator[tuple[int, BoneLink, SplineBezierPoints]]:
+        """(spline index, bone link, points) of every spline that gets bones."""
+        p = self.params
+        for i, link in enumerate(grown.bone_map):
+            # Make Mesh simplifies the armature: deeper levels use their parent's bones
+            if p.make_mesh and i >= grown.level_ends[p.bone_levels]:
+                continue
+            points = curve.splines[i].bezier_points
+            if len(points) > 1:  # a stem pruning removed has only its start point
+                yield i, link, points
 
     def _leaf_bones(
         self, armature: Armature, grown: GrownTree, leaves: LeafSet, leaves_ob: Object, wind: WindAnimator | None

@@ -26,7 +26,7 @@ class SavePresetOperator(Operator):
     settings: StringProperty(name="Settings", options={"HIDDEN"})
 
     @override
-    def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]
+    def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         try:
             path = PresetStore.for_addon().save(self.name, TreeSettings.from_json(self.settings), self.overwrite)
         except SettingsError as error:

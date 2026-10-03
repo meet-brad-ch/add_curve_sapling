@@ -25,6 +25,11 @@ class SkinSkeleton:
         self.groups: dict[str, list[int]] = {}
         self.last_verts: list[int] = []  # per spline, its last vertex
 
+    def add_removed_stem(self) -> None:
+        """A stem pruning removed (only its start point): no vertices. It has no children, so its entry in
+        last_verts is never read; it keeps the entries aligned with the spline indices."""
+        self.last_verts.append(-1)
+
     def add_vertex(self, co: Vector, radius: float, root: bool = False) -> None:
         """Append a vertex with its skin radius; `root` marks the first vertex of a branch as a skin root."""
         self.verts.append(co)
@@ -47,7 +52,10 @@ class SkinMeshBuilder:
         """The skin mesh object, under the armature (deformed by it) or else under the tree curve."""
         skeleton = SkinSkeleton()
         for i, spline in enumerate(tree.data.splines):  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
-            self._add_spline(skeleton, tree.data, grown, i, spline)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
+            if len(spline.bezier_points) < 2:
+                skeleton.add_removed_stem()
+            else:
+                self._add_spline(skeleton, tree.data, grown, i, spline)  # type: ignore[arg-type]  # stub: Object.data is a union of all data types
         return self._object(skeleton, tree, armature_ob)
 
     def _add_spline(self, skeleton: SkinSkeleton, curve: Curve, grown: GrownTree, i: int, spline: Spline) -> None:
@@ -56,10 +64,6 @@ class SkinMeshBuilder:
         res = p.res_u
         link = grown.bone_map[i]
         points = spline.bezier_points
-        if len(points) < 2:
-            # a stem pruning removed has no vertices; it has no children, so its entry is never read
-            skeleton.last_verts.append(-1)
-            return
         step = p.bone_step[grown.level_of(i)]
         vindex = len(skeleton.verts)
         p1 = points[0]
@@ -129,7 +133,7 @@ class SkinMeshBuilder:
         if armature_ob:
             ArmatureBuilder.deform(ob, armature_ob, by_envelopes=False)
 
-        skin: SkinModifier = ob.modifiers.new("Skin", "SKIN")  # type: ignore[assignment]
+        skin: SkinModifier = ob.modifiers.new("Skin", "SKIN")  # type: ignore[assignment]  # stub: new() returns the base class
         skin.use_smooth_shade = True
         if self.params.preview_armature:
             skin.show_viewport = False

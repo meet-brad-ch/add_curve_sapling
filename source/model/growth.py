@@ -120,7 +120,7 @@ class StemGrower:
         if (level > 0) and (kp > 0) and (attract_out > 0):
             co = stem.point.co.copy()
             d = atan2(co[0], -co[1]) + Angles.TAU
-            edir = direction.to_euler("XYZ", Euler((0, 0, d), "XYZ"))  # type: ignore[union-attr]
+            edir = direction.to_euler("XYZ", Euler((0, 0, d), "XYZ"))  # type: ignore[union-attr]  # direction is an Euler only on level 0; this runs on level > 0
             d = Angles.mean(edir[2], d, (kp * attract_out))
             direction = Euler((edir[0], edir[1], d), "XYZ").to_quaternion()
 
@@ -159,7 +159,7 @@ class StemGrower:
         p = self.params
         rng = self.rng
         uniform = rng.uniform
-        cu: bpy.types.Curve = stem.spline.id_data  # type: ignore[assignment]
+        cu: bpy.types.Curve = stem.spline.id_data  # type: ignore[assignment]  # stub: id_data is ID | None; a stem's spline belongs to a Curve
 
         split_angle = p.split_angle[level]
         split_angle_v = p.split_angle_v[level]
@@ -271,4 +271,4 @@ class StemGrower:
         up_axis = Axes.x()
         up_axis.rotate(track)
         angle = Angles.curve_up(stem.attract_up, track, stem.segments)
-        direction_vec.rotate(Matrix.Rotation(-angle, 3, up_axis))  # type: ignore[arg-type]
+        direction_vec.rotate(Matrix.Rotation(-angle, 3, up_axis))  # type: ignore[arg-type]  # stub: Vector is not typed as a Sequence

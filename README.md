@@ -10,8 +10,8 @@ old bugs. It also uses the Thin Wall shading of Blender 5.2 for the leaves. The 
 restructured into classes, with tests, lint and type checks.
 
 **Status:** Working on Blender 5.2.2 LTS. Tree generation, pruning, armature, wind, presets, tree
-editing and the leaf material are complete. 79 automated tests pass in headless Blender, with
-98.7 % branch coverage. The features were also checked by hand in the Blender user interface.
+editing and the leaf material are complete. 84 automated tests pass in headless Blender, with
+99.2 % line and 96.2 % branch coverage. The features were also checked by hand in the Blender user interface.
 
 ## Download
 
@@ -28,7 +28,7 @@ To use a different Blender, set the `BLENDER` environment variable.
 py -3.13 -m venv .venv                                  # one time: Python 3.13, the same as Blender 5.2
 .venv/Scripts/python -m pip install -r requirements-dev.txt
 git config core.hooksPath tools/hooks                   # one time: the fast checks before each commit
-python tools/check.py            # all checks: ruff, format, mypy, manifest, tests with branch coverage
+python tools/check.py            # all checks: ruff, format, mypy, manifest, tests with line and branch coverage
 python tools/check.py --fast     # all checks except the Blender tests (the pre-commit hook runs this)
 python tools/run_tests.py        # tests only (-k NAME selects tests, --record-golden writes new golden files)
 python tools/port_treegen.py <tree-gen clone> acer ...   # convert tree-gen species to presets
@@ -39,9 +39,10 @@ blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.
 The tests build the extension zip and install it into a temporary profile in `build/test-profile`
 (through `BLENDER_USER_RESOURCES`). The tests do not change your own Blender profile.
 
-Branch coverage is measured inside Blender. The test runner adds the `coverage` package of the
-`.venv` to the `sys.path` of Blender. This works because both use Python 3.13. The run fails when
-the coverage is less than `COVERAGE_MIN` in `tools/check.py`.
+Line and branch coverage are measured inside Blender. The test runner adds the `coverage` package
+of the `.venv` to the `sys.path` of Blender. This works because both use Python 3.13. The run fails
+when either value is less than its minimum in `tools/check.py` (`LINE_COVERAGE_MIN`,
+`BRANCH_COVERAGE_MIN`).
 
 To release a version:
 
@@ -157,7 +158,7 @@ Each item gives the decision and the reason for it.
   and Scale ignore it. Thus a bone collection hides the bones, and Fast Preview shows the tree as
   its bounding box.
 - **`tools/check.py` checks all code.** It runs ruff (complexity 10 or less, docstrings and type
-  annotations in `source/`) and mypy. It also runs the tests and requires 98 % branch coverage.
+  annotations in `source/`) and mypy. It also runs the tests and requires 99 % line and 96 % branch coverage.
   Each `type: ignore` must give its reason.
 
 ## Credits
