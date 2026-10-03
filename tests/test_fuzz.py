@@ -10,6 +10,7 @@ import math
 import random
 import re
 import sys
+import time
 import unittest
 from typing import Any
 
@@ -18,6 +19,8 @@ import helpers
 
 CASES = 100
 SEED = 20260929
+# A case taking longer than this many seconds fails: the caps below must keep every tree small
+SLOW_CASE = 20.0
 
 # Unbounded counts are capped so each tree stays small; (low, high) per vector element or scalar.
 CAPS: dict[str, Any] = {
@@ -27,6 +30,10 @@ CAPS: dict[str, Any] = {
     "leaves": (-6, 30),
     "nrings": (0, 6),
     "baseSplits": (0, 4),
+    "trunks": (1, 3),
+    # splits on every segment of every level grow tens of thousands of stems (13,000-23,000 seen), and an
+    # armature with wind on such a tree takes minutes
+    "segSplits": [(0.0, 0.5)] * 4,
     "boneStep": [(1, 3)] * 4,
     "armLevels": (0, 4),
     "loopFrames": (0, 60),
@@ -88,6 +95,8 @@ class SettingsFuzz(unittest.TestCase):
         if prop.type == "INT":
             low, high = cap if cap else (max(prop.soft_min, -100), min(prop.soft_max, 100))
             return self.rng.randint(low, high)
+        if cap:
+            return self.rng.uniform(*cap)
         low, high = prop.soft_min, prop.soft_max
         if not (math.isfinite(low) and math.isfinite(high)) or high - low > 1000:
             spread = SPREAD["angle"] if ANGLES.search(prop.identifier) else SPREAD["other"]
@@ -96,7 +105,7 @@ class SettingsFuzz(unittest.TestCase):
 
     FEATURES = (
         "prune", "useArm", "armAnim", "leafAnim", "makeMesh", "showLeaves", "levels_4",
-        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate",
+        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks",
     )  # fmt: skip
 
     @staticmethod
@@ -107,6 +116,8 @@ class SettingsFuzz(unittest.TestCase):
         ]
         if settings["levels"] == 4:
             flags.append("levels_4")
+        if settings["trunks"] > 1:
+            flags.append("trunks")
         if settings["showLeaves"]:
             flags.append(f"leaf_{settings['leafShape']}")
             if settings["leaves"] < 0:
@@ -123,12 +134,17 @@ class SettingsFuzz(unittest.TestCase):
             helpers.reset_scene()
             leaf = bpy.data.objects.new("leaf_card", bpy.data.meshes.new("leaf_card"))
             bpy.context.scene.collection.objects.link(leaf)
+            started = time.perf_counter()
             try:
                 result = bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True)
                 self.assertEqual(result, {"FINISHED"})
                 self.check_tree(settings)
             except Exception as error:  # collect every failing case, then fail the test with all of them
                 failures.append(f"case {case}: {type(error).__name__}: {error}\n  {json.dumps(settings)}")
+            seconds = time.perf_counter() - started
+            print(f"fuzz case {case}: {seconds:.2f} s", flush=True)  # progress: a slow case shows which one it is
+            if seconds > SLOW_CASE:
+                failures.append(f"case {case}: took {seconds:.0f} s\n  {json.dumps(settings)}")
         self.assertEqual(failures, [], "\n".join(failures))
         self.assertEqual(len(self.grown), CASES)
         rare = {feature: count for feature, count in seen.items() if count < 5}

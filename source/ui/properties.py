@@ -173,6 +173,10 @@ class TreeProperties:
         name="Levels", description="Number of recursive branches (Levels)", min=1, max=6, soft_max=4, default=3,
         update=update_tree,
     )  # fmt: skip
+    trunks: IntProperty(
+        name="Trunks", description="Number of trunks growing from one root, as a clump (bamboo)", min=1,
+        soft_max=100, default=1, update=update_tree,
+    )  # fmt: skip
     baseSplits: IntProperty(
         name="Base Splits", description="Number of trunk splits at its base (nBaseSplits)", min=0, default=0,
         update=update_tree,

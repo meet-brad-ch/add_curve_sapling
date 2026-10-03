@@ -62,7 +62,7 @@ class TreeGrower:
             close_tip = last_level and p.close_tip
 
             if level == 0:
-                stems = [spawner.start_trunk(scale)]
+                stems = spawner.start_trunks(scale, bone_map)
             else:
                 stems = spawner.start_children(sprouts, level, depth, base_size, scale, bone_map)
 

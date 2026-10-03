@@ -84,6 +84,7 @@ class SettingsPages:
     def branch_splitting(props: Any, box: UILayout) -> None:
         """Levels, base and segment splits, branch counts, angles and branching mode."""
         box.prop(props, "levels")
+        box.prop(props, "trunks")
         box.prop(props, "baseSplits")
         row = box.row()
         row.prop(props, "baseSize")

@@ -2,7 +2,7 @@
 
 """Starting new stems: the trunk, and one child stem per sprout point of the level above."""
 
-from math import atan2, copysign, cos, pi, radians, sin
+from math import atan2, copysign, cos, pi, radians, sin, sqrt
 from random import Random
 from typing import TYPE_CHECKING
 
@@ -24,6 +24,44 @@ class BranchingMode:
     RANDOM = "random"  # a random point at each height
 
 
+class TrunkClump:
+    """Where the further trunks of a clump stand: random points on a disc around the first trunk.
+
+    As tree-gen: the disc's area grows with the number of trunks, the scale and the ratio, and no two trunks
+    stand closer than GAP times the trunk radius. The disc is never smaller than the trunks need at that
+    distance, so placing them always succeeds.
+    """
+
+    # Trunks stand at least this many trunk radii apart
+    GAP = 2.5
+    # tree-gen's disc: radius squared = trunks * scale * ratio / AREA_DIVISOR
+    AREA_DIVISOR = 2.5
+    TRIES = 1000
+
+    def __init__(self, params: TreeParams, rng: Random) -> None:
+        self.params = params
+        self.rng = rng
+
+    def positions(self) -> list[Vector]:
+        """Ground positions of the trunks after the first (which stands at the origin)."""
+        p = self.params
+        gap = self.GAP * p.scale * p.length[0] * p.ratio * p.scale0
+        radius = max(sqrt(p.trunks * p.scale * p.ratio / self.AREA_DIVISOR), gap * sqrt(p.trunks))
+        placed = [Vector((0.0, 0.0, 0.0))]
+        for _ in range(p.trunks - 1):
+            placed.append(self._free_point(placed, radius, gap))
+        return placed[1:]
+
+    def _free_point(self, placed: list[Vector], radius: float, gap: float) -> Vector:
+        for _ in range(self.TRIES):
+            distance = radius * sqrt(self.rng.random())  # uniform over the disc's area
+            angle = self.rng.uniform(0, Angles.TAU)
+            point = Vector((distance * cos(angle), distance * sin(angle), 0.0))
+            if all((point - other).length >= gap for other in placed):
+                return point
+        raise RuntimeError(f"No room for trunk {len(placed) + 1} of {self.params.trunks} after {self.TRIES} tries")
+
+
 class BranchSpawner:
     """Creates the first point of every new stem on the tree curve."""
 
@@ -37,20 +75,42 @@ class BranchSpawner:
         self.rng = rng
         self.curve = curve
 
-    def start_trunk(self, scale: float) -> Stem:
-        """The trunk stem, standing at the origin; draws one random number (the radius variation)."""
+    def start_trunk(self, scale: float, position: Vector | None = None, index: int = 0) -> Stem:
+        """A trunk stem standing upright at `position` (the origin by default); draws one random number (the
+        radius variation)."""
         p = self.params
         spline = self.curve.splines.new(Bezier.SPLINE)
         point = spline.bezier_points[-1]
-        point.co = Vector((0, 0, 0))
-        point.handle_right = Vector((0, 0, 1))
-        point.handle_left = Vector((0, 0, -1))
+        if position is None:
+            point.co = Vector((0, 0, 0))
+            point.handle_right = Vector((0, 0, 1))
+            point.handle_left = Vector((0, 0, -1))
+        else:
+            point.co = position
+            point.handle_right = position + Vector((0, 0, 1))
+            point.handle_left = position - Vector((0, 0, 1))
         length = scale * p.length[0]
         children = p.leaves if p.levels == 1 else p.branches[1]
         radius_start = scale * p.ratio * p.scale0 * self.rng.uniform(1 - p.scale_v0, 1 + p.scale_v0)
         radius_start, radius_end = self._radii(0, radius_start)
         point.radius = radius_start * p.root_flare
-        return self._stem(spline, 0, length, children, radius_start, radius_end, index=0)
+        return self._stem(spline, 0, length, children, radius_start, radius_end, index=index)
+
+    def start_trunks(self, scale: float, bone_map: BoneMap) -> list[Stem]:
+        """The trunk at the origin, then the further trunks of a clump (Trunks above 1).
+
+        Each further trunk draws its own size (Scale with its variation) and its own curve direction; with one
+        trunk, nothing more is drawn than before.
+        """
+        trunks = [self.start_trunk(scale)]
+        p = self.params
+        for position in TrunkClump(p, self.rng).positions():
+            trunk_scale = p.scale + self.rng.uniform(-p.scale_v, p.scale_v)
+            trunk = self.start_trunk(trunk_scale, position, bone_map.next_index())
+            trunk.roll = self.rng.uniform(0, Angles.TAU)
+            bone_map.add_trunk()
+            trunks.append(trunk)
+        return trunks
 
     def start_children(
         self, sprouts: list[ChildPoint], level: int, depth: int, base_size: float, scale: float, bone_map: BoneMap
@@ -62,7 +122,7 @@ class BranchSpawner:
         p = self.params
         base_size = min(self.MAX_BASE_SIZE, base_size)
         pick = (level == self.TRUNK_BRANCHES) and (p.rotate_mode != BranchingMode.ORIGINAL)
-        rotations = self._pick_trunk_sprouts(sprouts, base_size) if pick else None
+        rotations = self._pick_trunk_sprouts(sprouts, base_size, bone_map) if pick else None
         if rotations is not None:
             sprouts = [sprout for sprout, _ in rotations]
 
@@ -196,11 +256,27 @@ class BranchSpawner:
             return CrownShape.ratio(p.shape, ratio, custom=p.custom_shape)
         return CrownShape.ratio(p.shape_s, ratio)
 
-    def _pick_trunk_sprouts(self, sprouts: list[ChildPoint], base_size: float) -> list[tuple[ChildPoint, float]]:
-        """Rotate/random modes: one branch per height on the trunk, picked around the trunk.
+    def _pick_trunk_sprouts(
+        self, sprouts: list[ChildPoint], base_size: float, bone_map: BoneMap
+    ) -> list[tuple[ChildPoint, float]]:
+        """Rotate/random modes: one branch per height on each trunk, picked around that trunk.
 
-        Returns (sprout, growth angle) pairs, tips last; the angle is only used by ROTATE.
+        Returns (sprout, growth angle) pairs, trunk by trunk, each trunk's tips last; the angle is only used
+        by ROTATE.
         """
+        by_trunk: dict[int, list[ChildPoint]] = {}
+        for sprout in sprouts:
+            by_trunk.setdefault(bone_map.trunk_of(BoneName.spline(sprout.parent_bone)), []).append(sprout)
+        chosen: list[tuple[ChildPoint, float]] = []
+        for trunk, trunk_sprouts in by_trunk.items():
+            center = self.curve.splines[trunk].bezier_points[0].co
+            chosen.extend(self._pick_on_trunk(trunk_sprouts, base_size, center))
+        return chosen
+
+    def _pick_on_trunk(
+        self, sprouts: list[ChildPoint], base_size: float, center: Vector
+    ) -> list[tuple[ChildPoint, float]]:
+        """One branch per height on one trunk (standing at `center`), with tips last."""
         p = self.params
         level = self.TRUNK_BRANCHES
         by_height: dict[float, list[ChildPoint]] = {}
@@ -222,14 +298,14 @@ class BranchSpawner:
                 target = rotate % Angles.TAU
                 distances = []
                 for candidate in candidates:
-                    angle = atan2(candidate.co[0], -candidate.co[1])
+                    angle = atan2(candidate.co[0] - center[0], -(candidate.co[1] - center[1]))
                     distances.append(
                         min((target - angle + Angles.TAU) % Angles.TAU, (angle - target + Angles.TAU) % Angles.TAU)
                     )
                 best = candidates[distances.index(min(distances))]
 
                 # the growth angle that makes the branch point in the rotate direction
-                co = best.co
+                co = best.co - center
                 aim = Vector((sin(rotate), cos(rotate)))
                 trunk_distance = (co[0] * co[0] + co[1] * co[1]) ** 0.5
                 reach = best.length_parent * p.length[1] * self._shape(level, (1 - best.offset) / (1 - base_size))

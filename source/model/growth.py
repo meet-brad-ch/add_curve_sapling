@@ -134,6 +134,8 @@ class StemGrower:
             direction_vec = Axes.z()
             direction_vec.rotate(Matrix.Rotation(curve_angle, 3, "X"))
             direction_vec.rotate(curve_var_mat)
+            if stem.roll:
+                direction_vec.rotate(Matrix.Rotation(stem.roll, 3, "Z"))  # this stem's own curve plane
             direction_vec.rotate(direction)
             stem.split_last = 0
 

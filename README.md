@@ -82,6 +82,8 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   generation, the bones are hidden in the bone collection *Sapling Bones*. To show them, click the
   eye icon of that collection in *Armature Properties > Bone Collections*. *Fast Preview* shows the
   bones and shows the tree as its bounding box.
+- **Trunks** (Branch Splitting page): more than 1 grows a clump, such as bamboo. The further trunks
+  stand on a disc around the first, each with its own size, curve direction and branches.
 - **Pruning:** stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a stem
   that would keep less than 15 % of its length is removed, with its leaves. The envelope (two profile
   curves) is hidden after generation; *Object Properties > Visibility* shows it.
@@ -122,7 +124,7 @@ vertex. The benchmark is not part of the checks, because the times depend on the
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
   - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 15 from tree-gen
 - `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
-  fingerprints of 51 generated trees. `test_fuzz` grows 100 trees from random settings.
+  fingerprints of 52 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
 - `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
   `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`

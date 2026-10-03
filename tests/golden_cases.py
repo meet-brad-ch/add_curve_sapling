@@ -45,6 +45,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("leaf_not_horizontal", "quaking_aspen", {"levels": 2, "showLeaves": True, "horzLeaves": False, "leafangle": 30.0}),
     ("leaf_bend", "quaking_aspen", {"levels": 2, "showLeaves": True, "bend": 0.5}),
     # Branching options.
+    ("trunks_3", "quaking_aspen", {"levels": 2, "showLeaves": False, "trunks": 3}),
     ("rings", "quaking_aspen", {"levels": 2, "showLeaves": False, "nrings": 5}),
     ("rmode_original", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "original"}),
     ("rmode_random", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "random"}),

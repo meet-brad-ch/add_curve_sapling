@@ -76,6 +76,8 @@ class Stem:
         self.split_last = 0
         # None until the first split, which then draws a random start rotation
         self.last_rotation: float | None = None
+        # Turns the plane the stem curves in about its own axis (each trunk of a clump curves its own way)
+        self.roll = 0.0
 
     def quat(self) -> Quaternion:
         """Direction of the end of the stem."""
@@ -151,6 +153,16 @@ class BoneMap:
     def add_stem(self, bone: str, is_end: bool) -> None:
         """Link the next spline, a new child stem, to its parent bone; `is_end` when it continues the parent's tip."""
         self._links.append(BoneLink(bone, is_end))
+
+    def add_trunk(self) -> None:
+        """Link the next spline, another trunk of the clump: like the first trunk, it hangs from no bone."""
+        self._links.append(BoneLink(""))
+
+    def trunk_of(self, index: int) -> int:
+        """The spline index of the trunk that spline `index` grows from (through its parents and splits)."""
+        while self._links[index].bone:
+            index = BoneName.spline(self._links[index].bone)
+        return index
 
     def add_split(self, bone: str, split_point: int) -> None:
         """Link the next spline, a split of its parent at parent point `split_point`."""

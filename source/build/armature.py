@@ -171,8 +171,8 @@ class ArmatureBuilder:
 
                 if wind:
                     sway = wind.model.branch_amplitudes(points, n, tail, step, spline_length)
-                    # the first two trunk bones hold the tree base still
-                    if (i == 0) and (n <= step):
+                    # the first two bones of every trunk hold the tree base still
+                    if (link.bone == "") and (n <= step):
                         sway = (0, 0, 0, 0)
                     wind.add_branch_sway(name, BranchSway(sway, offsets, frequencies, wind.model.gust_frequency))
 

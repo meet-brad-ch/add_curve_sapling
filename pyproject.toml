@@ -51,7 +51,7 @@ disable_error_code = ["valid-type"]
 # union of every data type; the operator bpy.ops.curve.tree_add only exists once the add-on runs.
 module = [
     "bench_in_blender", "golden_cases", "helpers", "port_treegen_in_blender", "run",
-    "test_architecture", "test_fuzz", "test_golden", "test_lifecycle", "test_materials", "test_pages", "test_presets", "test_regressions",
+    "test_architecture", "test_features", "test_fuzz", "test_golden", "test_lifecycle", "test_materials", "test_pages", "test_presets", "test_regressions",
     "test_smoke", "test_tree_record", "test_ui",
 ]
 disable_error_code = ["union-attr", "attr-defined"]

@@ -28,6 +28,7 @@ class TreeParams:
         self.curve_v = Angles.to_radians(s.curveV)
         self.curve_back = Angles.to_radians(s.curveBack)
         self.base_splits = s.baseSplits
+        self.trunks = s.trunks
         self.seg_splits = s.segSplits
         self.split_by_len = s.splitByLen
         self.rotate_mode = s.rMode

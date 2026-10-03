@@ -4,6 +4,9 @@
 
 ### Added
 
+- *Trunks* (Branch Splitting page): grow a clump of trunks from one root, as tree-gen does for bamboo.
+  The further trunks stand on a disc around the first, at least 2.5 trunk radii apart, each with its own
+  size, curve direction and branches. With 1 trunk, trees are unchanged.
 - 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. Its Weber–Penn values are mapped to the
