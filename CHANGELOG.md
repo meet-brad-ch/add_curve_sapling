@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Presets *Black Tupelo*, *European Larch* and *Silver Birch*, ported from tree-gen
+  (friggog/tree-gen, GPL-3.0). Its Weber–Penn values are mapped to the settings of Sapling, and the
+  mapping was checked against renders of tree-gen's own trees in Blender 5.2.
+
 ## 0.4.0 — Blender 5.2 LTS revamp (2026-09-29)
 
 Requires Blender 5.2 LTS.

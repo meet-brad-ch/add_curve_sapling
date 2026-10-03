@@ -6,6 +6,7 @@ import unittest
 
 import bpy
 import helpers
+from golden_cases import PRESETS
 from mathutils import Matrix
 
 
@@ -29,7 +30,7 @@ class Presets(unittest.TestCase):
 
     def test_builtin_presets_load(self):
         names = [e.name for e in self.store().entries() if e.builtin]
-        self.assertEqual(len(names), 9)
+        self.assertEqual(sorted(names), sorted(PRESETS))
         generation = set(helpers.module("ui.operators").AddTreeOperator.generation_names())
         for name in names:
             with self.subTest(preset=name):

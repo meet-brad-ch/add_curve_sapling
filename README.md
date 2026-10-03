@@ -62,7 +62,8 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Presets:** On the Geometry page, select a preset from the list. The preset applies immediately.
   When *Limit Import* is on, a preset loads with 2 levels and no leaves, which is faster. To save
   your settings, type a name and click *Save Preset*. Your presets are in the user folder of the
-  extension (`extensions/.user/<repo>/sapling_tree_gen/presets`).
+  extension (`extensions/.user/<repo>/sapling_tree_gen/presets`). Three built-in presets come from
+  tree-gen: *Black Tupelo*, *European Larch* and *Silver Birch* (see Credits).
 - **Edit Sapling Tree:** Select a part of a generated tree. Click *Edit Sapling Tree* in the
   *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
   again, and the tree is made again in the same place. The tree keeps its transform, its parent
@@ -111,9 +112,9 @@ vertex. The benchmark is not part of the checks, because the times depend on the
   - `build/` — the Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
   - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
-  - `presets/` — the built-in presets (one Python dictionary each)
+  - `presets/` — the built-in presets (one Python dictionary each): 9 from upstream, 3 from tree-gen
 - `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
-  fingerprints of 38 generated trees. `test_fuzz` grows 100 trees from random settings.
+  fingerprints of 41 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
 - `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
   `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`
@@ -158,3 +159,7 @@ Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7). 
 (TrumanBlending) and Aaron Buchler wrote the original extension. CansecoGPC, Campbell Barton, Nika
 Kutsniashvili and many Blender contributors maintained it (see `git log`). The license is
 GPL-3.0-or-later (see `source/blender_manifest.toml`).
+
+The presets `black_tupelo`, `european_larch` and `silver_birch` are ported from tree-gen
+(<https://github.com/friggog/tree-gen>) by Charlie Hewitt and contributors. Their Weber–Penn values
+are mapped to the settings of Sapling. These three files are GPL-3.0-only, as tree-gen is.
