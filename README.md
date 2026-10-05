@@ -110,6 +110,9 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Bend Variation** (Branch Growth page): Turns each segment of a level sideways by a random angle,
   up to the value divided by the level's segments. The first segment of a stem and a segment that
   splits do not turn.
+- **Blossoms** (Leaves page): *Blossom Rate* is the part of the leaf positions that grows a flower
+  instead of a leaf. The flowers (cherry, orange or magnolia, *Blossom Scale* across) are in a
+  separate *blossoms* object and move with the leaves.
 - **Helix** (Branch Growth page): Grows the stems of a level as helixes, half a turn per segment.
   *Curvature Variation* sets the helix angle. It must be less than 90 degrees. Helix stems do not
   split, curve or bend.

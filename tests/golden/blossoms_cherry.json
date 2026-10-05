@@ -1,60 +1,41 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
-  "envelope": {
+  "blossoms": {
    "data": {
-    "bevel_depth": 0.0,
-    "points": 258,
-    "resolution_u": 12,
-    "spline_digests": [
-     "5f7c6fad502da2ff",
-     "ae6cabc14ed5c718"
+    "co": "b7a4119178f25239",
+    "edges": 11480,
+    "faces": 4100,
+    "topology": "aade9fb40bf49520",
+    "uv": "21483bd697926850",
+    "uv_layers": [
+     "blossomUV"
     ],
-    "splines": 2
+    "verts": 7544
    },
    "instance_type": "NONE",
    "modifiers": [],
    "parent": "tree",
-   "type": "CURVE",
+   "type": "MESH",
    "vertex_groups": ""
   },
   "leaves": {
    "data": {
-    "co": "31a5d8f22946440c",
-    "edges": 2891,
-    "faces": 826,
-    "topology": "7302a6291051d541",
-    "uv": "150517d6f73a7de1",
+    "co": "0cfd06171922a35a",
+    "edges": 1939,
+    "faces": 554,
+    "topology": "15dcbc261041944b",
+    "uv": "c4f908209febb432",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 2478
-   },
-   "evaluated": {
-    "co": "be9984aa3ceb5281",
-    "edges": 2891,
-    "faces": 826,
-    "verts": 2478
+    "verts": 1662
    },
    "instance_type": "NONE",
-   "modifiers": [
-    "NODES",
-    "ARMATURE"
-   ],
-   "node_inputs": {
-    "Leaf Flutter": {
-     "group": "Sapling Leaf Flutter",
-     "inputs": {
-      "Loop": false,
-      "Loop End": 0.0,
-      "Scale": 6.0,
-      "Strength": 0.25
-     }
-    }
-   },
+   "modifiers": [],
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "d76dece12075998b"
+   "vertex_groups": ""
   },
   "tree": {
    "data": {
@@ -66,10 +47,10 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "10dd31ce37506819",
-    "edges": 4852,
-    "faces": 2368,
-    "verts": 2484
+    "co": "e00495ff6ffd1514",
+    "edges": 5180,
+    "faces": 2528,
+    "verts": 2652
    },
    "instance_type": "NONE",
    "modifiers": [
@@ -84,10 +65,10 @@
       "Curves": "tree_curves",
       "Fast Preview": false,
       "Fill Caps": false,
-      "Joints": "tree_joints",
+      "Joints": null,
       "Material": "Sapling Bark",
       "Resolution U": 4,
-      "Rig": true,
+      "Rig": false,
       "Wind": false,
       "Wind Joints": null
      }
@@ -97,29 +78,9 @@
    "type": "MESH",
    "vertex_groups": ""
   },
-  "treeArm": {
-   "animation": {
-    "fcurves": 296,
-    "groups": "c025cb4220ba312d",
-    "modifiers": "5fa6a94296bf4d3c",
-    "paths": "82f13483ee8adb36"
-   },
-   "data": {
-    "bones": 148,
-    "connect": "d26b2613ec731bde",
-    "geometry": "04628eb408a358eb",
-    "names": "7ab396c8d0fc061e",
-    "parents": "19a49f6ce3640b87"
-   },
-   "instance_type": "NONE",
-   "modifiers": [],
-   "parent": "tree",
-   "type": "ARMATURE",
-   "vertex_groups": ""
-  },
   "tree_curves": {
    "data": {
-    "points": 179,
+    "points": 189,
     "spline_digests": [
      "aa321c81e98df4d3",
      "0608dfe4483744f0",
@@ -142,16 +103,16 @@
      "d0997b49af7955d2",
      "65c7766b913a528c",
      "820a64a04bfafb3c",
-     "0db26010cfe79624",
-     "b34515c1c9025021",
-     "f40115f6578beb8b",
-     "43948faab7868fbf",
-     "1ad247f7439d76d1",
-     "ebbf33abadc4110f",
-     "617a292c2d7d2272",
-     "0a150b343f3e6ce3",
-     "44e45cdc75726293",
-     "61cd9b9a19f7314d"
+     "8a219496d0378cd8",
+     "8e27f7f99d0c305d",
+     "575f270387214993",
+     "7cf84e7080114783",
+     "3df2d550878ab0df",
+     "678e9c306077e5d3",
+     "14a3c04c211439c0",
+     "cce723eaae1375e5",
+     "e11195a004f75d57",
+     "ae0632cd6e9657bf"
     ],
     "splines": 31
    },
@@ -160,23 +121,6 @@
    "parent": "tree",
    "type": "CURVES",
    "vertex_groups": ""
-  },
-  "tree_joints": {
-   "data": {
-    "co": "f99d24e894cfebe6",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 537
-   },
-   "instance_type": "NONE",
-   "modifiers": [
-    "ARMATURE"
-   ],
-   "parent": "tree",
-   "type": "MESH",
-   "vertex_groups": "40bf8a00cd36c5e1"
   }
  },
  "settings": {
@@ -206,7 +150,7 @@
   ],
   "bevel": true,
   "bevelRes": 0,
-  "blossomRate": 0.0,
+  "blossomRate": 0.4,
   "blossomScale": 0.1,
   "blossomShape": "cherry",
   "branchDist": 1.0,
@@ -283,7 +227,7 @@
   "leafDist": "6",
   "leafDownAngle": 45.0,
   "leafDownAngleV": 10.0,
-  "leafFlutter": true,
+  "leafFlutter": false,
   "leafMaterial": true,
   "leafRotate": 137.5,
   "leafRotateV": 0.0,
@@ -311,7 +255,7 @@
   "makeMesh": false,
   "minRadius": 0.001500000013038516,
   "nrings": 0,
-  "prune": true,
+  "prune": false,
   "pruneBase": 0.30000001192092896,
   "prunePowerHigh": 0.5,
   "prunePowerLow": 0.0010000000474974513,
@@ -380,8 +324,8 @@
   "trunks": 1,
   "useOldDownAngle": false,
   "useParentAngle": true,
-  "useRig": true,
-  "windAnim": true,
+  "useRig": false,
+  "windAnim": false,
   "windStrength": 1.0
  }
 }

@@ -40,6 +40,8 @@ CAPS: dict[str, Any] = {
     # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
     "segSplits": [(0.0, 0.5)] * 4,
     "bendV": [(0.0, 180.0)] * 4,
+    # below 0 means no blossoms (about a third of the cases), so the leaves-only path stays common
+    "blossomRate": (-0.5, 1.0),
     "jointStep": [(1, 3)] * 4,
     "jointLevels": (0, 4),
     "loopFrames": (0, 60),
@@ -71,6 +73,7 @@ class SettingsFuzz(unittest.TestCase):
             if name in SKIP:
                 continue
             settings[name] = self.random_value(rna.properties[name])
+        settings["blossomRate"] = max(settings["blossomRate"], 0.0)
         settings["curveV"] = [
             math.copysign(abs(v) % HELIX_ANGLE, v) if helix else v
             for v, helix in zip(settings["curveV"], settings["helix"], strict=True)
@@ -106,7 +109,7 @@ class SettingsFuzz(unittest.TestCase):
 
     FEATURES = (
         "prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves", "levels_4",
-        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend", "helix",
+        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend", "helix", "blossoms",
     )  # fmt: skip
 
     @staticmethod
@@ -127,6 +130,8 @@ class SettingsFuzz(unittest.TestCase):
             flags.append(f"leaf_{settings['leafShape']}")
             if settings["leaves"] < 0:
                 flags.append("palmate")
+            if settings["leaves"] and settings["blossomRate"] > 0:
+                flags.append("blossoms")
         return flags
 
     def test_random_settings(self):

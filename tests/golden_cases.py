@@ -44,6 +44,28 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("leaf_alternate", "quaking_aspen", {"levels": 2, "showLeaves": True, "leafRotate": -137.5, "leafRotateV": 15.0}),
     ("leaf_not_horizontal", "quaking_aspen", {"levels": 2, "showLeaves": True, "horzLeaves": False, "leafangle": 30.0}),
     ("leaf_bend", "quaking_aspen", {"levels": 2, "showLeaves": True, "bend": 0.5}),
+    # Blossoms.
+    ("blossoms_cherry", "quaking_aspen", {"levels": 2, "showLeaves": True, "blossomRate": 0.4}),
+    (
+        "blossoms_only_magnolia",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": True, "blossomRate": 1.0, "blossomShape": "magnolia", "blossomScale": 0.2},
+    ),
+    (
+        "blossoms_orange_instanced",
+        "callistemon",
+        {"showLeaves": True, "leafShape": "dVert", "blossomRate": 0.4, "blossomShape": "orange"},
+    ),
+    (
+        "blossoms_rig_flutter",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": True, "blossomRate": 0.3, "useRig": True, "windAnim": True, "leafFlutter": True},
+    ),
+    (
+        "blossoms_node_wind_mesh",
+        "quaking_aspen",
+        {"levels": 2, "showLeaves": True, "blossomRate": 0.3, "windAnim": True, "makeMesh": True, "leafFlutter": True},
+    ),
     # Branching options.
     ("trunks_3", "quaking_aspen", {"levels": 2, "showLeaves": False, "trunks": 3}),
     ("branch_bend", "quaking_aspen", {"levels": 2, "showLeaves": False, "bendV": (0.0, 60.0, 0.0, 0.0)}),

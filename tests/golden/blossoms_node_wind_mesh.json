@@ -1,45 +1,28 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
-  "envelope": {
+  "blossoms": {
    "data": {
-    "bevel_depth": 0.0,
-    "points": 258,
-    "resolution_u": 12,
-    "spline_digests": [
-     "5f7c6fad502da2ff",
-     "ae6cabc14ed5c718"
-    ],
-    "splines": 2
-   },
-   "instance_type": "NONE",
-   "modifiers": [],
-   "parent": "tree",
-   "type": "CURVE",
-   "vertex_groups": ""
-  },
-  "leaves": {
-   "data": {
-    "co": "31a5d8f22946440c",
-    "edges": 2891,
-    "faces": 826,
-    "topology": "7302a6291051d541",
-    "uv": "150517d6f73a7de1",
+    "co": "edbbd4f340e848c4",
+    "edges": 8470,
+    "faces": 3025,
+    "topology": "2a228cbb1a9432d6",
+    "uv": "cb4d6f5fdbad0f56",
     "uv_layers": [
-     "leafUV"
+     "blossomUV"
     ],
-    "verts": 2478
+    "verts": 5566
    },
    "evaluated": {
-    "co": "be9984aa3ceb5281",
-    "edges": 2891,
-    "faces": 826,
-    "verts": 2478
+    "co": "741a6f5b5d7b1a48",
+    "edges": 8470,
+    "faces": 3025,
+    "verts": 5566
    },
    "instance_type": "NONE",
    "modifiers": [
     "NODES",
-    "ARMATURE"
+    "NODES"
    ],
    "node_inputs": {
     "Leaf Flutter": {
@@ -50,46 +33,86 @@
       "Scale": 6.0,
       "Strength": 0.25
      }
+    },
+    "Sapling Follow Wind": {
+     "group": "Sapling Follow Wind",
+     "inputs": {
+      "Curves": "tree_wind"
+     }
     }
    },
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "d76dece12075998b"
+   "vertex_groups": ""
+  },
+  "leaves": {
+   "data": {
+    "co": "8113235ddb15f311",
+    "edges": 2240,
+    "faces": 640,
+    "topology": "c2d98883f690908b",
+    "uv": "e9e538980151520e",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 1920
+   },
+   "evaluated": {
+    "co": "e49f5ca3f481f03d",
+    "edges": 2240,
+    "faces": 640,
+    "verts": 1920
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "NODES",
+    "NODES"
+   ],
+   "node_inputs": {
+    "Leaf Flutter": {
+     "group": "Sapling Leaf Flutter",
+     "inputs": {
+      "Loop": false,
+      "Loop End": 0.0,
+      "Scale": 6.0,
+      "Strength": 0.25
+     }
+    },
+    "Sapling Follow Wind": {
+     "group": "Sapling Follow Wind",
+     "inputs": {
+      "Curves": "tree_wind"
+     }
+    }
+   },
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
   },
   "tree": {
    "data": {
-    "co": "da39a3ee5e6b4b0d",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
+    "co": "e00495ff6ffd1514",
+    "edges": 5180,
+    "faces": 2528,
+    "topology": "eafeef210f556b05",
     "uv_layers": [],
-    "verts": 0
+    "verts": 2652
    },
    "evaluated": {
-    "co": "10dd31ce37506819",
-    "edges": 4852,
-    "faces": 2368,
-    "verts": 2484
+    "co": "5cd52a2b7ad749b4",
+    "edges": 5180,
+    "faces": 2528,
+    "verts": 2652
    },
    "instance_type": "NONE",
    "modifiers": [
     "NODES"
    ],
    "node_inputs": {
-    "Sapling Tree": {
-     "group": "Sapling Tree",
+    "Sapling Follow Wind": {
+     "group": "Sapling Follow Wind",
      "inputs": {
-      "Bevel Depth": 1.0,
-      "Bevel Resolution": 0,
-      "Curves": "tree_curves",
-      "Fast Preview": false,
-      "Fill Caps": false,
-      "Joints": "tree_joints",
-      "Material": "Sapling Bark",
-      "Resolution U": 4,
-      "Rig": true,
-      "Wind": false,
-      "Wind Joints": null
+      "Curves": "tree_wind"
      }
     }
    },
@@ -97,29 +120,9 @@
    "type": "MESH",
    "vertex_groups": ""
   },
-  "treeArm": {
-   "animation": {
-    "fcurves": 296,
-    "groups": "c025cb4220ba312d",
-    "modifiers": "5fa6a94296bf4d3c",
-    "paths": "82f13483ee8adb36"
-   },
-   "data": {
-    "bones": 148,
-    "connect": "d26b2613ec731bde",
-    "geometry": "04628eb408a358eb",
-    "names": "7ab396c8d0fc061e",
-    "parents": "19a49f6ce3640b87"
-   },
-   "instance_type": "NONE",
-   "modifiers": [],
-   "parent": "tree",
-   "type": "ARMATURE",
-   "vertex_groups": ""
-  },
   "tree_curves": {
    "data": {
-    "points": 179,
+    "points": 189,
     "spline_digests": [
      "aa321c81e98df4d3",
      "0608dfe4483744f0",
@@ -142,16 +145,16 @@
      "d0997b49af7955d2",
      "65c7766b913a528c",
      "820a64a04bfafb3c",
-     "0db26010cfe79624",
-     "b34515c1c9025021",
-     "f40115f6578beb8b",
-     "43948faab7868fbf",
-     "1ad247f7439d76d1",
-     "ebbf33abadc4110f",
-     "617a292c2d7d2272",
-     "0a150b343f3e6ce3",
-     "44e45cdc75726293",
-     "61cd9b9a19f7314d"
+     "8a219496d0378cd8",
+     "8e27f7f99d0c305d",
+     "575f270387214993",
+     "7cf84e7080114783",
+     "3df2d550878ab0df",
+     "678e9c306077e5d3",
+     "14a3c04c211439c0",
+     "cce723eaae1375e5",
+     "e11195a004f75d57",
+     "ae0632cd6e9657bf"
     ],
     "splines": 31
    },
@@ -161,22 +164,29 @@
    "type": "CURVES",
    "vertex_groups": ""
   },
-  "tree_joints": {
+  "tree_wind": {
    "data": {
-    "co": "f99d24e894cfebe6",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 537
+    "co": "f24ea7739d1f8655",
+    "points": 158,
+    "splines": 31
    },
    "instance_type": "NONE",
    "modifiers": [
-    "ARMATURE"
+    "NODES"
    ],
+   "node_inputs": {
+    "Sapling Wind": {
+     "group": "Sapling Wind",
+     "inputs": {
+      "Depth Passes": 1,
+      "Gust": 0.019634954631328583,
+      "Scan Passes": 3
+     }
+    }
+   },
    "parent": "tree",
-   "type": "MESH",
-   "vertex_groups": "40bf8a00cd36c5e1"
+   "type": "CURVES",
+   "vertex_groups": ""
   }
  },
  "settings": {
@@ -206,7 +216,7 @@
   ],
   "bevel": true,
   "bevelRes": 0,
-  "blossomRate": 0.0,
+  "blossomRate": 0.3,
   "blossomScale": 0.1,
   "blossomShape": "cherry",
   "branchDist": 1.0,
@@ -308,10 +318,10 @@
   ],
   "levels": 2,
   "loopFrames": 0,
-  "makeMesh": false,
+  "makeMesh": true,
   "minRadius": 0.001500000013038516,
   "nrings": 0,
-  "prune": true,
+  "prune": false,
   "pruneBase": 0.30000001192092896,
   "prunePowerHigh": 0.5,
   "prunePowerLow": 0.0010000000474974513,
@@ -380,7 +390,7 @@
   "trunks": 1,
   "useOldDownAngle": false,
   "useParentAngle": true,
-  "useRig": true,
+  "useRig": false,
   "windAnim": true,
   "windStrength": 1.0
  }

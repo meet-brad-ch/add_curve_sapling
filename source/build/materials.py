@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Default materials: bark, and leaves rendered as Thin Wall (Blender 5.2) so light shines through."""
+"""Default materials: bark, and leaves and blossoms rendered as Thin Wall (Blender 5.2) so light shines through."""
 
 from dataclasses import dataclass
 
@@ -9,7 +9,7 @@ from bpy.types import Material, Mesh, Node
 
 from ..model.leaves import LeafShape
 from .build_params import BuildParams
-from .leaf_object import LeafObjectBuilder
+from .leaf_object import BlossomObjectBuilder, LeafObjectBuilder
 from .objects import TreeParts
 from .tree_root import TreeRootBuilder
 
@@ -34,7 +34,9 @@ class MaterialLibrary:
 
     LEAF = "Sapling Leaf"
     BARK = "Sapling Bark"
+    BLOSSOM = "Sapling Blossom"
     LEAF_COLOR = Color(0.1, 0.35, 0.05, 1.0)
+    BLOSSOM_COLOR = Color(0.95, 0.75, 0.8, 1.0)
     BARK_COLOR = Color(0.2, 0.13, 0.08, 1.0)
 
     @classmethod
@@ -45,9 +47,19 @@ class MaterialLibrary:
         diffusely through the leaf (translucency) instead of refracting it like glass. Measured with
         a backlit leaf, the side facing the camera gets about 5x brighter in Cycles, 2x in EEVEE.
         """
-        material = bpy.data.materials.get(cls.LEAF)
+        return cls._thin_wall(cls.LEAF, cls.LEAF_COLOR)
+
+    @classmethod
+    def blossom(cls) -> Material:
+        """The blossom material: pale pink petals in Thin Wall mode, as the leaves."""
+        return cls._thin_wall(cls.BLOSSOM, cls.BLOSSOM_COLOR)
+
+    @classmethod
+    def _thin_wall(cls, name: str, color: Color) -> Material:
+        """The named material, created on first use as a Thin Wall Principled BSDF with subsurface scattering."""
+        material = bpy.data.materials.get(name)
         if material is None:
-            material = cls._new(cls.LEAF, cls.LEAF_COLOR, roughness=0.5)
+            material = cls._new(name, color, roughness=0.5)
             bsdf = cls._bsdf(material)
             bsdf.inputs["Thin Wall"].default_value = True  # type: ignore[attr-defined]  # stub: NodeSocket base class
             bsdf.inputs["Subsurface Weight"].default_value = 1.0  # type: ignore[attr-defined]  # stub: NodeSocket base class
@@ -83,11 +95,15 @@ class MaterialLibrary:
 
     @classmethod
     def assign(cls, result: TreeParts, params: BuildParams) -> None:
-        """Bark on the branches (the root's sweep; a baked mesh keeps it); the leaf material on mesh leaves (not
-        instanced)."""
+        """Bark on the branches (the root's sweep; a baked mesh keeps it); with Leaf Material, the leaf material on
+        mesh leaves (not instanced) and the blossom material on blossoms."""
         bark = cls.bark()
         TreeRootBuilder.set_material(result.root, bark)
         leaves = result.role(LeafObjectBuilder.ROLE)
         if params.leaf_material and leaves is not None and params.tree.leaf_shape in LeafShape.MESH:
             mesh: Mesh = leaves.data  # type: ignore[assignment]  # mesh leaves are a mesh object
             mesh.materials.append(cls.leaf())
+        blossoms = result.role(BlossomObjectBuilder.ROLE)
+        if params.leaf_material and blossoms is not None:
+            blossom_mesh: Mesh = blossoms.data  # type: ignore[assignment]  # blossoms are a mesh object
+            blossom_mesh.materials.append(cls.blossom())

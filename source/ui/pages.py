@@ -159,7 +159,12 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "leafScaleT")
         row.prop(props, "leafScaleV")
-        if props.leafShape in LeafShape.MESH:
+        box.prop(props, "blossomRate")
+        if props.blossomRate > 0:
+            row = box.row()
+            row.prop(props, "blossomShape")
+            row.prop(props, "blossomScale")
+        if props.leafShape in LeafShape.MESH or props.blossomRate > 0:
             box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
         box.prop(props, "leafangle")

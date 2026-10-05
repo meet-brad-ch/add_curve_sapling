@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The leaves object: a mesh of leaf quads, or points/faces that instance a leaf object."""
+"""The leaves object: a mesh of leaf quads, or points/faces that instance a leaf object; the blossoms object."""
+
+from dataclasses import dataclass
 
 import bpy
 import numpy as np
 from bpy.types import BoolAttribute, Mesh, NodeTree, Object, QuaternionAttribute
 from mathutils import Vector
 
+from ..model.blossoms import BlossomShape
 from ..model.leaves import LeafSet, LeafShape
 from ..settings import SettingsError
 from .build_params import BuildParams
@@ -14,6 +17,37 @@ from .node_groups import SharedNodeGroup
 from .node_math import NodeMath, SocketSpec
 from .objects import ObjectFactory
 from .tree_record import TreeRecord
+
+
+@dataclass(frozen=True, slots=True)
+class FoliagePart:
+    """Leaves or blossoms, and the object that draws them."""
+
+    leaves: LeafSet
+    ob: Object
+
+
+class LeafMesh:
+    """Writes a LeafSet's vertices and quads into a mesh."""
+
+    @staticmethod
+    def fill(mesh: Mesh, leaves: LeafSet, flat: bool) -> None:
+        """The vertices, loops and faces from the leaf arrays, one bulk write each (from_pydata converted every
+        value one by one: 163 ms against 76 ms for 72,000 leaves, measured). The mesh is valid by construction.
+        `flat` shades every face flat, as the leaves were (without the attribute every face is smooth)."""
+        mesh.vertices.add(len(leaves.vertices))
+        mesh.vertices.foreach_set("co", leaves.vertices.ravel())
+        faces = leaves.faces
+        if len(faces) == 0:
+            return
+        mesh.loops.add(faces.size)
+        mesh.loops.foreach_set("vertex_index", faces.ravel())
+        mesh.polygons.add(len(faces))
+        mesh.polygons.foreach_set("loop_start", np.arange(0, faces.size, 4, dtype=np.int32))
+        mesh.update(calc_edges=True)
+        if flat:
+            sharp: BoolAttribute = mesh.attributes.new("sharp_face", "BOOLEAN", "FACE")  # type: ignore[assignment]  # stub: new() returns the base class
+            sharp.data.foreach_set("value", np.ones(len(faces), dtype=bool))
 
 
 class LeafObjectBuilder:
@@ -34,7 +68,7 @@ class LeafObjectBuilder:
         """
         mesh = bpy.data.meshes.new(self.ROLE)
         ob = self.objects.new(self.ROLE, mesh, parent=tree)
-        self._fill(mesh, leaves)
+        LeafMesh.fill(mesh, leaves, flat=True)
 
         if leaves.shape == LeafShape.INSTANCE_FACES:
             ob.instance_type = "FACES"
@@ -48,24 +82,6 @@ class LeafObjectBuilder:
         if leaves.shape in LeafShape.MESH:
             self._add_uvs(mesh, leaves.shape, self.params.tree.leaf_scale_x)
         return ob
-
-    @staticmethod
-    def _fill(mesh: Mesh, leaves: LeafSet) -> None:
-        """The vertices, loops and faces from the leaf arrays, one bulk write each (from_pydata converted every
-        value one by one: 163 ms against 76 ms for 72,000 leaves, measured). The mesh is valid by construction."""
-        mesh.vertices.add(len(leaves.vertices))
-        mesh.vertices.foreach_set("co", leaves.vertices.ravel())
-        faces = leaves.faces
-        if len(faces) == 0:
-            return
-        mesh.loops.add(faces.size)
-        mesh.loops.foreach_set("vertex_index", faces.ravel())
-        mesh.polygons.add(len(faces))
-        mesh.polygons.foreach_set("loop_start", np.arange(0, faces.size, 4, dtype=np.int32))
-        mesh.update(calc_edges=True)
-        # flat shaded, as the leaves were (without this attribute every face is smooth)
-        sharp: BoolAttribute = mesh.attributes.new("sharp_face", "BOOLEAN", "FACE")  # type: ignore[assignment]  # stub: new() returns the base class
-        sharp.data.foreach_set("value", np.ones(len(faces), dtype=bool))
 
     def finish(self, leaves_ob: Object, leaves: LeafSet) -> None:
         """Last modifier on the leaves: instance the leaf object on the points (after the armature)."""
@@ -112,6 +128,29 @@ class LeafObjectBuilder:
         layer.uv.foreach_set(
             "vector", np.tile(np.array(per_leaf, dtype=np.float32), len(mesh.loops) * 2 // len(per_leaf))
         )
+
+
+class BlossomObjectBuilder:
+    """Creates the blossoms mesh object (a child of the tree): smooth shaded, with UVs from the top view."""
+
+    ROLE = "blossoms"
+    UV_LAYER = "blossomUV"
+
+    def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        self.params = params
+        self.objects = objects
+
+    def build(self, blossoms: LeafSet, tree: Object) -> Object:
+        """The blossoms object under the tree, before any armature."""
+        mesh = bpy.data.meshes.new(self.ROLE)
+        ob = self.objects.new(self.ROLE, mesh, parent=tree)
+        LeafMesh.fill(mesh, blossoms, flat=False)
+        template = BlossomShape.template(self.params.tree.blossom_shape)
+        # each flower's template, seen from above, maps onto the 0..1 UV square (its diameter is 1)
+        per_flower = (template.vertices[template.faces.ravel(), :2] + 0.5).astype(np.float32).ravel()
+        layer = mesh.uv_layers.new(name=self.UV_LAYER)
+        layer.uv.foreach_set("vector", np.tile(per_flower, blossoms.count))
+        return ob
 
 
 class LeafInstancerNodes:

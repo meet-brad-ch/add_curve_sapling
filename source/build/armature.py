@@ -18,6 +18,7 @@ from ..model.joints import Joints, TreeWind
 from ..model.leaves import LeafSet
 from ..settings import SettingsError
 from .build_params import BuildParams
+from .leaf_object import FoliagePart
 from .objects import ObjectFactory, VertexGroup, VertexGroupWriter
 from .wind import LeafFlutter, WindAnimator
 
@@ -110,15 +111,15 @@ class ArmatureBuilder:
         joints_ob: Object,
         joints: Joints,
         wind: TreeWind | None,
-        leaves: LeafSet | None,
-        leaves_ob: Object | None,
+        foliage: list[FoliagePart],
     ) -> Object:
         """The armature object (the rig), a child of the root, with one bone per joint and, with `wind`, the sway
         F-curves of every bone.
 
         The bones deform the joint proxy `joints_ob` (vertex groups named after them; the root's sweep reads the
-        posed curve from it) and the leaves (vertex groups). Switches the new armature into edit mode and back (see
-        _editing). Draws from the rng only with Leaf Flutter: two offsets per leaf. The bones are in a bone
+        posed curve from it) and the leaves and blossoms in `foliage` (vertex groups). Switches the new armature into
+        edit mode and back (see _editing). Draws from the rng only with Leaf Flutter: two offsets per leaf (the
+        leaves', then the blossoms'). The bones are in a bone
         collection, hidden unless Fast Preview. The root stays the tree: a click on the branches selects it, and
         moving it moves the rig and all it deforms.
         """
@@ -135,8 +136,8 @@ class ArmatureBuilder:
             armature.display_type = "WIRE"
             # Drawn as its bounds, not hidden: a hidden root is deselected and left out of Move/Rotate/Scale
             root.display_type = "BOUNDS"
-        if leaves_ob:
-            self.deform(leaves_ob, armature_ob)
+        for part in foliage:
+            self.deform(part.ob, armature_ob)
 
         # Every bone goes into one bone collection, shown only when asked (Fast Preview). Hiding the bones, not
         # the armature object, keeps the armature an ordinary part of the tree; bones in no collection are shown.
@@ -149,8 +150,8 @@ class ArmatureBuilder:
         collection.is_visible = p.preview_armature
         if animator is not None and wind is not None:
             animator.add_joints(joints.names(), wind.sway)
-        if leaves_ob is not None and leaves is not None:
-            self._leaf_groups(joints, leaves, leaves_ob, wind)
+        for part in foliage:
+            self._leaf_groups(joints, part.leaves, part.ob, wind)
         if animator is not None:
             animator.finish()
 

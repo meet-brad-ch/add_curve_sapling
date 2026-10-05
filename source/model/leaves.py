@@ -13,17 +13,11 @@ from random import Random
 
 import numpy as np
 
+from .blossoms import BlossomPick, BlossomShape
+from .geometry import LeafTemplate
 from .params import TreeParams
 from .rotations import Rotation
 from .sprouting import SproutArrays
-
-
-@dataclass(frozen=True, slots=True)
-class LeafTemplate:
-    """One leaf's geometry in leaf space: vertices (V, 3) float64 and faces (F, 4) int32 into them."""
-
-    vertices: np.ndarray
-    faces: np.ndarray
 
 
 class LeafShape:
@@ -33,6 +27,8 @@ class LeafShape:
     RECT = "rect"
     INSTANCE_FACES = "dFace"
     INSTANCE_POINTS = "dVert"
+
+    BLOSSOM = "blossom"  # the shape of a blossom set (BlossomShape makes its geometry)
 
     MESH = [HEX, RECT]
     INSTANCED = [INSTANCE_FACES, INSTANCE_POINTS]
@@ -74,7 +70,7 @@ class LeafSet:
     vertices (V, 3) float32: the leaf meshes' points (one point per leaf for Instance Points); faces (F, 4) int32
     into vertices; normals (L, 3) float32: each leaf's direction (Instance Points only, else empty); sprout_co
     (L, 3) float32; parent_spline/parent_point (L,): the parent's spline and the segment of the sprout (a fan
-    repeats its sprout's).
+    repeats its sprout's); verts_per_leaf: how many vertices each leaf adds to `vertices`, for per-leaf indexing.
     """
 
     def __init__(
@@ -86,6 +82,7 @@ class LeafSet:
         sprout_co: np.ndarray,
         parent_spline: np.ndarray,
         parent_point: np.ndarray,
+        verts_per_leaf: int,
     ) -> None:
         self.shape = shape
         self.vertices = vertices
@@ -94,16 +91,20 @@ class LeafSet:
         self.sprout_co = sprout_co
         self.parent_spline = parent_spline
         self.parent_point = parent_point
+        self.verts_per_leaf = verts_per_leaf
 
     @property
     def count(self) -> int:
         """How many leaves."""
         return len(self.parent_spline)
 
-    @property
-    def verts_per_leaf(self) -> int:
-        """How many vertices each leaf adds to `vertices` (1 for Instance Points), for per-leaf indexing."""
-        return LeafShape.verts_per_leaf(self.shape)
+
+@dataclass(frozen=True, slots=True)
+class Foliage:
+    """The generated leaves, and the blossoms that grow at some leaf positions instead (None without blossoms)."""
+
+    leaves: LeafSet
+    blossoms: LeafSet | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,34 +140,69 @@ class LeafGenerator:
         self.params = params
         self.rng = rng
 
-    def generate(self, sprouts: SproutArrays) -> LeafSet:
-        """The leaves of all sprouts, in sprout order: one per sprout, or a fan of |leaves| for a negative count."""
+    def generate(self, sprouts: SproutArrays) -> Foliage:
+        """The leaves of all sprouts, in sprout order: one per sprout, or a fan of |leaves| for a negative count;
+        with Blossom Rate, some of these positions grow a blossom instead of a leaf."""
         p = self.params
         placement = self._place(sprouts)
-        template = LeafShape.template(p.leaf_shape)
         matrices = Rotation.compose(*self._turns(placement))
-        scale = placement.scale
+        slot = np.arange(len(placement.index)) - np.searchsorted(placement.index, placement.index)
+        blossom = BlossomPick.chosen(
+            p.blossom_rate, sprouts.parent_key[placement.index], sprouts.position[placement.index], slot
+        )
+        blossoms = self._blossoms(placement, matrices[blossom], blossom) if blossom.any() else None
+        return Foliage(self._leaves(placement, matrices[~blossom], ~blossom), blossoms)
+
+    def _leaves(self, placement: LeafPlacement, matrices: np.ndarray, rows: np.ndarray) -> LeafSet:
+        """The leaf geometry of the placed leaves selected by `rows`."""
+        p = self.params
+        template = LeafShape.template(p.leaf_shape)
+        scale = placement.scale[rows]
+        co = placement.co[rows]
         scaled = template.vertices[None, :, :] * np.stack([p.leaf_scale_x * scale, scale, scale], axis=1)[:, None, :]
         placed = np.einsum("lij,lvj->lvi", matrices, scaled)
-        count = len(placement.index)
         if p.leaf_shape == LeafShape.INSTANCE_POINTS:
             normals = Rotation.unit(placed[:, 0, :])
-            vertices = placement.co
+            vertices = co
             all_faces = np.zeros((0, 4), dtype=np.int32)
         else:
-            vertices = (placed + placement.co[:, None, :]).reshape(-1, 3)
+            vertices = (placed + co[:, None, :]).reshape(-1, 3)
             normals = np.zeros((0, 3), dtype=np.float64)
-            offsets = (len(template.vertices) * np.arange(count, dtype=np.int32))[:, None, None]
-            all_faces = (template.faces[None, :, :] + offsets).reshape(-1, 4)
+            all_faces = self._faces(template, len(co))
         return LeafSet(
             p.leaf_shape,
             vertices.astype(np.float32),
-            all_faces.astype(np.int32),
+            all_faces,
             normals.astype(np.float32),
-            placement.co.astype(np.float32),
-            placement.parent_spline,
-            placement.parent_point,
+            co.astype(np.float32),
+            placement.parent_spline[rows],
+            placement.parent_point[rows],
+            LeafShape.verts_per_leaf(p.leaf_shape),
         )
+
+    def _blossoms(self, placement: LeafPlacement, matrices: np.ndarray, rows: np.ndarray) -> LeafSet:
+        """The blossom geometry of the placed leaves selected by `rows`: Blossom Scale across, facing the way the
+        leaf would grow."""
+        p = self.params
+        template = BlossomShape.template(p.blossom_shape)
+        co = placement.co[rows]
+        placed = np.einsum("lij,vj->lvi", matrices, template.vertices * p.blossom_scale)
+        return LeafSet(
+            LeafShape.BLOSSOM,
+            (placed + co[:, None, :]).reshape(-1, 3).astype(np.float32),
+            self._faces(template, len(co)),
+            np.zeros((0, 3), dtype=np.float32),
+            co.astype(np.float32),
+            placement.parent_spline[rows],
+            placement.parent_point[rows],
+            len(template.vertices),
+        )
+
+    @staticmethod
+    def _faces(template: LeafTemplate, count: int) -> np.ndarray:
+        """The template's faces repeated for `count` leaves, each into its own vertices."""
+        offsets = (len(template.vertices) * np.arange(count, dtype=np.int32))[:, None, None]
+        return (template.faces[None, :, :] + offsets).reshape(-1, 4).astype(np.int32)
 
     def _place(self, sprouts: SproutArrays) -> LeafPlacement:
         """Every leaf's draws, in leaf order; the leaf rotation carries over from one sprout to the next (a fan

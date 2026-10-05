@@ -53,7 +53,7 @@ def stats(preset, changes):
         )
     out["box"] = (flat.co.max(axis=0) - flat.co.min(axis=0)).tolist()
     out["leaves"] = int(
-        helpers.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).count
+        helpers.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).leaves.count
     )
     return out
 

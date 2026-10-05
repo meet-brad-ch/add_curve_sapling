@@ -17,6 +17,12 @@
   Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
   handles with their joints (Blender's Set Position moves a free handle with its point but does not
   turn it).
+- *Blossom Rate*, *Blossom Shape* and *Blossom Scale* (Leaves page): a part of the leaf positions grows
+  a flower instead of a leaf, as tree-gen's blossoms do. The flowers are this add-on's own geometry:
+  cherry (5 round petals), orange (5 narrow petals that bend back) and magnolia (8 petals in a deep
+  cup). They go into a *blossoms* object with the *Sapling Blossom* material and follow the rig, the
+  node wind and Leaf Flutter as the leaves do. A higher rate keeps every blossom of a lower one. With
+  rate 0, trees are unchanged.
 - 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their

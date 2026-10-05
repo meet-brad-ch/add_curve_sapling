@@ -16,6 +16,7 @@ from bpy.props import (
 )
 from bpy.types import Context
 
+from ..model.blossoms import BlossomShape
 from ..model.geometry import CrownShape
 from ..model.leaves import LeafShape
 from ..model.params import BranchingMode
@@ -70,6 +71,11 @@ class Choices:
         EnumItem(LeafShape.RECT, "Rectangular", "Rectangular leaf mesh, for image textures"),
         EnumItem(LeafShape.INSTANCE_FACES, "Instance Faces", "Instance the leaf object on one face per leaf"),
         EnumItem(LeafShape.INSTANCE_POINTS, "Instance Points", "Instance the leaf object on one point per leaf"),
+    ]
+    BLOSSOM_SHAPES = [
+        EnumItem(BlossomShape.CHERRY, "Cherry", "Five round, slightly cupped petals"),
+        EnumItem(BlossomShape.ORANGE, "Orange", "Five narrow petals that bend back"),
+        EnumItem(BlossomShape.MAGNOLIA, "Magnolia", "Eight petals in a deep cup"),
     ]
     PAGES = [
         EnumItem("0", "Geometry", "Tree shape, scale, curve settings and presets"),
@@ -411,6 +417,18 @@ class TreeProperties:
         name="Leaf Scale Variation", description="Random variation of the leaf scale", min=0.0, max=1.0, default=0.0,
         update=update_leaves,
     )  # fmt: skip
+    blossomRate: FloatProperty(
+        name="Blossom Rate",
+        description="The fraction of the leaves that are blossoms. 0 gives no blossoms. 1 gives only blossoms",
+        min=0.0, max=1.0, default=0.0, update=update_leaves,
+    )  # fmt: skip
+    blossomShape: EnumProperty(
+        name="Blossom Shape", description="The shape of the blossoms", items=EnumItem.items(Choices.BLOSSOM_SHAPES),
+        default=BlossomShape.CHERRY, update=update_leaves,
+    )  # fmt: skip
+    blossomScale: FloatProperty(
+        name="Blossom Scale", description="The diameter of a blossom", min=0.0, default=0.1, update=update_leaves,
+    )  # fmt: skip
     bend: FloatProperty(
         name="Leaf Bend", description="How much the leaf bends (Bend)", min=0.0, max=1.0,
         default=0.0, update=update_leaves,
@@ -420,8 +438,8 @@ class TreeProperties:
     )
     leafMaterial: BoolProperty(
         name="Leaf Material",
-        description="Give mesh leaves the Sapling Leaf material. Its Thin Wall shading lets light through the leaves, "
-        "as through real ones",
+        description="Give mesh leaves the Sapling Leaf material and blossoms the Sapling Blossom material. Their Thin "
+        "Wall shading lets light through, as through real leaves and petals",
         default=True, update=update_leaves,
     )  # fmt: skip
     horzLeaves: BoolProperty(

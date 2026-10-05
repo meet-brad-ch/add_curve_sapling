@@ -334,6 +334,9 @@
   ],
   "bevel": true,
   "bevelRes": 1,
+  "blossomRate": 0.0,
+  "blossomScale": 0.1,
+  "blossomShape": "cherry",
   "branchDist": 1.5,
   "branches": [
    0,

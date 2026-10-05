@@ -15,7 +15,7 @@ from .build.bake import BarkBake
 from .build.build_params import BuildParams
 from .build.envelope import EnvelopeBuilder
 from .build.joint_proxy import JointProxy
-from .build.leaf_object import LeafObjectBuilder
+from .build.leaf_object import BlossomObjectBuilder, FoliagePart, LeafObjectBuilder
 from .build.materials import MaterialLibrary
 from .build.node_wind import NodeWind
 from .build.objects import ObjectFactory
@@ -24,7 +24,7 @@ from .build.tree_root import CurveSource, TreeRootBuilder
 from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
 from .model.joints import Joints, TreeWind
-from .model.leaves import LeafGenerator, LeafSet, LeafShape
+from .model.leaves import LeafGenerator, LeafShape
 from .model.params import TreeParams, WindParams
 from .model.tree import GrownTree, TreeGrower
 from .model.wind_model import WindModel
@@ -52,10 +52,16 @@ class TreeResult:
 
 @dataclass(frozen=True, slots=True)
 class GrownLeaves:
-    """The generated leaves and their object."""
+    """The generated leaves and blossoms, each with its object (None for a part the tree does not have: no
+    blossoms, or no leaves left when every position is a blossom)."""
 
-    leaves: LeafSet
-    ob: Object
+    leaves: FoliagePart | None
+    blossoms: FoliagePart | None
+
+    @property
+    def parts(self) -> list[FoliagePart]:
+        """The parts the tree has: the leaves, then the blossoms."""
+        return [part for part in [self.leaves, self.blossoms] if part is not None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,8 +125,8 @@ class TreeGenerator:
         MaterialLibrary.assign(TreeResult(objects), b)  # before a bake: the baked mesh keeps the sweep's material
         if b.make_mesh:
             BarkBake(b, self.context).bake(root, curves_ob, joints, movers.armature_ob, movers.wind_ob)
-        if leaves is not None:
-            LeafObjectBuilder(b, objects).finish(leaves.ob, leaves.leaves)
+        if leaves is not None and leaves.leaves is not None:
+            LeafObjectBuilder(b, objects).finish(leaves.leaves.ob, leaves.leaves.leaves)
 
     def _joints(self, curve: CurveData, grown: GrownTree) -> Joints | None:
         """The joints the rig or the node wind needs (none for a still tree without a rig); a big rig warns."""
@@ -135,11 +141,21 @@ class TreeGenerator:
         return joints
 
     def _leaves(self, rng: random.Random, grown: GrownTree, root: Object, objects: ObjectFactory) -> GrownLeaves | None:
-        """The leaves and their object (None without leaves); the leaves draw from the rng after the tree."""
+        """The leaves and blossoms with their objects (None without leaves); the leaves draw from the rng after the
+        tree. The leaves object is left out only when every leaf position is a blossom."""
         if not self.params.leaves:
             return None
-        leaves = LeafGenerator(self.params, rng).generate(grown.sprouts)
-        return GrownLeaves(leaves, LeafObjectBuilder(self.build_params, objects).build(leaves, root))
+        foliage = LeafGenerator(self.params, rng).generate(grown.sprouts)
+        leaves = None
+        if foliage.leaves.count or foliage.blossoms is None:
+            leaves = FoliagePart(
+                foliage.leaves, LeafObjectBuilder(self.build_params, objects).build(foliage.leaves, root)
+            )
+        blossoms = None
+        if foliage.blossoms is not None:
+            ob = BlossomObjectBuilder(self.build_params, objects).build(foliage.blossoms, root)
+            blossoms = FoliagePart(foliage.blossoms, ob)
+        return GrownLeaves(leaves, blossoms)
 
     def _movers(
         self,
@@ -153,25 +169,24 @@ class TreeGenerator:
         """The rig (bones through the joint proxy) or the wind curves, with the leaves following them.
 
         The rng is drawn in the rig's order: the joints' phases (two per curve with joints), then two flutter
-        offsets per leaf.
+        offsets per leaf (the leaves', then the blossoms').
         """
         b = self.build_params
         if joints is None:
             return Movers(None, None, None)
+        foliage = leaves.parts if leaves is not None else []
         if b.use_armature:
             wind = self._wind(joints, rng) if b.armature_animation else None
-            leaf_set = leaves.leaves if leaves is not None else None
-            leaves_ob = leaves.ob if leaves is not None else None
             joints_ob = JointProxy(objects).build(root, joints)
             builder = ArmatureBuilder(b, rng, objects, self.context)
-            return Movers(builder.build(root, joints_ob, joints, wind, leaf_set, leaves_ob), joints_ob, None)
+            return Movers(builder.build(root, joints_ob, joints, wind, foliage), joints_ob, None)
         wind = self._wind(joints, rng)  # without the rig, the joints are there for the wind
         wind_ob = NodeWind(b, objects).build(root, curves_ob, joints, wind)
-        if leaves is not None:
+        for part in foliage:
             if b.leaf_animation:
-                offsets = LeafFlutter.offsets(leaves.leaves, self.wind_params.flutter.randomness, rng)
-                LeafFlutter.add(leaves.ob, leaves.leaves, offsets, wind.model)
-            NodeWind.follow(leaves.ob, wind_ob, joints.leaf_joints(leaves.leaves))
+                offsets = LeafFlutter.offsets(part.leaves, self.wind_params.flutter.randomness, rng)
+                LeafFlutter.add(part.ob, part.leaves, offsets, wind.model)
+            NodeWind.follow(part.ob, wind_ob, joints.leaf_joints(part.leaves))
         return Movers(None, None, wind_ob)
 
     def _wind(self, joints: Joints, rng: random.Random) -> TreeWind:

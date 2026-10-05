@@ -7,9 +7,18 @@ expression changes the trees.
 """
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from math import pi, radians
 
 import numpy as np
+
+
+@dataclass(frozen=True, slots=True)
+class LeafTemplate:
+    """One leaf's (or blossom's) geometry in leaf space: vertices (V, 3) float64 and faces (F, 4) int32 into them."""
+
+    vertices: np.ndarray
+    faces: np.ndarray
 
 
 class Angles:

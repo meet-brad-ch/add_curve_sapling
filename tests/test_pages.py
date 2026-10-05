@@ -83,7 +83,7 @@ class SettingsPages(unittest.TestCase):
 
     def test_every_generation_property_is_on_a_page(self):
         drawn = set()
-        for changes in ({}, {"shape": "8", "leafShape": "dFace"}):
+        for changes in ({}, {"shape": "8", "leafShape": "dFace", "blossomRate": 0.5}):
             for page in self.draw(**changes):
                 drawn.update(page)
         hidden = {"bend"}  # Leaf Bend has no control, as in earlier versions
@@ -98,6 +98,10 @@ class SettingsPages(unittest.TestCase):
         instanced = self.draw(leafShape="dVert")[leaves]
         self.assertIn("leafDupliObj", instanced)
         self.assertNotIn("leafMaterial", instanced)
+        self.assertNotIn("blossomShape", self.draw()[leaves])
+        blossoming = self.draw(leafShape="dVert", blossomRate=0.5)[leaves]
+        self.assertIn("blossomShape", blossoming)
+        self.assertIn("leafMaterial", blossoming)
 
 
 class TreeUi(unittest.TestCase):

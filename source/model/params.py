@@ -16,6 +16,7 @@ from typing import Any
 
 import numpy as np
 
+from .blossoms import BlossomShape
 from .curve_data import HandleType
 from .geometry import Angles, CrownShape
 
@@ -193,6 +194,9 @@ class TreeParams(PlainParams):
         self.leaf_angle = float(s.leafangle)
         self.horizontal_leaves = bool(s.horzLeaves)
         self.leaf_dist = int(s.leafDist)
+        self.blossom_rate = float(s.blossomRate)
+        self.blossom_shape: str = self._choice({s: s for s in BlossomShape.ALL}, str(s.blossomShape), "Blossom Shape")
+        self.blossom_scale = float(s.blossomScale)
 
     @classmethod
     def level_index(cls, depth: int) -> int:

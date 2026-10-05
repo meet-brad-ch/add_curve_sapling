@@ -1,20 +1,66 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
-  "leaves": {
+  "blossoms": {
    "data": {
-    "co": "a0f7eee742c86b4e",
-    "edges": 25512,
-    "faces": 6378,
-    "topology": "6f6878fa8b6c0e75",
-    "uv": "643d97138ddb8abd",
+    "co": "17bc16326c8469d6",
+    "edges": 175000,
+    "faces": 62500,
+    "topology": "22f8f095e8af802f",
+    "uv": "cf78af62fafb7fd6",
     "uv_layers": [
-     "leafUV"
+     "blossomUV"
     ],
-    "verts": 25512
+    "verts": 115000
    },
    "instance_type": "NONE",
    "modifiers": [],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
+  },
+  "leaf_card": {
+   "data": {
+    "co": "da39a3ee5e6b4b0d",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 0
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": null,
+   "type": "MESH",
+   "vertex_groups": ""
+  },
+  "leaves": {
+   "data": {
+    "co": "01b7e5deabeaea25",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 3878
+   },
+   "evaluated": {
+    "co": "da39a3ee5e6b4b0d",
+    "edges": 0,
+    "faces": 0,
+    "verts": 0
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "NODES"
+   ],
+   "node_inputs": {
+    "Leaf Instances": {
+     "group": "Sapling Leaf Instancer",
+     "inputs": {
+      "Leaf Object": "leaf_card"
+     }
+    }
+   },
    "parent": "tree",
    "type": "MESH",
    "vertex_groups": ""
@@ -342,9 +388,9 @@
   ],
   "bevel": true,
   "bevelRes": 1,
-  "blossomRate": 0.0,
+  "blossomRate": 0.4,
   "blossomScale": 0.1,
-  "blossomShape": "cherry",
+  "blossomShape": "orange",
   "branchDist": 1.5,
   "branches": [
    0,
@@ -427,7 +473,7 @@
   "leafScaleT": 0.10000000149011612,
   "leafScaleV": 0.15000000596046448,
   "leafScaleX": 0.20000000298023224,
-  "leafShape": "rect",
+  "leafShape": "dVert",
   "leafangle": -12.0,
   "leaves": 150,
   "length": [

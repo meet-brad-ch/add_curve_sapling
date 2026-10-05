@@ -68,8 +68,9 @@ class TreeParts(Protocol):
 class ObjectFactory:
     """Creates the tree's objects in the target collections and knows each one by its role.
 
-    The role is the object's base name ("tree", "tree_curves", "tree_joints", "tree_wind", "leaves", "treeArm",
-    "envelope"); Blender appends ".001" when an older tree still holds the name, and take_base_names() takes it back.
+    The role is the object's base name ("tree", "tree_curves", "tree_joints", "tree_wind", "leaves", "blossoms",
+    "treeArm", "envelope"); Blender appends ".001" when an older tree still holds the name, and take_base_names()
+    takes it back.
     """
 
     SUFFIX = re.compile(r"\.\d{3,}$")

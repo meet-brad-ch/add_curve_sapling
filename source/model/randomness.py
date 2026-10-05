@@ -33,6 +33,7 @@ class Draw:
     ROTATE = 22
     PICK = 23
     RING = 24
+    BLOSSOM = 25
 
 
 class Kind:
@@ -43,6 +44,7 @@ class Kind:
     SPLIT = 3
     PICK = 4
     RING = 5
+    BLOSSOM = 6
 
 
 class KeyedRandom:
