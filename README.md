@@ -33,6 +33,7 @@ python tools/check.py            # all checks: ruff, format, mypy, manifest, tes
 python tools/check.py --fast     # all checks except the Blender tests (the pre-commit hook runs this)
 python tools/run_tests.py        # tests only (-k NAME selects tests, --record-golden writes new golden files)
 python tools/port_treegen.py <tree-gen clone> acer ...   # convert tree-gen species to presets
+python tools/render_ports.py <tree-gen clone> <out> acer  # render tree-gen's tree next to the preset
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
 ```

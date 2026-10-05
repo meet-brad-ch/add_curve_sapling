@@ -6,7 +6,8 @@
     python tools/port_treegen.py <dir> black_tupelo weeping_willow:willow ...
 
 Each argument is a tree-gen species (parametric/tree_params/<species>.py), optionally `:preset_name`.
-The presets are written to source/presets; render and check each one before committing it.
+The presets are written to source/presets (or the --out folder); render each one next to tree-gen's tree
+(tools/render_ports.py) and check it before committing it.
 """
 
 import argparse
@@ -21,6 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("treegen", type=Path, help="a git clone of https://github.com/friggog/tree-gen")
     parser.add_argument("species", nargs="+", help="tree-gen species, optionally species:preset_name")
+    parser.add_argument("--out", type=Path, default=SOURCE / "presets", help="the folder the presets go to")
     args = parser.parse_args()
 
     if not (args.treegen / "parametric" / "tree_params").is_dir():
@@ -29,7 +31,9 @@ def main() -> int:
         ["git", "-C", str(args.treegen), "rev-parse", "--short=7", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     install_fresh()
-    script_args = [str(args.treegen.resolve()), commit, str(SOURCE / "presets"), *args.species]
+    if not args.out.is_dir():
+        sys.exit(f"{args.out} is not a folder")
+    script_args = [str(args.treegen.resolve()), commit, str(args.out.resolve()), *args.species]
     return run_script(ROOT / "tools" / "port_treegen_in_blender.py", script_args)
 
 

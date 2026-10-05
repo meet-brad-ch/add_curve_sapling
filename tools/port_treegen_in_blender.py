@@ -6,15 +6,24 @@ tree-gen (https://github.com/friggog/tree-gen) implements Weber-Penn like Saplin
 both projects' code (tree-gen parametric/gen.py, Sapling source/model):
 
 - Each species is merged over tree-gen's own defaults (tree_param.py), as tree-gen does.
-- Per-level arrays with the same Weber-Penn meaning are copied (Sapling ignores branches[0], the trunk count).
+- Per-level arrays with the same Weber-Penn meaning are copied; branches[0] is the number of trunks (Trunks).
+- tree-gen counts a level's branches above the bare base and keeps leaves off the last level's bare base too:
+  Count Above Base and Leaves Above Base are on. Fan leaves tilt by the down angle and vary their turn: Fan
+  Angles is on for a negative leaf count.
 - Trunk length is scale * length[0] in both; Sapling's scale0/scaleV0 only scale the trunk radius.
 - base_size per level -> baseSize = base_size[0], baseSize_s = base_size[1] / base_size[0]
   (Sapling: level n base size = baseSize * baseSize_s ** n; at most 1, so a longer level-1 base is clamped).
 - Negative down_angle_v (vary along the parent) is the Weber-Penn formula Sapling has as useOldDownAngle.
+  For the leaves the signs are the other way round: tree-gen's down_angle_v >= 0 is a random variation, which
+  is Sapling's negative Leaf Down Angle Variation, so the leaf value is negated.
 - flare f: tree-gen multiplies the trunk base radius by 1 + 0.99 f, which is Sapling's rootFlare.
 - tropism z: tree-gen bends level 2 and deeper by it (only its horizontal part on levels 0-1); Sapling's
   attractUp is per level, vertical only.
-- Negative curve_v draws a helix in tree-gen; Sapling has none, so it becomes a random bend of the same size.
+- Negative curve_v draws a helix in tree-gen: Helix on that level, with |curve_v| as the helix angle.
+- bend_v is Bend Variation (its size; tree-gen draws the sign).
+- Blossoms: blossom_rate is Blossom Rate, blossom_shape 1/2/3 is cherry/orange/magnolia, and Blossom Scale is
+  blossom_scale times the width of tree-gen's blossom geometry (leaf_shapes.py `blossom()`), as Sapling's
+  templates are 1 across.
 - Leaves: leaf_blos_num per last-level stem -> leaves (negative: a fan at the stem tip in both). Leaf length is
   leaf_scale in both; the width is the tree-gen shape's width (from its leaf_shapes.py geometry) times
   leaf_scale_x; linear leaves become rect, all others hex. Leaves take level 3's down and rotate angles.
@@ -26,7 +35,7 @@ both projects' code (tree-gen parametric/gen.py, Sapling source/model):
   the forks end up split_angle apart; Sapling turns each new fork by its full split angle. tree-gen then
   turns the forks back toward the stem's direction over their remaining segments; Sapling cannot.
 - Negative base_splits: tree-gen only reads base_splits when it is positive, so it means no base splits.
-- Not mapped: bend_v (no counterpart), leaf_bend (a different method), blossoms (Sapling has none).
+- Not mapped: leaf_bend (a different method).
 - Display settings every upstream preset sets: bevel on (the add-on default draws wire branches), bevel
   resolution 1, minimum radius 0.0015, no trunk radius variation.
 """
@@ -42,6 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from blender_env import MODULE  # noqa: E402  (needs the sys.path entry above)
 
 LINEAR = 2  # tree-gen leaf shape ids: 1 ovate, 2 linear, 3 cordate, ... 8 elliptic (default), 10 triangle
+BLOSSOM_SHAPES = {1: "cherry", 2: "orange", 3: "magnolia"}  # tree-gen blossom_shape -> Blossom Shape
 DEFAULT_LEAF = 8
 NEUTRAL_RADIUS = [1, 1, 1, 1]
 
@@ -54,23 +64,38 @@ def literal_dict(path: Path) -> dict[str, Any]:
     raise SystemExit(f"{path}: no parameter dictionary")
 
 
-def leaf_widths(path: Path) -> dict[int, float]:
-    """tree-gen leaf shape id -> width / length, from the vertices in leaf_shapes.py `leaves()`."""
+def shape_points(path: Path, function: str) -> list[list[tuple]]:
+    """The vertex lists of the shapes a leaf_shapes.py function (`leaves` or `blossom`) returns, in order."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    leaves = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "leaves")
-    returned = next(n for n in ast.walk(leaves) if isinstance(n, ast.Return)).value
+    found = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == function)
+    returned = next(n for n in ast.walk(found) if isinstance(n, ast.Return)).value
     if isinstance(returned, ast.Subscript):  # `return [shape, shape, ...][t]`
         returned = returned.value
     if not isinstance(returned, ast.List):
-        raise SystemExit(f"{path}: leaves() does not return a list")
-    widths = {}
+        raise SystemExit(f"{path}: {function}() does not return a list")
+    shapes = []
     for shape_id, shape in enumerate(returned.elts, start=1):
         if not (isinstance(shape, ast.Tuple) and isinstance(shape.elts[0], ast.List)):
-            raise SystemExit(f"{path}: leaf shape {shape_id} has an unexpected form")
-        points = [ast.literal_eval(call.args[0]) for call in shape.elts[0].elts if isinstance(call, ast.Call)]
+            raise SystemExit(f"{path}: {function} shape {shape_id} has an unexpected form")
+        shapes.append([ast.literal_eval(call.args[0]) for call in shape.elts[0].elts if isinstance(call, ast.Call)])
+    return shapes
+
+
+def leaf_widths(path: Path) -> dict[int, float]:
+    """tree-gen leaf shape id -> width / length, from the vertices in leaf_shapes.py `leaves()`."""
+    widths = {}
+    for shape_id, points in enumerate(shape_points(path, "leaves"), start=1):
         xs, zs = [p[0] for p in points], [p[2] for p in points]
         widths[shape_id] = (max(xs) - min(xs)) / (max(zs) - min(zs))
     return widths
+
+
+def blossom_widths(path: Path) -> dict[int, float]:
+    """tree-gen blossom shape id -> its width across (x), from the vertices in leaf_shapes.py `blossom()`."""
+    return {
+        shape_id: max(p[0] for p in points) - min(p[0] for p in points)
+        for shape_id, points in enumerate(shape_points(path, "blossom"), start=1)
+    }
 
 
 def per_level(values: list, cast: type = float) -> tuple:
@@ -85,6 +110,7 @@ class Porter:
         self.params_dir = params
         self.defaults_tg = literal_dict(params / "tree_param.py")
         self.widths = leaf_widths(treegen / "leaf_shapes.py")
+        self.blossom_widths = blossom_widths(treegen / "leaf_shapes.py")
         package = sys.modules[MODULE + ".ui.operators"]
         self.names = package.AddTreeOperator.generation_names()
         self.rna = bpy.ops.curve.tree_add.get_rna_type().properties
@@ -117,7 +143,10 @@ class Porter:
             baseSplits=max(0, int(tg["base_splits"])),
             baseSize=float(base[0]),
             baseSize_s=float(base[1]) / float(base[0]) if base[0] else 0.25,
+            trunks=max(1, int(tg["branches"][0])),
             branches=(0, *per_level(tg["branches"], int)[1:]),
+            countAboveBase=True,
+            leavesAboveBase=True,
             length=per_level(tg["length"]),
             lengthV=per_level(tg["length_v"]),
             downAngle=per_level(tg["down_angle"]),
@@ -133,6 +162,8 @@ class Porter:
             curve=per_level(tg["curve"]),
             curveBack=per_level(tg["curve_back"]),
             curveV=tuple(abs(v) for v in per_level(tg["curve_v"])),
+            helix=tuple(v < 0 for v in per_level(tg["curve_v"])),
+            bendV=tuple(abs(v) for v in per_level(tg["bend_v"])),
             attractUp=(0.0, 0.0, tropism_z, tropism_z),
             branchDist=1.0,
             showLeaves=True,
@@ -142,10 +173,18 @@ class Porter:
             leafScale=float(tg["leaf_scale"]),
             leafScaleX=self.widths[leaf_shape] * float(tg["leaf_scale_x"]),
             leafDownAngle=float(tg["down_angle"][leaf_level]),
-            leafDownAngleV=float(tg["down_angle_v"][leaf_level]),
+            leafDownAngleV=-float(tg["down_angle_v"][leaf_level]),
+            fanAngles=int(tg["leaf_blos_num"]) < 0,
             leafRotate=float(tg["rotate"][leaf_level]),
             leafRotateV=float(tg["rotate_v"][leaf_level]),
         )
+        blossom = int(tg["blossom_shape"])
+        if float(tg["blossom_rate"]) > 0:
+            s.update(
+                blossomRate=float(tg["blossom_rate"]),
+                blossomShape=BLOSSOM_SHAPES[blossom],
+                blossomScale=float(tg["blossom_scale"]) * self.blossom_widths[blossom],
+            )
         if list(tg["radius_mod"]) != NEUTRAL_RADIUS:
             s["radiusTweak"] = per_level(tg["radius_mod"])
         if float(tg["prune_ratio"]) > 0:
