@@ -77,10 +77,10 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
   again. The tree is made again in the same place. It keeps its transform, its parent and its
   collections. Objects that you parented to the tree stay attached.
-- **Duplicate Sapling Tree:** In the *Sapling* tab or the *Object* menu, this copies the whole tree
-  as a new, independent tree, then moves it with the mouse. Blender's own Duplicate (Shift+D) copies
-  only the selected objects and never the hidden parts. Its copy of the tree object draws at its own
-  place, but it shares the original's hidden curves and has no leaves or blossoms.
+- **Duplicate:** Shift+D (or Alt+D) on a tree gives a whole, independent tree. Blender copies only the
+  selected objects, and it cannot select the hidden parts. So the extension then copies the parts the
+  copy lacks: the hidden curves, wind and rig parts, and the leaves and blossoms. *Duplicate Sapling
+  Tree*, in the *Sapling* tab or the *Object* menu, does the same from any part of the tree.
 - **Leaf Material** (Leaves page, on by default): Mesh leaves get the material *Sapling Leaf*. This
   material is a Principled BSDF in the **Thin Wall** mode of Blender 5.2, with thin subsurface
   scattering, so light goes through the leaves. Blossoms get *Sapling Blossom*, in the same mode.

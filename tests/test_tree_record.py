@@ -280,8 +280,9 @@ class FailureRollback(unittest.TestCase):
 
 
 class DuplicateTree(unittest.TestCase):
-    """Duplicating a tree: Blender's Duplicate copies the selected tree object only (hidden parts cannot be
-    selected); Duplicate Sapling Tree copies every part as an independent tree."""
+    """Duplicating a tree gives a whole, independent tree: Duplicate Sapling Tree copies every part, and after
+    Blender's Duplicate (which copies only the selected objects; hidden parts cannot be selected) the add-on
+    copies the parts the copy lacks."""
 
     MOVE = 5.0
 
@@ -307,22 +308,13 @@ class DuplicateTree(unittest.TestCase):
             other.select_set(other == ob)
         bpy.context.view_layer.objects.active = ob
 
-    def test_plain_duplicate_draws_at_its_own_place(self):
-        helpers.reset_scene()
-        root = add_tree(levels=2, showLeaves=False, windAnim=True)
-        self.select_only(root)
-        self.assertEqual(bpy.ops.object.duplicate(), {"FINISHED"})
-        self.assert_moved(root, helpers.active_object())
-
-    def test_duplicate_sapling_tree_copies_every_part(self):
-        helpers.reset_scene()
-        root = add_tree(levels=2, showLeaves=True, blossomRate=0.5, windAnim=True, leafFlutter=True)
+    def assert_whole_copy(self, root, copy):
+        """The copy has a part for every part of the original, none shared, all its links inside the copy, a new
+        tree id, and it draws where it stands; editing the original leaves it whole."""
         parts = {ob[record().ROLE]: ob for ob in record().owned(root)}
-        self.select_only(parts["leaves"])
-        self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
-        copy = helpers.active_object()
         copies = {ob[record().ROLE]: ob for ob in record().owned(copy)}
         self.assertEqual(sorted(copies), sorted(parts))
+        self.assertEqual(len(record().owned(copy)), len(parts), "no part is copied twice")
         self.assertNotEqual(copy[record().ID], root[record().ID])
         self.assertFalse(set(copies.values()) & set(parts.values()))
         for ob in copies.values():
@@ -338,6 +330,40 @@ class DuplicateTree(unittest.TestCase):
         self.assertEqual(edit(root, seed=7), {"FINISHED"})
         self.assertEqual(sorted(ob[record().ROLE] for ob in record().owned(copy)), sorted(parts))
         self.assertGreater(len(helpers.evaluated_vertices(copy.name)), 0)
+
+    def shift_d(self, selected):
+        """Blender's Duplicate of the selected objects, then the depsgraph update that shows the copy."""
+        for other in bpy.context.view_layer.objects:
+            other.select_set(other in selected)
+        bpy.context.view_layer.objects.active = selected[0]
+        self.assertEqual(bpy.ops.object.duplicate(), {"FINISHED"})
+        bpy.context.view_layer.update()
+        return helpers.active_object()
+
+    def test_shift_d_on_the_tree_copies_the_whole_tree(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, blossomRate=0.5, windAnim=True, leafFlutter=True)
+        self.assert_whole_copy(root, self.shift_d([root]))
+
+    def test_shift_d_of_a_blossom_only_tree_copies_the_blossoms(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, blossomRate=1.0, useRig=True, windAnim=True)
+        self.assertIn("blossoms", [ob[record().ROLE] for ob in record().owned(root)])
+        self.assert_whole_copy(root, self.shift_d([root]))
+
+    def test_shift_d_of_the_whole_hierarchy_copies_nothing_twice(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, blossomRate=0.5)
+        visible = [ob for ob in record().owned(root) if ob.visible_get()]
+        self.assertGreater(len(visible), 1)
+        self.assert_whole_copy(root, self.shift_d(visible))
+
+    def test_duplicate_sapling_tree_copies_every_part(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, blossomRate=0.5, windAnim=True, leafFlutter=True)
+        self.select_only(bpy.data.objects["leaves"])
+        self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
+        self.assert_whole_copy(root, helpers.active_object())
 
     def test_duplicate_sapling_tree_copies_the_rig(self):
         helpers.reset_scene()

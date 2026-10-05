@@ -3,10 +3,22 @@
 """Duplicating a whole tree: every object it owns, the hidden parts too, as an independent tree."""
 
 import uuid
+from collections.abc import Iterable
+from dataclasses import dataclass
 
+import bpy
 from bpy.types import ID, Object
 
 from .tree_record import TreeRecord
+from .tree_root import CurveSource
+
+
+@dataclass(frozen=True, slots=True)
+class CopiedRoot:
+    """A tree object Blender's Duplicate copied without the tree's parts, and the tree it was copied from."""
+
+    original: Object
+    copy: Object
 
 
 class TreeCopy:
@@ -20,20 +32,29 @@ class TreeCopy:
     a face-instanced leaf object: face instancing draws the leaves object's children, so it is copied too.
     """
 
-    def __init__(self, root: Object) -> None:
-        self.root = root
+    def __init__(self, original: Object) -> None:
+        self.original = original
         self.copies: dict[Object, Object] = {}
 
     def copy(self) -> Object:
         """The copied tree's root, in the original's collections and place."""
-        owned = TreeRecord.owned(self.root)
+        return self.complete(self._duplicate(self.original, own_data=True))
+
+    def complete(self, target: Object) -> Object:
+        """Make `target`, a copy of the original's root, a whole tree: the parts copied with it are kept (their
+        tree id and role match), every other part is copied; then all are relinked under a new tree id."""
+        existing = {ob[TreeRecord.ROLE]: ob for ob in TreeRecord.owned(target)[1:]}
+        owned = TreeRecord.owned(self.original)
         for ob in owned:
-            self.copies[ob] = self._duplicate(ob, own_data=True)
+            if ob is self.original:
+                self.copies[ob] = target
+            else:
+                role = ob[TreeRecord.ROLE]
+                self.copies[ob] = existing[role] if role in existing else self._duplicate(ob, own_data=True)
         for ob in owned:
-            if ob.instance_type == "FACES":
+            if ob.instance_type == "FACES" and not self.copies[ob].children:
                 for child in ob.children:
-                    if child not in self.copies:
-                        self.copies[child] = self._duplicate(child, own_data=False)
+                    self.copies[child] = self._duplicate(child, own_data=False)
         for original, duplicate in self.copies.items():
             if original.parent in self.copies:
                 duplicate.parent = self.copies[original.parent]
@@ -41,7 +62,34 @@ class TreeCopy:
         tree_id = uuid.uuid4().hex
         for ob in owned:
             self.copies[ob][TreeRecord.ID] = tree_id
-        return self.copies[self.root]
+        return target
+
+    @staticmethod
+    def copied_roots(objects: Iterable[Object]) -> list[CopiedRoot]:
+        """The tree roots among `objects` that Blender's Duplicate copied without the tree's curves, each with the
+        intact tree of the same id it came from."""
+        found = []
+        for ob in objects:
+            if TreeRecord.SETTINGS not in ob or TreeCopy._is_whole(ob):  # type: ignore[operator]  # stub: ID lacks __contains__
+                continue
+            original = next(
+                (
+                    other
+                    for other in bpy.data.objects
+                    if other is not ob
+                    and other.get(TreeRecord.ID) == ob.get(TreeRecord.ID)
+                    and TreeCopy._is_whole(other)
+                ),
+                None,
+            )
+            if original is not None:
+                found.append(CopiedRoot(original, ob))
+        return found
+
+    @staticmethod
+    def _is_whole(root: Object) -> bool:
+        """Whether a tree root has its curves (every tree does; a root copied by Duplicate does not)."""
+        return any(ob[TreeRecord.ROLE] == CurveSource.ROLE for ob in TreeRecord.owned(root)[1:])
 
     @staticmethod
     def _duplicate(ob: Object, own_data: bool) -> Object:

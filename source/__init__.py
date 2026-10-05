@@ -8,7 +8,7 @@ import bpy
 from bpy.types import Operator, Panel
 
 from .presets import PresetStore
-from .ui.duplicate import DuplicateTreeOperator
+from .ui.duplicate import CopiedTreeWatcher, DuplicateTreeOperator
 from .ui.operators import AddTreeOperator
 from .ui.panels import Menus, TreePanel
 from .ui.preset_save import SavePresetOperator
@@ -43,10 +43,12 @@ class Registration:
                 bpy.utils.unregister_class(klass)
             raise
         Menus.register()
+        CopiedTreeWatcher.register()
 
     @classmethod
     def unregister(cls) -> None:
         """Remove the menu entries and unregister the classes, in reverse order of registration."""
+        CopiedTreeWatcher.unregister()
         Menus.unregister()
         for klass in reversed(cls.CLASSES):
             bpy.utils.unregister_class(klass)

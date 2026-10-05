@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Duplicate Sapling Tree: an independent copy of the whole tree, then moved as Blender's Duplicate does."""
+"""Duplicating a tree: the Duplicate Sapling Tree operator, and Blender's own Duplicate made whole."""
 
 from typing import TYPE_CHECKING, override
 
 import bpy
-from bpy.types import Context, Event, Operator
+from bpy.app.handlers import persistent
+from bpy.types import Context, Depsgraph, Event, Object, Operator, Scene
 
 from ..build.tree_copy import TreeCopy
 from ..build.tree_record import TreeRecord
@@ -42,3 +43,31 @@ class DuplicateTreeOperator(Operator):
         result = self.execute(context)
         bpy.ops.transform.translate("INVOKE_DEFAULT")  # move the copy with the mouse, as Shift+D does
         return result
+
+
+class CopiedTreeWatcher:
+    """Makes a tree object copied by Blender's Duplicate (Shift+D, Alt+D) a whole tree.
+
+    Duplicate copies only the selected objects, so a copy of the tree object lacks the hidden parts, and the
+    leaves and blossoms unless they were selected too. After the depsgraph update that shows the copy, the
+    parts it lacks are copied from the tree it came from (TreeCopy.complete). The completed copy is whole, so
+    the next update finds nothing to do.
+    """
+
+    @staticmethod
+    @persistent
+    def on_update(scene: Scene, depsgraph: Depsgraph) -> None:
+        """depsgraph_update_post handler (persistent: it stays across file loads)."""
+        updated = [update.id.original for update in depsgraph.updates if isinstance(update.id, Object)]
+        for found in TreeCopy.copied_roots(updated):  # type: ignore[arg-type]  # .original of an Object is an Object
+            TreeCopy(found.original).complete(found.copy)
+
+    @classmethod
+    def register(cls) -> None:
+        """Watch the depsgraph updates (on add-on register)."""
+        bpy.app.handlers.depsgraph_update_post.append(cls.on_update)
+
+    @classmethod
+    def unregister(cls) -> None:
+        """Stop watching (on add-on unregister)."""
+        bpy.app.handlers.depsgraph_update_post.remove(cls.on_update)
