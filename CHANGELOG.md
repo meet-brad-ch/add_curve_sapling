@@ -37,8 +37,11 @@
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their
   Weber–Penn values to the settings of Sapling. The presets were checked against renders of tree-gen's
   own trees in Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak,
-  Sphere Tree) and random branch bending. Sapling did not have these features. tree-gen's palm, fan palm and
-  bamboo are not ported (Sapling has no fronds).
+  Sphere Tree) and random branch bending. Sapling did not have these features.
+- 3 more presets ported from tree-gen: *Palm*, *Fan Palm* and *Bamboo*. They use *Trunks*, *Trunks Face
+  Out*, *Count Above Base*, *Leaves Above Base* and *Fan Angles*. Measured against tree-gen (seeds 1 to
+  5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees), bamboo 50 culms
+  with 1,250 branches (1,197).
 
 ### Fixed
 

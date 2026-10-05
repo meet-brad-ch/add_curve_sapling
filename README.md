@@ -67,9 +67,10 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   *Limit Import* (off by default) loads a preset with 2 levels and no leaves. This is faster, but
   trees with more levels look bare. To save your settings, type a name and click *Save Preset*. Your
   presets are in the user folder of the extension (`extensions/.user/<repo>/sapling_tree_gen/presets`).
-  Fifteen built-in presets come from tree-gen: *Acer*, *Apple*, *Balsam Fir*, *Black Oak*, *Black
-  Tupelo*, *Cambridge Oak*, *Douglas Fir*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*,
-  *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch*, *Sphere Tree* and *Willow* (see Credits).
+  Eighteen built-in presets come from tree-gen: *Acer*, *Apple*, *Balsam Fir*, *Bamboo*, *Black Oak*,
+  *Black Tupelo*, *Cambridge Oak*, *Douglas Fir*, *European Larch*, *Fan Palm*, *Hill Cherry*,
+  *Lombardy Poplar*, *Palm*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch*, *Sphere Tree* and
+  *Willow* (see Credits).
   *Cambridge Oak*, the largest preset, generates in about 1 s.
 - **Edit Sapling Tree:** Select a part of a generated tree. Click *Edit Sapling Tree* in the
   *Sapling* tab of the sidebar (N) or in the *Object* menu. The settings that made the tree open
@@ -163,7 +164,7 @@ the times depend on the machine.
     and their parameters (`BuildParams`)
   - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
-  - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 15 from tree-gen
+  - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 18 from tree-gen
 - `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
   fingerprints of 55 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
@@ -234,10 +235,9 @@ Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7). 
 Kutsniashvili and many Blender contributors maintained it (see `git log`). The license is
 GPL-3.0-or-later (see `source/blender_manifest.toml`).
 
-Fifteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `black_oak`, `black_tupelo`,
-`cambridge_oak`, `douglas_fir`, `european_larch`, `hill_cherry`, `lombardy_poplar`,
-`quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and `willow` (tree-gen's weeping
-willow). They come from tree-gen (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and
+Eighteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `bamboo`, `black_oak`,
+`black_tupelo`, `cambridge_oak`, `douglas_fir`, `european_larch`, `fan_palm`, `hill_cherry`,
+`lombardy_poplar`, `palm`, `quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and
+`willow` (tree-gen's weeping willow). They come from tree-gen (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and
 contributors. `tools/port_treegen.py` maps their Weber–Penn values to the settings of Sapling and
-documents the mapping. These files are GPL-3.0-only, as tree-gen is. Its palm, fan palm and bamboo
-are not ported: their fronds do not map to Sapling's leaves.
+documents the mapping. These files are GPL-3.0-only, as tree-gen is.

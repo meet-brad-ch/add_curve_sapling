@@ -32,6 +32,9 @@ PRESETS = (
     "sassafras",
     "silver_birch",
     "sphere_tree",
+    "palm",
+    "fan_palm",
+    "bamboo",
 )
 
 # Cases on quaking_aspen pin its former 2 levels and leaves off, so they keep testing the trees they were recorded with

@@ -1,0 +1,312 @@
+{
+ "blender": "5.2.2 LTS",
+ "fingerprint": {
+  "leaves": {
+   "data": {
+    "co": "5edd13fd4a980332",
+    "edges": 25725,
+    "faces": 7350,
+    "topology": "5f3ee7b1f13f0614",
+    "uv": "39ea240145bd3c28",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 22050
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
+  },
+  "tree": {
+   "data": {
+    "co": "da39a3ee5e6b4b0d",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 0
+   },
+   "evaluated": {
+    "co": "b6013bc6a2644b3d",
+    "edges": 11532,
+    "faces": 5688,
+    "verts": 5844
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "NODES"
+   ],
+   "node_inputs": {
+    "Sapling Tree": {
+     "group": "Sapling Tree",
+     "inputs": {
+      "Bevel Depth": 1.0,
+      "Bevel Resolution": 1,
+      "Curves": "tree_curves",
+      "Fast Preview": false,
+      "Fill Caps": false,
+      "Joints": null,
+      "Material": "Sapling Bark",
+      "Resolution U": 4,
+      "Rig": false,
+      "Wind": false,
+      "Wind Joints": null
+     }
+    }
+   },
+   "parent": null,
+   "type": "MESH",
+   "vertex_groups": ""
+  },
+  "tree_curves": {
+   "data": {
+    "points": 263,
+    "spline_digests": [
+     "bc17124a3c0759db",
+     "c4cd92c23af09f76",
+     "46a1ff523b217421",
+     "3d33be27a4677455",
+     "493a3413fc120b36",
+     "d27b5ed75e92022d",
+     "d3407a694492ae09",
+     "8c962ce8f557612a",
+     "1e9bf97210708b10",
+     "4997871864d8510a",
+     "f546467f1758198e",
+     "4dcef9e3eba87108",
+     "44832a6f9cb9b983",
+     "ad2de5e0e228ce45",
+     "bbed26b40b835398",
+     "ec70120f61063159",
+     "3422cb6b861f690c",
+     "576bdaef4a6b712b",
+     "92743a0fadc85f0e",
+     "3ef6561505358f87",
+     "c2f1726917047c05",
+     "7073afe659eb2548",
+     "452565373f651f0a",
+     "519a4415cb8d37be",
+     "2d385472642d6184",
+     "71f493962e4a6f4d"
+    ],
+    "splines": 26
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "CURVES",
+   "vertex_groups": ""
+  }
+ },
+ "settings": {
+  "animationSpeed": 1.0,
+  "attractOut": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "attractUp": [
+   0.0,
+   0.0,
+   -3.0,
+   -3.0
+  ],
+  "autoTaper": true,
+  "baseSize": 0.95,
+  "baseSize_s": 0.02105263157894737,
+  "baseSplits": 0,
+  "bend": 0.0,
+  "bendV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "bevel": true,
+  "bevelRes": 1,
+  "blossomRate": 0.0,
+  "blossomScale": 0.10000000149011612,
+  "blossomShape": "cherry",
+  "branchDist": 1.0,
+  "branches": [
+   0,
+   25,
+   0,
+   0
+  ],
+  "closeTip": false,
+  "countAboveBase": true,
+  "curve": [
+   20.0,
+   40.0,
+   0.0,
+   0.0
+  ],
+  "curveBack": [
+   -10.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "curveRes": [
+   12,
+   9,
+   1,
+   1
+  ],
+  "curveV": [
+   10.0,
+   20.0,
+   0.0,
+   0.0
+  ],
+  "customShape": [
+   0.5,
+   1.0,
+   0.30000001192092896,
+   0.5
+  ],
+  "downAngle": [
+   0.0,
+   60.0,
+   50.0,
+   0.0
+  ],
+  "downAngleV": [
+   0.0,
+   -80.0,
+   -75.0,
+   0.0
+  ],
+  "fanAngles": false,
+  "fastPreview": false,
+  "flutterRandomness": 4.0,
+  "flutterSpeed": 1.0,
+  "flutterStrength": 1.0,
+  "gustFrequency": 0.07500000298023224,
+  "gustStrength": 1.0,
+  "handleType": "0",
+  "helix": [
+   false,
+   false,
+   false,
+   false
+  ],
+  "horzLeaves": true,
+  "jointLevels": 2,
+  "jointStep": [
+   1,
+   1,
+   1,
+   1
+  ],
+  "leafDist": "3",
+  "leafDownAngle": 50.0,
+  "leafDownAngleV": 75.0,
+  "leafFlutter": false,
+  "leafMaterial": true,
+  "leafRotate": -120.0,
+  "leafRotateV": 20.0,
+  "leafScale": 0.8,
+  "leafScaleT": 0.0,
+  "leafScaleV": 0.0,
+  "leafScaleX": 0.12,
+  "leafShape": "hex",
+  "leafangle": 0.0,
+  "leaves": 150,
+  "leavesAboveBase": true,
+  "length": [
+   1.0,
+   0.3,
+   9.999999974752427e-07,
+   9.999999974752427e-07
+  ],
+  "lengthV": [
+   0.0,
+   0.02,
+   0.0,
+   0.0
+  ],
+  "levels": 2,
+  "loopFrames": 0,
+  "makeMesh": false,
+  "minRadius": 0.0015,
+  "nrings": 0,
+  "prune": false,
+  "pruneBase": 0.30000001192092896,
+  "prunePowerHigh": 0.5,
+  "prunePowerLow": 0.0010000000474974513,
+  "pruneRatio": 1.0,
+  "pruneWidth": 0.4000000059604645,
+  "pruneWidthPeak": 0.6000000238418579,
+  "rMode": "rotate",
+  "radiusTweak": [
+   1.0,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "ratio": 0.015,
+  "ratioPower": 2.0,
+  "resU": 4,
+  "rootFlare": 1.297,
+  "rotate": [
+   0.0,
+   120.0,
+   -120.0,
+   0.0
+  ],
+  "rotateV": [
+   0.0,
+   60.0,
+   20.0,
+   0.0
+  ],
+  "scale": 14.0,
+  "scale0": 1.0,
+  "scaleV": 3.0,
+  "scaleV0": 0.0,
+  "seed": 0,
+  "segSplits": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "shape": "3",
+  "shapeS": "4",
+  "showLeaves": true,
+  "splitAngle": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitAngleV": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "splitBias": 0.0,
+  "splitByLen": false,
+  "splitHeight": 0.20000000298023224,
+  "taper": [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  "taperCrown": 0.0,
+  "trunks": 1,
+  "trunksFaceOut": false,
+  "useOldDownAngle": true,
+  "useParentAngle": true,
+  "useRig": false,
+  "windAnim": false,
+  "windStrength": 1.0
+ }
+}
