@@ -617,3 +617,38 @@ class PalmSettings(unittest.TestCase):
 
         self.assertLess(out_of_plane().max(), 1e-5)
         self.assertGreater(np.median(out_of_plane(fanAngles=True)), 0.1)
+
+
+class TrunksFaceOut(unittest.TestCase):
+    """Trunks Face Out turns each further trunk of a clump so that a positive Curvature bends it outward."""
+
+    CLUMP = {
+        "levels": 1,
+        "trunks": 6,
+        "curve": (60.0, 0.0, 0.0, 0.0),
+        "curveV": (0.0, 0.0, 0.0, 0.0),
+        "curveBack": (0.0, 0.0, 0.0, 0.0),
+        "attractUp": (0.0, 0.0, 0.0, 0.0),
+        "segSplits": (0.0, 0.0, 0.0, 0.0),
+        "baseSplits": 0,
+        "showLeaves": False,
+    }
+
+    def outward(self, **changes):
+        """Per further trunk, the cosine between its base's direction from the centre and its tip's sideways shift."""
+        model = grow(**self.CLUMP, **changes)
+        flat = model.curve.flatten()
+        cosines = []
+        for trunk in range(1, model.grown.level_ends[0]):
+            co = flat.co[flat.start[trunk] : flat.start[trunk + 1]].astype(np.float64)
+            base, shift = co[0, :2], co[-1, :2] - co[0, :2]
+            cosines.append(float(base @ shift / (np.linalg.norm(base) * np.linalg.norm(shift))))
+        return np.array(cosines)
+
+    def test_trunks_face_out_bend_away_from_the_centre(self):
+        cosines = self.outward(trunksFaceOut=True)
+        self.assertEqual(len(cosines), 5)
+        self.assertGreater(cosines.min(), 0.99)
+
+    def test_random_trunks_bend_any_way(self):
+        self.assertLess(self.outward().min(), 0.5)

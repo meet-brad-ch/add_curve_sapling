@@ -207,6 +207,12 @@ class TreeProperties:
         name="Trunks", description="Number of trunks growing from one root, as a clump (bamboo)", min=1,
         soft_max=100, default=1, update=update_tree,
     )  # fmt: skip
+    trunksFaceOut: BoolProperty(
+        name="Trunks Face Out",
+        description="Turn each further trunk of a clump so that its Curvature bends it away from the centre, as "
+        "tree-gen's bamboo grows. Off: each trunk curves in a random direction",
+        default=False, update=update_tree,
+    )  # fmt: skip
     baseSplits: IntProperty(
         name="Base Splits", description="Number of trunk splits at its base (nBaseSplits)", min=0, default=0,
         update=update_tree,

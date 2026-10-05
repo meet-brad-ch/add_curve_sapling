@@ -107,7 +107,8 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   heavier because every vertex is deformed. Without *Make Mesh* the branches stay a live Geometry
   Nodes sweep. An export with modifiers applied also writes that sweep as a mesh.
 - **Trunks** (Branch Splitting page): More than 1 grows a clump, such as bamboo. The further trunks
-  stand on a disc around the first, each with its own size, curve direction and branches.
+  stand on a disc around the first, each with its own size, curve direction and branches. *Trunks
+  Face Out* turns them so that they curve away from the centre.
 - **Bend Variation** (Branch Growth page): Turns each segment of a level sideways by a random angle,
   up to the value divided by the level's segments. The first segment of a stem and a segment that
   splits do not turn.

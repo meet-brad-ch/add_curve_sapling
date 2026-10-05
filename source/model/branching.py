@@ -3,7 +3,7 @@
 """Starting the stems of a level: the trunks, and one child stem per sprout point of the level above."""
 
 from dataclasses import dataclass
-from math import cos, pi, sin, sqrt
+from math import atan2, cos, pi, sin, sqrt
 from random import Random
 from typing import TYPE_CHECKING
 
@@ -226,6 +226,13 @@ class LevelStarter:
         self.rng = rng
         self.root_key = root_key
 
+    def _trunk_roll(self, position: np.ndarray) -> float:
+        """A further trunk's roll, which sets the plane it curves in: random, or with Trunks Face Out turned so a
+        positive Curvature bends it away from the clump's centre, as tree-gen turns its trunks."""
+        if self.params.trunks_face_out:
+            return atan2(float(position[1]), float(position[0])) + pi / 2
+        return self.rng.uniform(0, Angles.TAU)
+
     def trunks(self, scale: float) -> LevelGrid:
         """The trunk at the origin, then the further trunks of a clump (Trunks above 1)."""
         p = self.params
@@ -237,7 +244,7 @@ class LevelStarter:
             scales.append(p.scale + self.rng.uniform(-p.scale_v, p.scale_v))
             positions.append(position.astype(np.float64))
             radii.append(self._trunk_radius(scales[-1]))
-            rolls.append(self.rng.uniform(0, Angles.TAU))
+            rolls.append(self._trunk_roll(position))
         count = len(scales)
         trunk_radii = self._radii(0, np.array(radii))
         children = p.leaves if p.levels == 1 else p.branches[1]

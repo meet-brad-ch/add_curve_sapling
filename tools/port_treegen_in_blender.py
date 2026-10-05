@@ -7,6 +7,7 @@ both projects' code (tree-gen parametric/gen.py, Sapling source/model):
 
 - Each species is merged over tree-gen's own defaults (tree_param.py), as tree-gen does.
 - Per-level arrays with the same Weber-Penn meaning are copied; branches[0] is the number of trunks (Trunks).
+  tree-gen turns each trunk of a clump to face out, so it curves away from the centre: Trunks Face Out.
 - tree-gen counts a level's branches above the bare base and keeps leaves off the last level's bare base too:
   Count Above Base and Leaves Above Base are on. Fan leaves tilt by the down angle and vary their turn: Fan
   Angles is on for a negative leaf count.
@@ -144,6 +145,7 @@ class Porter:
             baseSize=float(base[0]),
             baseSize_s=float(base[1]) / float(base[0]) if base[0] else 0.25,
             trunks=max(1, int(tg["branches"][0])),
+            trunksFaceOut=int(tg["branches"][0]) > 1,
             branches=(0, *per_level(tg["branches"], int)[1:]),
             countAboveBase=True,
             leavesAboveBase=True,

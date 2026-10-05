@@ -130,6 +130,7 @@ class TreeParams(PlainParams):
     def _branching(self, s: Any) -> None:
         self.branches = self._ints(s.branches)
         self.trunks = int(s.trunks)
+        self.trunks_face_out = bool(s.trunksFaceOut)
         self.base_splits = int(s.baseSplits)
         self.seg_splits = self._floats(s.segSplits)
         self.split_by_len = bool(s.splitByLen)

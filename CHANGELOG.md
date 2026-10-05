@@ -17,6 +17,8 @@
   Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
   handles with their joints (Blender's Set Position moves a free handle with its point but does not
   turn it).
+- *Trunks Face Out* (Branch Splitting page): each further trunk of a clump curves away from the centre,
+  as tree-gen's bamboo grows. Off, each trunk curves in a random direction, as before.
 - *Count Above Base* (Branch Splitting page): the branch count is for the part of a stem above its bare
   base, as in tree-gen. tree-gen's palm (Trunk Height 0.95) then gets its 25 fronds in the crown
   instead of 1. Leaf counts do not change.

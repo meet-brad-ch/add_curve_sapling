@@ -68,6 +68,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ),
     # Branching options.
     ("trunks_3", "quaking_aspen", {"levels": 2, "showLeaves": False, "trunks": 3}),
+    ("trunks_face_out", "quaking_aspen", {"levels": 2, "showLeaves": False, "trunks": 5, "trunksFaceOut": True}),
     (
         "count_above_base",
         "quaking_aspen",

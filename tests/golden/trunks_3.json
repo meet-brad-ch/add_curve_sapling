@@ -351,6 +351,7 @@
   ],
   "taperCrown": 0.0,
   "trunks": 3,
+  "trunksFaceOut": false,
   "useOldDownAngle": false,
   "useParentAngle": true,
   "useRig": false,
