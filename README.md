@@ -10,8 +10,8 @@ old bugs. It also uses the Thin Wall shading of Blender 5.2 for the leaves. The 
 restructured into classes, with tests, lint and type checks.
 
 **Status:** Working on Blender 5.2.2 LTS. Tree generation, pruning, the armature rig, wind, presets,
-tree editing and the leaf material are complete. 201 automated tests pass in headless Blender, with
-99.4 % line and 96.3 % branch coverage. The features were also checked by hand in the Blender user
+tree editing and the leaf material are complete. 242 automated tests pass in headless Blender, with
+99.7 % line and 97.7 % branch coverage. The features were also checked by hand in the Blender user
 interface.
 
 ## Download
@@ -143,9 +143,10 @@ the times depend on the machine.
 
 - `source/` — the extension package
   - `model/` — the tree as arrays, without Blender: `TreeGrower`, `LevelGrower`, `LevelStarter`,
-    `LevelSprouts`, `LevelPruning`, `LevelGrid`, `KeyedRandom`, `LeafGenerator`, `TreeParams` and the
-    rotation kernels
-  - `build/` — the Blender objects: curves, leaves, armature, wind, baked mesh, materials, tree record
+    `LevelSprouts`, `LevelPruning`, `LevelGrid`, `KeyedRandom`, `LeafGenerator`, the joints and their
+    sway (`Joints`, `WindModel`), the parameters (`TreeParams`, `WindParams`) and the rotation kernels
+  - `build/` — the Blender objects: curves, leaves, armature, wind, baked mesh, materials, tree record,
+    and their parameters (`BuildParams`)
   - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
   - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 15 from tree-gen
@@ -162,6 +163,15 @@ Each item gives the decision and the reason for it.
 - **Blender 5.2 LTS only.** Older versions are not supported. Thus the code uses the 5.x animation
   API and the Thin Wall input of the Principled BSDF directly.
 - **Classes only.** All code in `source/` is in classes. `test_architecture` checks this rule.
+  `tests/` and `tools/` can use functions.
+- **Named records.** Every record in `source/` is a class with named fields: no tuple and no
+  dictionary holds a record, also as a return value. A sequence of values of one kind is a list or a
+  NumPy array. Only Blender's enum items are tuples, because its API takes them. `test_architecture`
+  checks this rule.
+- **One joint layout for the rig and the wind.** The rig's bones and the node wind's joints come from
+  the same `Joints`, with the same sway numbers. The lengths match the old per-bone mathutils code to
+  the bit. A bone direction can differ in its last float32 bit, because the reciprocal in mathutils'
+  normalize is not the correctly rounded one (measured on 20,000 vectors).
 - **The model grows the tree as NumPy arrays, without Blender.** All stems of a level advance one
   segment per step. Blender's handle calculation is ported in float32, and a test compares it with
   Blender bit for bit. The vectorized model draws its random numbers per stem, so the trees differ
@@ -181,7 +191,14 @@ Each item gives the decision and the reason for it.
   a Geometry Nodes instancer rotates each leaf from a stored rotation.
 - **Errors stop the operation.** The code has no silent defaults. The user can correct a
   `SettingsError` (or a `PresetError`). The operator's `execute` method shows these errors and
-  cancels. It is the only place that catches errors.
+  cancels. The sidebar panel's `draw` method also catches a `SettingsError`, because a draw method
+  cannot report: the panel shows the reason. A failed generation removes what it made and puts the
+  user's leaf object back where it was.
+- **Older settings are completed, and the operator says so.** A preset or a tree from an older
+  version can lack settings. The operator fills them with the defaults and reports them in a warning.
+  The built-in presets are complete. Value conversions are not defaults: one Vertical Attraction
+  value becomes the per-level values, and leaf angles of the oldest presets come from the branch
+  angles.
 - **A tree is its root and the root's descendants with the same tree id.** Edit Sapling Tree makes
   the new tree before it removes the old tree. If the edit fails, the old tree stays.
 - **The tree mesh is always the root.** A click on the branches selects the tree. If the armature
@@ -192,7 +209,7 @@ Each item gives the decision and the reason for it.
 - **Rigs are capped.** Blender creates each bone in time proportional to the bones that exist, so a
   rig of 80,000 bones takes minutes. The operator warns above 10,000 bones and refuses above 40,000.
   *Joint Levels* and *Joint Length* make smaller rigs. Wind without the rig needs no bones.
-- **`tools/check.py` checks all code.** It runs ruff (complexity 10 or less, docstrings and type
+- **`tools/check.py` checks all code.** It runs ruff (complexity 9 or less, docstrings and type
   annotations in `source/`) and mypy. It also runs the tests and requires 99 % line and 96 % branch
   coverage. Each `type: ignore` must give its reason.
 

@@ -15,8 +15,30 @@
   Sphere Tree) and random branch bending, which Sapling does not have. tree-gen's palm, fan palm and
   bamboo are not ported (Sapling has no fronds).
 
+### Fixed
+
+- A rig of 5 or more levels with a different *Joint Length* on the fourth level failed with a
+  `KeyError`, or hung a stem on the wrong bone. The first bone of a stem now hangs from the nearest
+  joint of its parent, as the node wind does.
+- *Leaf Bend* from a preset or a script was reset to 0 when the settings loaded.
+- A failed generation left the user's leaf object (Instance Faces) parented to the removed leaves.
+  Now it goes back to its parent and place.
+- A tree whose stored settings cannot be read made the sidebar panel fail on every redraw. Now the
+  panel shows the reason.
+- A class that failed to register left the classes before it registered.
+
 ### Changed
 
+- A preset or a tree from an older version that lacks settings gets their defaults, as before, and
+  the operator now names them in a warning. The built-in presets set every setting.
+- An unknown *Handle Type* or *Branching Mode* from a script or a preset is an error. Before, it
+  silently became Vector handles or Random branching.
+- The armature rig and the node wind use one joint layout and one set of sway numbers. The rig's
+  F-curve values stay within 3 float32 units of the previous values (2e-7 relative). The node wind's
+  bark and leaves move by at most 1.5e-5 against the previous build. The bones no longer get radii:
+  they served only bone envelopes, and the rig deforms by vertex groups.
+- Development: the GitHub workflow runs the full check (`python tools/check.py`) on Windows before it
+  builds the zip. Methods have a cyclomatic complexity of 9 or less.
 - The armature rig moves the bark through a hidden joint proxy mesh, *tree_joints*, instead of
   deforming a legacy curve by bone envelopes. The proxy holds every curve point and handle, weighted to
   its bone. The tree's modifier reads the posed points from it and sweeps the bark. So the bark stays the

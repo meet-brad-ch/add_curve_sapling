@@ -1,11 +1,13 @@
-# Builds the extension zip with Blender's own packer.
-# A push of a tag vX.Y.Z (the manifest version) also publishes a GitHub Release with the zip.
-# A manual run (Actions > Build extension > Run workflow) builds the zip as a run artifact only.
+# Runs the gate (python tools/check.py) on Windows, where the golden files are valid, and builds the extension
+# zip with Blender's own packer. A push of a tag vX.Y.Z (the manifest version) also publishes a GitHub Release with
+# the zip. A manual run (Actions > Build extension > Run workflow) builds the zip as a run artifact only.
 name: Build extension
 
 on:
   push:
+    branches: ["main", "revamp-5.2", "gn-tree"]
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -15,6 +17,7 @@ env:
   BLENDER_VERSION: "5.2.2"
   # blender-5.2.2.sha256, the same on the three mirrors below
   BLENDER_SHA256: "84098912789dc450e95697c4184fb8a90acbe5111c2ba4aede3fecb57806a168"
+  BLENDER_SHA256_WINDOWS: "3849d17a682cba006075aaa3f3597ecb5c9c30ec31035b2e092c53e40679b535"
   # download.blender.org answers scripts with a Cloudflare challenge; Blender's official mirrors do not
   BLENDER_MIRRORS: >-
     https://mirrors.ocf.berkeley.edu/blender/release/Blender5.2
@@ -22,7 +25,40 @@ env:
     https://mirror.clarkson.edu/blender/release/Blender5.2
 
 jobs:
+  check:
+    # the golden files hash exact float32 values of Blender 5.2.2 on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the development tools
+        shell: bash
+        run: |
+          python -m venv .venv
+          .venv/Scripts/python -m pip install -r requirements-dev.txt
+
+      - name: Download Blender
+        shell: bash
+        run: |
+          file="blender-$BLENDER_VERSION-windows-x64.zip"
+          for mirror in $BLENDER_MIRRORS; do
+            if curl -fsSL --retry 3 -o "$file" "$mirror/$file"; then break; fi
+            echo "::warning::$mirror failed"
+          done
+          echo "$BLENDER_SHA256_WINDOWS  $file" | sha256sum -c -
+          7z x -bd "$file" > /dev/null
+          echo "BLENDER=$(cygpath -w "$PWD")\\blender-$BLENDER_VERSION-windows-x64\\blender.exe" >> "$GITHUB_ENV"
+
+      - name: Gate (lint, format, types, manifest, tests with coverage)
+        shell: bash
+        run: python tools/check.py
+
   build:
+    needs: check
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
