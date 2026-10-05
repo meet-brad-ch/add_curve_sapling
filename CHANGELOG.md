@@ -17,6 +17,13 @@
   Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
   handles with their joints (Blender's Set Position moves a free handle with its point but does not
   turn it).
+- *Count Above Base* (Branch Splitting page): the branch count is for the part of a stem above its bare
+  base, as in tree-gen. tree-gen's palm (Trunk Height 0.95) then gets its 25 fronds in the crown
+  instead of 1. Leaf counts do not change.
+- *Leaves Above Base* (Leaves page): the leaves keep off the bare base of their stems, as branches do.
+  Measured on tree-gen's bamboo: 19 leaves per branch against tree-gen's 17 (32 without it).
+- *Fan Angles* (Leaves page): palmate fans use *Leaf Down Angle*, which tilts their leaves into a
+  shallow cup, and *Leaf Rotate Variation*, which turns each leaf at random, as tree-gen's fans do.
 - *Blossom Rate*, *Blossom Shape* and *Blossom Scale* (Leaves page): a part of the leaf positions grows
   a flower instead of a leaf, as tree-gen's blossoms do. The flowers are this add-on's own geometry:
   cherry (5 round petals), orange (5 narrow petals that bend back) and magnolia (8 petals in a deep

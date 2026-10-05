@@ -231,6 +231,12 @@ class TreeProperties:
         name="Split Relative to Length", description="Split in proportion to the branch length", default=False,
         update=update_tree,
     )  # fmt: skip
+    countAboveBase: BoolProperty(
+        name="Count Above Base",
+        description="The branch count is for the part of a stem above its bare base (Trunk Height), as in tree-gen. "
+        "Off: for the whole stem",
+        default=False, update=update_tree,
+    )  # fmt: skip
     branches: IntVectorProperty(
         name="Branches", description="The number of branches grown at each level (nBranches)", min=0,
         default=[50, 30, 10, 10], size=4, update=update_tree,
@@ -441,6 +447,18 @@ class TreeProperties:
         description="Give mesh leaves the Sapling Leaf material and blossoms the Sapling Blossom material. Their Thin "
         "Wall shading lets light through, as through real leaves and petals",
         default=True, update=update_leaves,
+    )  # fmt: skip
+    fanAngles: BoolProperty(
+        name="Fan Angles",
+        description="Palmate fans use Leaf Down Angle, which tilts their leaves into a shallow cup, and Leaf Rotate "
+        "Variation, which turns each leaf at random. Off: flat, even fans",
+        default=False, update=update_leaves,
+    )  # fmt: skip
+    leavesAboveBase: BoolProperty(
+        name="Leaves Above Base",
+        description="Keep the leaves off the bare base of their stems (Trunk Height times Trunk Height Scale, as for "
+        "branches). Off: leaves grow along the whole stem",
+        default=False, update=update_tree,
     )  # fmt: skip
     horzLeaves: BoolProperty(
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves

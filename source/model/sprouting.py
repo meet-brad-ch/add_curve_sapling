@@ -148,12 +148,12 @@ class LevelSprouts:
         self.params = params
         self.root_key = root_key
 
-    def plan(self, grid: LevelGrid, flat: FlatCurve, level: int, base_size: float) -> SproutArrays:
+    def plan(self, grid: LevelGrid, flat: FlatCurve, level: int, base_size: float, count_scale: float) -> SproutArrays:
         """Sprout points of every family, in order: along each stem of the family (the root, then its splits),
-        then the stem's tip."""
+        then the stem's tip. `count_scale` multiplies each stem's child count (Count Above Base)."""
         stems = grid.stems
         sizes = flat.sizes
-        positions = self._positions(grid, flat, level, base_size)
+        positions = self._positions(grid, flat, level, base_size, self._counts(stems.children, count_scale))
         stem_length = stems.segment_length * (sizes - 1)
         family_max = np.zeros(grid.rows)
         np.maximum.at(family_max, stems.root, stems.offset_length + stem_length)
@@ -167,16 +167,26 @@ class LevelSprouts:
             raise RuntimeError("a sprout point is not finite: the stem it sits on has no length")
         return sprouts.take(order)
 
-    def _positions(self, grid: LevelGrid, flat: FlatCurve, level: int, base_size: float) -> FamilyPositions:
-        """Every family's positions (0..1 along the family) that are not on its bare base."""
+    @staticmethod
+    def _counts(children: np.ndarray, count_scale: float) -> np.ndarray:
+        """Every row's child count, scaled and rounded to whole children for Count Above Base (unchanged without)."""
+        if count_scale == 1.0:
+            return children
+        return np.round(children * count_scale)
+
+    def _positions(
+        self, grid: LevelGrid, flat: FlatCurve, level: int, base_size: float, counts: np.ndarray
+    ) -> FamilyPositions:
+        """Every family's positions (0..1 along the family) that are not on its bare base; `counts` holds each
+        row's child count."""
         stems = grid.stems
         roots = np.flatnonzero(~stems.is_split & ~stems.removed)
         if level == 0:
-            return self._trunk_positions(grid, flat, roots, base_size)
+            return self._trunk_positions(grid, flat, roots, base_size, counts)
         sizes = flat.sizes
         points = np.bincount(stems.root, weights=sizes, minlength=grid.rows)[roots]
         members = np.bincount(stems.root, minlength=grid.rows)[roots]
-        children = stems.children[roots]
+        children = counts[roots]
         # every kept stem has two or more points, so a family has at least as many segments as members
         count = np.round(children / (points - members) * grid.segments).astype(np.int64)
         count = np.where(children > 0, count, 1)  # no children: one position at the tip, which never sprouts
@@ -189,7 +199,7 @@ class LevelSprouts:
         return FamilyPositions(root[keep], t[keep], index[keep])
 
     def _trunk_positions(
-        self, grid: LevelGrid, flat: FlatCurve, roots: np.ndarray, base_size: float
+        self, grid: LevelGrid, flat: FlatCurve, roots: np.ndarray, base_size: float, counts: np.ndarray
     ) -> FamilyPositions:
         """The trunks' positions: even or per segment, rings, and the Branch Distribution (a few trunks: a loop)."""
         p = self.params
@@ -200,7 +210,7 @@ class LevelSprouts:
         index_list: list[int] = []
         for root in roots.tolist():
             members = np.flatnonzero(stems.root == root)
-            children = float(stems.children[root])
+            children = float(counts[root])
             if p.rotate_mode != BranchingMode.ORIGINAL:
                 positions = [(a + 1) / children for a in range(int(children))]
             else:

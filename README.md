@@ -110,6 +110,9 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Bend Variation** (Branch Growth page): Turns each segment of a level sideways by a random angle,
   up to the value divided by the level's segments. The first segment of a stem and a segment that
   splits do not turn.
+- **Count Above Base** (Branch Splitting page), **Leaves Above Base** and **Fan Angles** (Leaves
+  page): tree-gen's ways to count branches above the bare base, keep leaves off it, and cup a
+  palmate fan. Palms and bamboo need them. Each is off by default.
 - **Blossoms** (Leaves page): *Blossom Rate* is the part of the leaf positions that grows a flower
   instead of a leaf. The flowers (cherry, orange or magnolia, *Blossom Scale* across) are in a
   separate *blossoms* object and move with the leaves.

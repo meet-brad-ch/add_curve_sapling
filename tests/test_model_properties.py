@@ -165,7 +165,7 @@ class FailFast(unittest.TestCase):
         module("model.growth").LevelGrower(params, params.scale).grow(grid, False)
         grid.co[:, 1:] = np.nan
         with self.assertRaisesRegex(RuntimeError, "not finite"):
-            module("model.sprouting").LevelSprouts(params, root_key).plan(grid, grid.flatten(), 0, 0.0)
+            module("model.sprouting").LevelSprouts(params, root_key).plan(grid, grid.flatten(), 0, 0.0, 1.0)
 
     def test_pruning_that_does_not_settle_is_an_error(self):
         pruning = helpers.module("model.pruning").LevelPruning
@@ -560,3 +560,60 @@ class HelixStems(unittest.TestCase):
         settings.update(levels=2, helix=(False, True, False, False), curveV=(20.0, -95.0, 0.0, 0.0))
         with self.assertRaisesRegex(RuntimeError, "Helix on level 2: .* It is 95 degrees"):
             helpers.generate(settings)
+
+
+class PalmSettings(unittest.TestCase):
+    """Count Above Base, Leaves Above Base and Fan Angles: tree-gen's palm, fan palm and bamboo need them."""
+
+    PALM = {"levels": 2, "baseSize": 0.95, "branches": (0, 25, 0, 0), "showLeaves": False}
+
+    @staticmethod
+    def first_level(model):
+        ends = model.grown.level_ends
+        return [i for i in range(ends[0], ends[1]) if not model.grown.bone_map[i].is_split]
+
+    @staticmethod
+    def foliage(**changes):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, showLeaves=True, **changes)
+        params = helpers.model_params(settings)
+        curve = helpers.module("model.curve_data").CurveData()
+        rng = random.Random(params.seed)
+        grown = helpers.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
+        return grown, helpers.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
+
+    def test_count_above_base_fills_the_crown(self):
+        self.assertLessEqual(len(self.first_level(grow(**self.PALM))), 2)
+        crown = grow(**self.PALM, countAboveBase=True)
+        stems = self.first_level(crown)
+        self.assertGreaterEqual(len(stems), 20)
+        flat = crown.curve.flatten()
+        trunk_top = flat.co[flat.start[0] : flat.start[1], 2].max()
+        heights = np.array([flat.co[flat.start[i], 2] for i in stems]) / trunk_top
+        self.assertGreater(heights.min(), 0.9)
+
+    def test_count_above_base_leaves_the_leaf_count(self):
+        _, plain = self.foliage(baseSize=0.4)
+        _, counted = self.foliage(baseSize=0.4, countAboveBase=True)
+        per_stem = plain.count / len(set(plain.parent_spline.tolist()))
+        counted_per_stem = counted.count / len(set(counted.parent_spline.tolist()))
+        self.assertAlmostEqual(counted_per_stem, per_stem, delta=0.15 * per_stem)
+
+    def test_leaves_above_base_keep_off_the_bare_base(self):
+        grown, plain = self.foliage(baseSize=0.4, baseSize_s=1.0)
+        self.assertLess(grown.sprouts.stem_offset[~grown.sprouts.is_tip].min(), 0.3)
+        grown, above = self.foliage(baseSize=0.4, baseSize_s=1.0, leavesAboveBase=True)
+        self.assertGreaterEqual(grown.sprouts.stem_offset[~grown.sprouts.is_tip].min(), 0.4 - 1e-9)
+        self.assertLess(above.count, plain.count)
+
+    def test_fan_angles_cup_the_fans(self):
+        def out_of_plane(**changes):
+            _, leaves = self.foliage(leaves=-7, leafRotate=200.0, leafDownAngle=-20.0, leafDownAngleV=-5.0, **changes)
+            per_leaf = leaves.vertices.reshape(leaves.count, -1, 3).astype(np.float64)
+            directions = per_leaf.mean(axis=1) - leaves.sprout_co
+            directions /= np.linalg.norm(directions, axis=1, keepdims=True)
+            fans = directions.reshape(-1, 7, 3)
+            return np.array([np.linalg.svd(fan)[1][-1] for fan in fans])
+
+        self.assertLess(out_of_plane().max(), 1e-5)
+        self.assertGreater(np.median(out_of_plane(fanAngles=True)), 0.1)

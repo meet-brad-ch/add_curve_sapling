@@ -3,15 +3,15 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "965608b1dcccbc04",
-    "edges": 3087,
-    "faces": 882,
-    "topology": "83ffb3597209477b",
-    "uv": "8b943bb927f2cc15",
+    "co": "37351717c0afea56",
+    "edges": 1470,
+    "faces": 420,
+    "topology": "b1488f75ef39a5f8",
+    "uv": "b6faa7675c88ef35",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 2646
+    "verts": 1260
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -121,7 +121,7 @@
   ],
   "autoTaper": true,
   "baseSize": 0.4000000059604645,
-  "baseSize_s": 0.25,
+  "baseSize_s": 1.0,
   "baseSplits": 0,
   "bend": 0.0,
   "bendV": [
@@ -186,7 +186,7 @@
    10.0,
    10.0
   ],
-  "fanAngles": false,
+  "fanAngles": true,
   "fastPreview": false,
   "flutterRandomness": 4.0,
   "flutterSpeed": 1.0,
@@ -213,16 +213,16 @@
   "leafDownAngleV": 10.0,
   "leafFlutter": false,
   "leafMaterial": true,
-  "leafRotate": -137.5,
-  "leafRotateV": 15.0,
+  "leafRotate": 137.5,
+  "leafRotateV": 0.0,
   "leafScale": 0.17000000178813934,
   "leafScaleT": 0.0,
   "leafScaleV": 0.0,
   "leafScaleX": 1.0,
   "leafShape": "hex",
   "leafangle": 0.0,
-  "leaves": 25,
-  "leavesAboveBase": false,
+  "leaves": -7,
+  "leavesAboveBase": true,
   "length": [
    1.0,
    0.30000001192092896,

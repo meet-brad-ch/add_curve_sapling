@@ -3,15 +3,15 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "965608b1dcccbc04",
-    "edges": 3087,
-    "faces": 882,
-    "topology": "83ffb3597209477b",
-    "uv": "8b943bb927f2cc15",
+    "co": "4003a30088de5fdb",
+    "edges": 3325,
+    "faces": 950,
+    "topology": "bc5371a7216f84d2",
+    "uv": "25d1d0f900920c58",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 2646
+    "verts": 2850
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -29,10 +29,10 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "e00495ff6ffd1514",
-    "edges": 5180,
-    "faces": 2528,
-    "verts": 2652
+    "co": "0e85b1acb40267d2",
+    "edges": 4360,
+    "faces": 2128,
+    "verts": 2232
    },
    "instance_type": "NONE",
    "modifiers": [
@@ -62,41 +62,36 @@
   },
   "tree_curves": {
    "data": {
-    "points": 189,
+    "points": 159,
     "spline_digests": [
      "aa321c81e98df4d3",
-     "0608dfe4483744f0",
-     "498096cc342547c5",
-     "b6e48d63e6143893",
-     "8f38d2e3866a1a51",
-     "e7d581f8ff7b18f3",
-     "7b7ca26f739d007c",
-     "12e6b9ef40a08e24",
-     "020e1112b3ef1922",
-     "26b620752cfd19c4",
-     "5f934123027ebd23",
-     "98a647c0c4df8012",
-     "97128e35e1923525",
-     "e91f8a29d141105b",
-     "1ffefcd809bcd08c",
-     "59163c97f633893a",
-     "5976c10a60241f01",
-     "dd05efc28c773504",
-     "d0997b49af7955d2",
-     "65c7766b913a528c",
-     "820a64a04bfafb3c",
-     "8a219496d0378cd8",
-     "8e27f7f99d0c305d",
-     "575f270387214993",
-     "7cf84e7080114783",
-     "3df2d550878ab0df",
-     "678e9c306077e5d3",
-     "14a3c04c211439c0",
-     "cce723eaae1375e5",
-     "e11195a004f75d57",
+     "755f7b10e02bad40",
+     "6be79bc1e5310e3e",
+     "1a2f7c0fbac73483",
+     "0dee7ce20b5fe98c",
+     "87700afc9909a122",
+     "ee36c47d764da9b4",
+     "9986b417d0d7ab5b",
+     "1eef446232cb30f2",
+     "7ff18f3723c680e4",
+     "9172e680d4f9c788",
+     "1773e844d175bf46",
+     "8ef4e298f6afcca3",
+     "3856ad32e615d15c",
+     "de1c9f93804261cb",
+     "80012193e0eaf2a7",
+     "64321d51b16afb49",
+     "deb52c0c82121f23",
+     "b9dcac914eb1ad85",
+     "de00fada31226f7b",
+     "ec337ebab7789cfd",
+     "c31a74f8b39f0fd5",
+     "354df0a18ccec25f",
+     "5824aa4b82a77c1b",
+     "d7661fc9cb65557a",
      "ae0632cd6e9657bf"
     ],
-    "splines": 31
+    "splines": 26
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -120,7 +115,7 @@
    0.5
   ],
   "autoTaper": true,
-  "baseSize": 0.4000000059604645,
+  "baseSize": 0.95,
   "baseSize_s": 0.25,
   "baseSplits": 0,
   "bend": 0.0,
@@ -138,12 +133,12 @@
   "branchDist": 1.0,
   "branches": [
    0,
-   50,
-   30,
-   10
+   25,
+   0,
+   0
   ],
   "closeTip": false,
-  "countAboveBase": false,
+  "countAboveBase": true,
   "curve": [
    0.0,
    -40.0,
@@ -213,8 +208,8 @@
   "leafDownAngleV": 10.0,
   "leafFlutter": false,
   "leafMaterial": true,
-  "leafRotate": -137.5,
-  "leafRotateV": 15.0,
+  "leafRotate": 137.5,
+  "leafRotateV": 0.0,
   "leafScale": 0.17000000178813934,
   "leafScaleT": 0.0,
   "leafScaleV": 0.0,

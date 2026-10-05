@@ -226,8 +226,17 @@ class LeafGenerator:
         rotation = self._turn(rotation)
         down = self._down(offset)
         scale = self._scale(offset, rotation)
+        spin += self._fan_jitter()
         draws.append(LeafDraw(sprout, spin, rotation, down, scale))
         return rotation
+
+    def _fan_jitter(self) -> float:
+        """Fan Angles: a random turn of each leaf in a palmate fan, up to Leaf Rotate Variation (nothing drawn
+        without it)."""
+        p = self.params
+        if not (p.fan_angles and p.leaves < -1):
+            return 0.0
+        return self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
 
     def _fan_step(self) -> float:
         """The angle between the leaves of a palmate fan."""
@@ -248,9 +257,10 @@ class LeafGenerator:
         return rotation + rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
 
     def _down(self, offset: float) -> float:
-        """The angle away from the stem (Leaf Down Angle); unused by palmate leaves, which draw nothing for it."""
+        """The angle away from the stem (Leaf Down Angle); palmate leaves use it only with Fan Angles (else they
+        draw nothing for it)."""
         p = self.params
-        if p.leaves < 0:
+        if p.leaves < 0 and not p.fan_angles:
             return 0.0
         if p.leaf_down_angle_v > 0.0:
             down_v = -p.leaf_down_angle_v * offset
@@ -304,7 +314,7 @@ class LeafGenerator:
         turns = []
         if (count > 0) and (rotate > 0) and p.horizontal_leaves:
             turns.append(Rotation.about(-placement.rotation + rotate, "Z"))
-        if count > 0:
+        if count > 0 or p.fan_angles:  # with Fan Angles, a fan's leaves tilt out of its plane: a shallow cup
             turns.append(Rotation.about(placement.down, "X"))
         turns.append(Rotation.about(placement.spin, "Y" if count < 0 else "Z"))
         turns.append(placement.frame)

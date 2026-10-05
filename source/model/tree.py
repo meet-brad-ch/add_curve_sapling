@@ -78,17 +78,32 @@ class TreeGrower:
         self.grower = LevelGrower(p, scale)
         self.pruning = LevelPruning(p, scale) if p.prune else None
         levels = GrownLevels()
-        base_size = p.base_size if p.levels > 1 else 0.0
+        base_size = p.base_size if (p.levels > 1 or p.leaves_above_base) else 0.0
         result = self._finish_level(starter.trunks(scale), 0, base_size, p.levels == 1, levels)
         for depth in range(1, p.levels):
             # Per-level parameters only exist for LEVELS levels; deeper levels reuse the last one
             level = TreeParams.level_index(depth)
             last_level = depth == p.levels - 1
             grid = starter.children(result.sprouts, level, depth, base_size, scale, levels.ends[-1], result.grid)
-            base_size = 0.0 if last_level else base_size * p.base_size_s
+            base_size = self._base_size(base_size, last_level)
             result = self._finish_level(grid, level, base_size, last_level, levels)
         curve.load(FlatCurve.concatenate(levels.chunks))
         return GrownTree(result.sprouts, levels.ends, BoneMap(levels.links))
+
+    def _base_size(self, parent_base: float, last_level: bool) -> float:
+        """The bare base of a level's stems: its parent level's times Trunk Height Scale. The last level's children
+        are leaves, which grow along the whole stem unless Leaves Above Base."""
+        if last_level and not self.params.leaves_above_base:
+            return 0.0
+        return parent_base * self.params.base_size_s
+
+    def _count_scale(self, base_size: float, last_level: bool) -> float:
+        """Count Above Base: a level's branch count is for the part of each stem above its bare base, so the count
+        along the whole stem is that much larger (tree-gen divides by 1 - base size). Leaf counts stay as they are;
+        a base of 1 or more leaves nothing above it to count."""
+        if not self.params.count_above_base or last_level or base_size >= 1.0:
+            return 1.0
+        return 1.0 / (1.0 - base_size)
 
     def _finish_level(
         self, grid: LevelGrid, level: int, base_size: float, last_level: bool, levels: GrownLevels
@@ -101,4 +116,5 @@ class TreeGrower:
             grid = self.pruning.grow(grid, self.grower, close_tip)
         flat = grid.flatten()
         levels.add(grid, flat, self.params.bone_step)
-        return LevelResult(grid, self.planner.plan(grid, flat, level, base_size))
+        count_scale = self._count_scale(base_size, last_level)
+        return LevelResult(grid, self.planner.plan(grid, flat, level, base_size, count_scale))

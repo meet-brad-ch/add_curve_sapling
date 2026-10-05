@@ -3170,6 +3170,7 @@
    0
   ],
   "closeTip": false,
+  "countAboveBase": false,
   "curve": [
    0.0,
    20.0,
@@ -3212,6 +3213,7 @@
    30.0,
    15.0
   ],
+  "fanAngles": false,
   "fastPreview": false,
   "flutterRandomness": 4.0,
   "flutterSpeed": 1.0,
@@ -3247,6 +3249,7 @@
   "leafShape": "rect",
   "leafangle": 0.0,
   "leaves": 200,
+  "leavesAboveBase": false,
   "length": [
    1.0,
    0.25,
