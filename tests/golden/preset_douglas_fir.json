@@ -4723,7 +4723,7 @@
   "bevel": true,
   "bevelRes": 1,
   "blossomRate": 0.0,
-  "blossomScale": 0.1,
+  "blossomScale": 0.10000000149011612,
   "blossomShape": "cherry",
   "branchDist": 1.0,
   "branches": [

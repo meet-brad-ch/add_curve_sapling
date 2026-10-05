@@ -1,17 +1,35 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
+  "blossoms": {
+   "data": {
+    "co": "aad2df4e73a3ab61",
+    "edges": 783720,
+    "faces": 279900,
+    "topology": "e9add9f47b5c52cb",
+    "uv": "493cbcd21adade38",
+    "uv_layers": [
+     "blossomUV"
+    ],
+    "verts": 515016
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": ""
+  },
   "leaves": {
    "data": {
-    "co": "7ec95445b89c6600",
-    "edges": 224406,
-    "faces": 64116,
-    "topology": "8a7ada2e6de9735e",
-    "uv": "877c77a025294f05",
+    "co": "64047f294ef2f688",
+    "edges": 146034,
+    "faces": 41724,
+    "topology": "abb5411c9e1d5da2",
+    "uv": "270571c2341c4b71",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 192348
+    "verts": 125172
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -2963,8 +2981,8 @@
   ],
   "bevel": true,
   "bevelRes": 1,
-  "blossomRate": 0.0,
-  "blossomScale": 0.1,
+  "blossomRate": 0.35,
+  "blossomScale": 0.1072,
   "blossomShape": "cherry",
   "branchDist": 1.0,
   "branches": [
