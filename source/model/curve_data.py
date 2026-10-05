@@ -56,14 +56,36 @@ class AutoHandles:
     @classmethod
     def recalculate(cls, co: np.ndarray, left: np.ndarray, right: np.ndarray, h1: np.ndarray, h2: np.ndarray) -> None:
         """Recalculate in place: co, left and right are (n, 3) float32 with n >= 2; h1, h2 the handle types."""
-        n = len(co)
+        cls.recalculate_flat(co, left, right, h1, h2, cls.ZERO, np.array([len(co) - 1]))
+
+    ZERO = np.zeros(1, dtype=np.intp)
+
+    @classmethod
+    def recalculate_flat(
+        cls,
+        co: np.ndarray,
+        left: np.ndarray,
+        right: np.ndarray,
+        h1: np.ndarray,
+        h2: np.ndarray,
+        first: np.ndarray,
+        last: np.ndarray,
+    ) -> None:
+        """Recalculate every spline of a flat point array at once (the same arithmetic as per spline).
+
+        co, left, right are (N, 3) float32 of all splines' points in order; first/last are the index of each
+        spline's first and last point. Every spline must have two or more points (one-point splines keep their
+        handles in Blender).
+        """
+        if (first == last).any():
+            raise ValueError("recalculate_flat needs splines of two or more points")
         prev = np.empty_like(co)
         nxt = np.empty_like(co)
         prev[1:] = co[:-1]
         nxt[:-1] = co[1:]
-        # a missing neighbour at an end is mirrored through the point
-        prev[0] = cls.TWO * co[0] - co[1]
-        nxt[n - 1] = cls.TWO * co[n - 1] - co[n - 2]
+        # a missing neighbour at a spline's end is mirrored through the point
+        prev[first] = cls.TWO * co[first] - co[first + 1]
+        nxt[last] = cls.TWO * co[last] - co[last - 1]
         dvec_a = co - prev
         dvec_b = nxt - co
         len_a = cls.length(dvec_a)
@@ -281,8 +303,63 @@ class CurveSplines:
         return iter(self._splines)
 
 
+class FlatCurve:
+    """Every spline's points in one array per column, in spline order, with the splines' start offsets.
+
+    co, left, right: (N, 3) float32; h1, h2: (N,) int8 handle types; radius: (N,) float32;
+    start: (S + 1,) int64, spline i holds points start[i]:start[i + 1]. What build/ writes to Blender in bulk.
+    """
+
+    def __init__(
+        self,
+        co: np.ndarray,
+        left: np.ndarray,
+        right: np.ndarray,
+        h1: np.ndarray,
+        h2: np.ndarray,
+        radius: np.ndarray,
+        start: np.ndarray,
+    ) -> None:
+        self.co = co
+        self.left = left
+        self.right = right
+        self.h1 = h1
+        self.h2 = h2
+        self.radius = radius
+        self.start = start
+
+    @property
+    def sizes(self) -> np.ndarray:
+        """Points per spline."""
+        return np.diff(self.start)
+
+
 class CurveData:
     """The tree's curve in memory: its splines, in the order they are grown."""
 
     def __init__(self) -> None:
         self.splines = CurveSplines(self)
+
+    def flatten(self) -> FlatCurve:
+        """All splines as flat arrays, handles recalculated: one pass per column instead of one per point."""
+        splines = list(self.splines)
+        for spline in splines:
+            spline.ensure_handles()
+        sizes = np.array([len(spline.co) for spline in splines], dtype=np.int64)
+        start = np.zeros(len(sizes) + 1, dtype=np.int64)
+        np.cumsum(sizes, out=start[1:])
+        return FlatCurve(
+            self._vectors(splines, "co"),
+            self._vectors(splines, "left"),
+            self._vectors(splines, "right"),
+            np.array([t for spline in splines for t in spline.h1], dtype=np.int8),
+            np.array([t for spline in splines for t in spline.h2], dtype=np.int8),
+            np.array([r for spline in splines for r in spline.radius], dtype=np.float32),
+            start,
+        )
+
+    @staticmethod
+    def _vectors(splines: list[CurveSpline], column: str) -> np.ndarray:
+        """One (N, 3) float32 array of a Vector column over all splines (the Vectors are float32 already)."""
+        values = np.array([v for spline in splines for v in getattr(spline, column)], dtype=np.float32)
+        return values.reshape(-1, 3)

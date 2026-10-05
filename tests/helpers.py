@@ -4,6 +4,8 @@
 
 import hashlib
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import bpy
@@ -90,6 +92,26 @@ def add_leaf_card() -> Any:
     card = bpy.data.objects.new(LEAF_CARD, bpy.data.meshes.new(LEAF_CARD))
     bpy.context.scene.collection.objects.link(card)
     return card
+
+
+@contextmanager
+def untraced() -> Iterator[None]:
+    """Pause coverage measurement inside: its line tracer slows a build several times over, and unevenly with
+    the tree's size (measured: exponent 1.34 traced, 0.98 untraced), so timing tests run without it. The lines
+    they run are covered by the other tests. Without the gate's coverage run, nothing is paused."""
+    try:
+        import coverage
+    except ImportError:  # the tests run without the gate's coverage package
+        measure = None
+    else:
+        measure = coverage.Coverage.current()
+    if measure is not None:
+        measure.stop()
+    try:
+        yield
+    finally:
+        if measure is not None:
+            measure.start()
 
 
 def generate(settings: dict) -> set:

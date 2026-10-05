@@ -7,6 +7,7 @@ import unittest
 
 import bpy
 import helpers
+import numpy as np
 from mathutils import Vector
 
 
@@ -51,6 +52,37 @@ class HandlesMatchBlender(unittest.TestCase):
                 self.assertEqual(bp.handle_left.to_tuple(), op.handle_left.to_tuple())
                 self.assertEqual(bp.handle_right.to_tuple(), op.handle_right.to_tuple())
                 self.assertEqual(bp.co.to_tuple(), op.co.to_tuple())
+        self.assert_flat_matches(blender, ours.flatten())
+
+    def assert_flat_matches(self, blender, flat):
+        """The flat arrays (one pass over every spline) hold exactly what Blender holds, in spline order."""
+        sizes = [len(s.bezier_points) for s in blender.splines]
+        self.assertEqual(flat.start.tolist(), [sum(sizes[:i]) for i in range(len(sizes) + 1)])
+        for name, column in (("co", flat.co), ("handle_left", flat.left), ("handle_right", flat.right)):
+            expected = np.concatenate([helpers._floats(s.bezier_points, name, 3) for s in blender.splines])
+            self.assertEqual(column.dtype, np.float32)
+            np.testing.assert_array_equal(column.ravel(), expected, err_msg=name)
+        radius = np.concatenate([helpers._floats(s.bezier_points, "radius", 1) for s in blender.splines])
+        np.testing.assert_array_equal(flat.radius, radius)
+        types = [(p.handle_left_type, p.handle_right_type) for s in blender.splines for p in s.bezier_points]
+        names = curve_data().HandleType.NAMES
+        self.assertEqual([(names[a], names[b]) for a, b in zip(flat.h1, flat.h2, strict=True)], types)
+
+    def test_flat_handles_equal_per_spline_handles(self):
+        """recalculate_flat on all splines at once gives the per-spline recalculation's bits."""
+        rng = random.Random(11)
+        ours = curve_data().CurveData()
+        for _ in range(200):
+            self.write(ours.splines.new("BEZIER"), self.random_spline_writes(rng))
+        flat = ours.flatten()  # recalculates per spline on the way
+        left = np.zeros_like(flat.left)
+        right = np.zeros_like(flat.right)
+        first, last = flat.start[:-1], flat.start[1:] - 1
+        curve_data().AutoHandles.recalculate_flat(flat.co, left, right, flat.h1, flat.h2, first, last)
+        free = flat.h1 == curve_data().HandleType.FREE
+        np.testing.assert_array_equal(left[~free], flat.left[~free])
+        free = flat.h2 == curve_data().HandleType.FREE
+        np.testing.assert_array_equal(right[~free], flat.right[~free])
 
 
 class BlenderWriteRules(unittest.TestCase):

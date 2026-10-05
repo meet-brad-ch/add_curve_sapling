@@ -69,6 +69,9 @@ class WindJoints:
         self.sizes = [len(spline.co) for spline in curve.splines]
         self.starts = np.concatenate([[0], np.cumsum(self.sizes)[:-1]]).astype(np.int64)
         self.names: set[str] = set()
+        # Parent bone per spline, listed once: listing it per leaf made the leaves' joints quadratic (measured
+        # 17.7 s of a 30 s build on 71,905 leaves and 23,612 stems)
+        self.parent_bones = grown.bone_map.bones()
 
     def index(self, joint: str) -> int:
         """The point index (in the whole curve) of the joint's head."""
@@ -124,9 +127,8 @@ class WindJoints:
     def joint_of(self, bone: str) -> int:
         """The point index of the nearest joint at or below `bone` (rounded to Joint Length), as leaves and the
         skin mesh pick their bone in the rig."""
-        names = self.grown.bone_map.bones()
         while bone not in self.names:
-            bone = names[BoneName.spline(bone)]
+            bone = self.parent_bones[BoneName.spline(bone)]
         return self.index(bone)
 
     def leaf_joints(self, leaves: LeafSet) -> list[int]:

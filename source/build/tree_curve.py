@@ -22,17 +22,17 @@ class CurveWriter:
     @staticmethod
     def write(source: CurveData, target: Curve) -> None:
         """Append every spline of `source` to `target`, in order, with the model's handles."""
-        for spline in source.splines:
-            spline.ensure_handles()
+        flat = source.flatten()
+        for a, b in zip(flat.start[:-1].tolist(), flat.start[1:].tolist(), strict=True):
             points = target.splines.new(Bezier.SPLINE).bezier_points
-            if len(spline.co) > 1:
-                points.add(len(spline.co) - 1)
-            points.foreach_set("handle_left_type", spline.h1)
-            points.foreach_set("handle_right_type", spline.h2)
-            points.foreach_set("co", [c for v in spline.co for c in v.to_tuple()])
-            points.foreach_set("handle_left", [c for v in spline.left for c in v.to_tuple()])
-            points.foreach_set("handle_right", [c for v in spline.right for c in v.to_tuple()])
-            points.foreach_set("radius", spline.radius)
+            if b - a > 1:
+                points.add(b - a - 1)
+            points.foreach_set("handle_left_type", flat.h1[a:b].tolist())
+            points.foreach_set("handle_right_type", flat.h2[a:b].tolist())
+            points.foreach_set("co", flat.co[a:b].ravel())
+            points.foreach_set("handle_left", flat.left[a:b].ravel())
+            points.foreach_set("handle_right", flat.right[a:b].ravel())
+            points.foreach_set("radius", flat.radius[a:b])
 
 
 class EnvelopeBuilder:

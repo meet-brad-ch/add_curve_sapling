@@ -29,11 +29,12 @@ class LeafScaling(unittest.TestCase):
             useRig=True, windAnim=True, leafFlutter=True,
         )  # fmt: skip
         times = []
-        for _ in range(self.RUNS):
-            helpers.reset_scene()
-            started = time.perf_counter()
-            self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-            times.append(time.perf_counter() - started)
+        with helpers.untraced():
+            for _ in range(self.RUNS):
+                helpers.reset_scene()
+                started = time.perf_counter()
+                self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+                times.append(time.perf_counter() - started)
         return min(times)
 
     def test_leaf_build_is_linear(self):
@@ -60,11 +61,12 @@ class BuildScaling(unittest.TestCase):
             windAnim=True, leafFlutter=True, makeMesh=True,
         )  # fmt: skip
         times = []
-        for _ in range(self.RUNS):
-            helpers.reset_scene()
-            started = time.perf_counter()
-            self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-            times.append(time.perf_counter() - started)
+        with helpers.untraced():
+            for _ in range(self.RUNS):
+                helpers.reset_scene()
+                started = time.perf_counter()
+                self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+                times.append(time.perf_counter() - started)
         return len(helpers.spline_points()), min(times)
 
     def test_build_is_linear(self):

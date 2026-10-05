@@ -88,20 +88,16 @@ class CurveSource:
 
     def _curves(self, curve: CurveData, root: Object) -> Object:
         data: Curves = bpy.data.hair_curves.new(self.ROLE)
-        splines = list(curve.splines)
-        for spline in splines:
-            spline.ensure_handles()
-        data.add_curves([len(spline.co) for spline in splines])
+        flat = curve.flatten()  # one array per column: each attribute is written in a single foreach_set
+        data.add_curves(flat.sizes.tolist())
         data.set_types(type="BEZIER")
-        data.position_data.foreach_set("vector", self._flat(splines, "co"))
-        for name, column in (("handle_left", "left"), ("handle_right", "right")):
-            self._attribute(data, name, "FLOAT_VECTOR", "POINT").data.foreach_set("vector", self._flat(splines, column))
-        for name, column in (("handle_type_left", "h1"), ("handle_type_right", "h2")):
-            values = np.array([t for spline in splines for t in getattr(spline, column)], np.int8)
-            self._attribute(data, name, "INT8", "POINT").data.foreach_set("value", values)
-        radii = np.array([r for spline in splines for r in spline.radius], np.float32)
-        self._attribute(data, "radius", "FLOAT", "POINT").data.foreach_set("value", radii)
-        resolution = np.full(len(splines), self.params.res_u, np.int32)
+        data.position_data.foreach_set("vector", flat.co.ravel())
+        for name, values in (("handle_left", flat.left), ("handle_right", flat.right)):
+            self._attribute(data, name, "FLOAT_VECTOR", "POINT").data.foreach_set("vector", values.ravel())
+        for name, types in (("handle_type_left", flat.h1), ("handle_type_right", flat.h2)):
+            self._attribute(data, name, "INT8", "POINT").data.foreach_set("value", types)
+        self._attribute(data, "radius", "FLOAT", "POINT").data.foreach_set("value", flat.radius)
+        resolution = np.full(len(flat.sizes), self.params.res_u, np.int32)
         self._attribute(data, "resolution", "INT", "CURVE").data.foreach_set("value", resolution)
         return self.objects.new(self.ROLE, data, parent=root)
 
@@ -109,11 +105,6 @@ class CurveSource:
     def _attribute(data: Curves, name: str, kind: str, domain: str) -> Any:
         """The attribute, made if the curves do not have it yet (typed Any: its data type depends on `kind`)."""
         return data.attributes.get(name) or data.attributes.new(name, kind, domain)  # type: ignore[arg-type]  # kind and domain are Blender's names, given by the callers
-
-    @staticmethod
-    def _flat(splines: list[Any], column: str) -> np.ndarray:
-        """A vector column of every spline, flattened."""
-        return np.array([c for spline in splines for v in getattr(spline, column) for c in v.to_tuple()], np.float32)
 
 
 class TreeSweepNodes:

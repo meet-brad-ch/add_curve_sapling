@@ -9,7 +9,7 @@ from .geometry import Bezier
 from .growth import StemGrower
 from .params import TreeParams
 from .sprouting import SproutPlanner
-from .stem import BoneLink, BoneMap, ChildPoint, Stem
+from .stem import BoneMap, ChildPoint, Stem
 
 
 class PruningSearch:
@@ -190,7 +190,7 @@ class StemBuilder:
         if inside:
             search.inside()
 
-    def _remove(self, stem: Stem, tree_spline: CurveSpline, bones: list[BoneLink]) -> list[ChildPoint]:
+    def _remove(self, stem: Stem, tree_spline: CurveSpline, bones: int) -> list[ChildPoint]:
         """A stem pruning removes: its tree spline keeps only its start point (so spline indices and the bone map
         stay aligned), its splits are dropped, and it has no sprouts: no children, no leaves."""
         self.bone_map.restore(bones)
