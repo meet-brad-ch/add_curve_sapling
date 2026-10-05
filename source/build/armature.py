@@ -8,18 +8,9 @@ from contextlib import contextmanager
 from typing import Literal
 
 import bpy
-from bpy.types import (
-    Armature,
-    ArmatureModifier,
-    BezierSplinePoint,
-    Context,
-    Curve,
-    EditBone,
-    Object,
-    SplineBezierPoints,
-)
+from bpy.types import Armature, ArmatureModifier, Context, EditBone, Object
 
-from ..model.curve_data import CurveData
+from ..model.curve_data import CurveData, FlatPoint, FlatPoints
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
@@ -45,7 +36,7 @@ class BoneGeometry:
         self.head_radii: list[float] = []
         self.tail_radii: list[float] = []
 
-    def add(self, head: BezierSplinePoint, tail: BezierSplinePoint) -> None:
+    def add(self, head: FlatPoint, tail: FlatPoint) -> None:
         """The next bone runs from curve point `head` to curve point `tail`."""
         self.heads.extend(head.co.to_tuple())
         self.tails.extend(tail.co.to_tuple())
@@ -124,9 +115,16 @@ class ArmatureBuilder:
         self.context = context
 
     def build(
-        self, root: Object, curve_ob: Object, grown: GrownTree, leaves: LeafSet | None, leaves_ob: Object | None
+        self,
+        root: Object,
+        curve_ob: Object,
+        curve: CurveData,
+        grown: GrownTree,
+        leaves: LeafSet | None,
+        leaves_ob: Object | None,
     ) -> Object:
-        """The armature object (the rig), a child of the root, with bones for the branches and wind.
+        """The armature object (the rig), a child of the root, with bones for the branches (from the grown model
+        `curve`) and wind.
 
         The bones deform the tree's curve source `curve_ob` (a legacy Curve, by bone envelopes on its points,
         as before) and the leaves (vertex groups). Switches the new armature into edit mode and back (see
@@ -159,7 +157,7 @@ class ArmatureBuilder:
         collection = armature.collections.new(self.BONE_COLLECTION)
         bones: dict[str, EditBone] = {}  # by name: Blender's own lookup by name costs more the more bones there are
         with self._editing(armature_ob):
-            self._branch_bones(armature, bones, curve_ob.data, grown, wind)  # type: ignore[arg-type]  # the curve source of a rig is a legacy Curve
+            self._branch_bones(armature, bones, curve, grown, wind)
             for bone in bones.values():  # an EditBone is assigned at the same cost however many bones there are
                 collection.assign(bone)
         collection.is_visible = p.preview_armature
@@ -219,7 +217,12 @@ class ArmatureBuilder:
             raise RuntimeError(f"Could not switch the new armature to {mode} mode")
 
     def _branch_bones(
-        self, armature: Armature, bones: dict[str, EditBone], curve: Curve, grown: GrownTree, wind: WindAnimator | None
+        self,
+        armature: Armature,
+        bones: dict[str, EditBone],
+        curve: CurveData,
+        grown: GrownTree,
+        wind: WindAnimator | None,
     ) -> None:
         """Bones along each spline (Bone Step points per bone), chained, added to `bones`; with wind, each bone
         gets its sway."""
@@ -259,10 +262,9 @@ class ArmatureBuilder:
                     wind.add_branch_sway(name, BranchSway(sway, offsets, frequencies, wind.model.gust_frequency))
         geometry.write(armature, self.BRANCH_ENVELOPE)
 
-    def _bone_splines(self, curve: Curve, grown: GrownTree) -> Iterator[tuple[int, BoneLink, SplineBezierPoints]]:
+    def _bone_splines(self, curve: CurveData, grown: GrownTree) -> Iterator[tuple[int, BoneLink, FlatPoints]]:
         """(spline index, bone link, points) of every spline that gets bones."""
         p = self.params
-        # one walk over the splines: curve.splines[i] walks the spline list up to i
         for i, (link, spline) in enumerate(zip(grown.bone_map, curve.splines, strict=True)):
             # Joint Levels: deeper levels use their parent's bones
             if i >= grown.level_ends[p.bone_levels]:

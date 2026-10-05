@@ -103,7 +103,7 @@ class TreeGenerator:
         joints = None
         if rig:
             armature_ob = ArmatureBuilder(p, rng, objects, self.context).build(
-                root, curves_ob, grown, leaf_set, leaves_ob
+                root, curves_ob, grown_curve, grown, leaf_set, leaves_ob
             )
         elif p.armature_animation:
             joints = self._node_wind(curves_ob, grown_curve, grown, rng, leaf_set, leaves_ob)

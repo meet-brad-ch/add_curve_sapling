@@ -124,6 +124,7 @@ class WindAnimator:
     BEND_LEAN = 0.6
     ACTION = "windAction"
     CHUNK = 1000
+    LAST_FRAME = 1_048_574  # Blender's last frame: an NLA strip holds its end value beyond its range
 
     def __init__(self, armature_ob: Object, model: WindModel) -> None:
         self.armature_ob = armature_ob
@@ -158,8 +159,13 @@ class WindAnimator:
             self._write(bone, sway, lambda path, index: channelbag.fcurves.new(path, index=index))
         track = ob.animation_data.nla_tracks.new()  # type: ignore[union-attr]  # created by finish()
         track.name = action.name
-        strip = track.strips.new(action.name, 1, action)
+        strip = track.strips.new(action.name, 0, action)
         strip.action_slot = slot
+        # Curves of F-modifiers alone give the action a range of one frame, and the strip would hold its end value
+        # from frame 2 on: the strip maps the whole timeline onto the action, frame for frame
+        strip.action_frame_end = self.LAST_FRAME
+        if (strip.frame_start, strip.frame_end) != (0.0, float(self.LAST_FRAME)):
+            raise RuntimeError(f"the wind strip spans {strip.frame_start}..{strip.frame_end}, not the timeline")
 
     def _write(self, bone: str, sway: BranchSway, new_curve: Callable[[str, int], FCurve]) -> None:
         """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend.

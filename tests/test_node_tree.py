@@ -3,9 +3,11 @@
 """The tree as a mesh root whose "Sapling Tree" modifier sweeps the curves to the bark, and the wind without the
 rig: forward kinematics in Geometry Nodes, matching the armature's wind."""
 
+import random
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 import bpy
 import helpers
@@ -37,6 +39,20 @@ def evaluated_counts(name):
     counts = (len(mesh.vertices), len(mesh.edges), len(mesh.polygons))
     ob.to_mesh_clear()
     return counts
+
+
+def model_joints(**changes):
+    """The WindJoints of a tree grown in the model alone (no Blender objects): (params, grown, joints)."""
+    settings = tree_settings(**changes)
+    params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
+    curve = helpers.module("model.curve_data").CurveData()
+    grown = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, params.scale)
+    return params, grown, helpers.module("build.node_wind").WindJoints(params, curve, grown)
+
+
+def grown_leaves(grown):
+    """A leaf set with no leaves (the arrays leaf_joints reads), for a tree grown in the model alone."""
+    return SimpleNamespace(parent_spline=np.zeros(0, np.int64), parent_point=np.zeros(0, np.int64), verts_per_leaf=4)
 
 
 def set_input(ob, name, value):
@@ -301,21 +317,52 @@ class NodeWindJoints(unittest.TestCase):
         self.assertGreater(moved.max(), 1e-3)
 
     def test_a_name_that_is_no_joint_is_an_error(self):
-        settings = tree_settings(levels=2, windAnim=True, makeMesh=True)
-        self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        from types import SimpleNamespace
-
-        params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
-        curve = helpers.module("model.curve_data").CurveData()
-        grown = (
-            helpers.module("model.tree")
-            .TreeGrower(params, __import__("random").Random(params.seed))
-            .grow(curve, params.scale)
-        )
-        joints = helpers.module("build.node_wind").WindJoints(params, curve, grown)
+        params, _, joints = model_joints(levels=2, windAnim=True, makeMesh=True)
         self.assertEqual(joints.joint_of("bone000.000"), 0)
         with self.assertRaisesRegex(RuntimeError, "is not a joint"):
             joints.joint_of(f"bone000.{params.curve_res[0]:03d}")  # a stem's last point starts no bone
+
+    def test_every_point_follows_the_last_joint_head_before_it(self):
+        """Joint Length 2: points 0 and 1 follow the joint at 0, points 2 and 3 the one at 2, the last the last."""
+        _, _, joints = model_joints(levels=2, makeMesh=True, jointLevels=0, jointStep=(2, 2, 1, 1))
+        point_joints = joints.point_joints()
+        self.assertEqual(len(point_joints), int(joints.flat.start[-1]))
+        checked = 0
+        for c in range(len(joints.sizes)):
+            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            if size < 2:
+                continue
+            last_head = start + (int(joints.count[c]) - 1) * 2
+            for n in range(size):
+                self.assertEqual(point_joints[start + n], min(start + (n // 2) * 2, last_head), f"curve {c} point {n}")
+                checked += 1
+        self.assertGreater(checked, 100)
+        self.assertTrue(joints.is_joint[point_joints[joints.sizes[0] :]].all())
+        ordinals = joints.ordinals(point_joints)
+        np.testing.assert_array_equal(joints.joint_point[ordinals], point_joints)
+
+    def test_points_above_the_joint_levels_follow_the_joint_their_stem_hangs_from(self):
+        _, grown, joints = model_joints(levels=3, branches=(0, 20, 5, 0), makeMesh=True, jointLevels=1)
+        point_joints = joints.point_joints()
+        trunk_points = int(joints.sizes[0])
+        self.assertTrue((point_joints[trunk_points:] < trunk_points).all(), "every branch point follows a trunk joint")
+        second_level = np.arange(grown.level_ends[0], grown.level_ends[1])
+        hanging = joints.nearest_joint(joints.link_spline[second_level], joints.link_point[second_level])
+        for c, joint in zip(second_level.tolist(), hanging.tolist(), strict=True):
+            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            self.assertTrue((point_joints[start : start + size] == joint).all(), f"curve {c}")
+        np.testing.assert_array_equal(joints.leaf_joints(grown_leaves(grown)), [])
+
+    def test_a_point_that_is_no_joint_has_no_ordinal(self):
+        _, _, joints = model_joints(levels=2, makeMesh=True, jointStep=(2, 2, 1, 1))
+        with self.assertRaisesRegex(RuntimeError, "no joint"):
+            joints.ordinals(np.array([1]))  # point 1 of the trunk is inside the first joint's span
+
+    def test_a_stem_hanging_from_no_joint_is_an_error(self):
+        _, _, joints = model_joints(levels=2)
+        joints.eligible[:] = False  # as if no curve had joints
+        with self.assertRaisesRegex(RuntimeError, "without a joint below"):
+            joints.nearest_joint(np.array([1]), np.array([0]))
 
 
 class NodeWindSkinMesh(unittest.TestCase):

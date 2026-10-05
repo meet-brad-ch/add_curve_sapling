@@ -186,6 +186,45 @@ class BoneStep(unittest.TestCase):
         self.assertEqual(matched, 4, "X and Z sway curves of both base bones")
 
 
+class LargeRigWind(unittest.TestCase):
+    """Above WindAnimator.CHUNK bones the wind's F-curves sit in one action per chunk, played by NLA strips. The
+    strips spanned frames 1 to 2 (the range of an action whose curves are all F-modifiers) and held their end value
+    from then on: the bones did not follow their F-curves (measured at 4,133 bones: 8,246 of 8,266 channels off)."""
+
+    @classmethod
+    def setUpClass(cls):
+        animator = helpers.module("build.wind").WindAnimator
+        cls.chunk = animator.CHUNK
+        animator.CHUNK = 50  # the test tree's 308 bones take the large-rig path
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(useRig=True, windAnim=True)
+        cls.result = helpers.generate(settings)
+
+    @classmethod
+    def tearDownClass(cls):
+        helpers.module("build.wind").WindAnimator.CHUNK = cls.chunk
+
+    def test_strips_span_the_timeline(self):
+        self.assertEqual(self.result, {"FINISHED"})
+        strips = [strip for track in armature().animation_data.nla_tracks for strip in track.strips]
+        self.assertGreater(len(strips), 1)
+        for strip in strips:
+            self.assertEqual((strip.frame_start, strip.action_frame_start), (0.0, 0.0), strip.name)
+            self.assertGreaterEqual(strip.frame_end, 100_000, strip.name)
+            self.assertEqual(strip.action_frame_end, strip.frame_end, strip.name)
+
+    def test_bones_follow_their_f_curves(self):
+        arm = armature()
+        curves = {(c.data_path, c.array_index): c for c in helpers.fcurves_of(arm)}
+        self.assertGreater(len(curves), 500)
+        for frame in (17, 60):
+            bpy.context.scene.frame_set(frame)
+            for bone in arm.pose.bones:
+                for index in (0, 2):
+                    curve = curves[(f'pose.bones["{bone.name}"].rotation_euler', index)]
+                    self.assertAlmostEqual(bone.rotation_euler[index], curve.evaluate(frame), places=5, msg=bone.name)
+
+
 class InstancePointLeaves(unittest.TestCase):
     """Instance Points leaves were rotated by vertex normals, which cannot be set since Blender 4.1:
     every leaf was turned by its position instead. Each instance must follow its own leaf normal."""

@@ -154,21 +154,48 @@ class WindJoints:
             raise RuntimeError(f"{bone} is not a joint")
         return point
 
+    def nearest_joint(self, spline: np.ndarray, point: np.ndarray) -> np.ndarray:
+        """Per (curve, point on it): the point index of the joint the point follows.
+
+        On a curve with joints, the last joint head at or before the point; on a curve without (above the Joint
+        Levels, or a stub), the joint its first point hangs from, found through the parents. Raises when a stem
+        hangs from no stem with joints.
+        """
+        spline = np.array(spline, dtype=np.int64)
+        point = np.array(point, dtype=np.int64)
+        found = self.eligible[spline]
+        while not found.all():  # climb to the parent's attach point until a curve with joints
+            climb = np.flatnonzero(~found)
+            if (self.link_spline[spline[climb]] < 0).any():
+                raise RuntimeError("a stem hangs from a stem without a joint below it")
+            point[climb] = self.link_point[spline[climb]]
+            spline[climb] = self.link_spline[spline[climb]]
+            found = self.eligible[spline]
+        step = self.step[spline]
+        n = np.minimum((point // step) * step, (self.count[spline] - 1) * step)
+        return self.starts[spline] + n
+
+    def point_joints(self) -> np.ndarray:
+        """Per curve point, the point index of the joint it follows (a stub trunk, which draws nothing, its own)."""
+        total = int(self.flat.start[-1])
+        spline = np.repeat(np.arange(len(self.sizes)), self.sizes)
+        point = np.arange(total) - self.starts[spline]
+        joints = np.arange(total)
+        stub = ~self.eligible[spline] & (self.link_spline[spline] < 0)
+        joints[~stub] = self.nearest_joint(spline[~stub], point[~stub])
+        return joints
+
+    def ordinals(self, joints: np.ndarray) -> np.ndarray:
+        """The consecutive number of each joint (its index in the joint arrays) for joint point indices."""
+        ordinal = np.searchsorted(self.joint_point, joints)
+        if (self.joint_point[np.minimum(ordinal, len(self.joint_point) - 1)] != joints).any():
+            raise RuntimeError("a point index that is no joint")
+        return ordinal
+
     def leaf_joints(self, leaves: LeafSet) -> np.ndarray:
         """Per leaf vertex, the joint its leaf hangs from (int32)."""
-        step = self.params.leaf_bone_step
-        spline = leaves.parent_spline.astype(np.int64)
-        point = (leaves.parent_point.astype(np.int64) // step) * step
-        found = self.is_joint[self.starts[spline] + point]
-        while not found.all():  # climb to the parent until a joint is found; every trunk has one
-            if (self.link_spline[spline[~found]] < 0).any():
-                raise RuntimeError("a leaf hangs from a stem without a joint below it")
-            next_spline = self.link_spline[spline]
-            next_point = self.link_point[spline]
-            spline = np.where(found, spline, next_spline)
-            point = np.where(found, point, next_point)
-            found = self.is_joint[self.starts[spline] + point]
-        return np.repeat(self.starts[spline] + point, leaves.verts_per_leaf).astype(np.int32)
+        joints = self.nearest_joint(leaves.parent_spline, leaves.parent_point)
+        return np.repeat(joints, leaves.verts_per_leaf).astype(np.int32)
 
     def passes(self) -> tuple[int, int]:
         """(scan passes along the longest curve, depth passes down the hierarchy) the wind group needs."""
