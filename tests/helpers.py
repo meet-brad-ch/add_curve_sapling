@@ -228,16 +228,13 @@ def _modifier_inputs(ob) -> dict:
 
 
 def tree_curves():
-    """The tree's curve source: a legacy Curve (with the armature rig) or a Curves object."""
+    """The tree's curve source, a Curves object."""
     return bpy.data.objects["tree_curves"]
 
 
 def spline_points() -> list[list[tuple[tuple[float, ...], float]]]:
-    """Per spline of the tree, its points as ((x, y, z), radius), from either kind of curve source."""
-    source = tree_curves()
-    if source.type == "CURVE":
-        return [[(p.co.to_tuple(), p.radius) for p in s.bezier_points] for s in source.data.splines]
-    curves = source.data
+    """Per spline of the tree, its points as ((x, y, z), radius)."""
+    curves = tree_curves().data
     co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
     radius = _floats(curves.attributes["radius"].data, "value", 1)
     out = []

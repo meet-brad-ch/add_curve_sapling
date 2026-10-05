@@ -124,7 +124,7 @@ class ReEdit(unittest.TestCase):
         self.assertEqual(stored["leafDupliObj"], "leaf_card")
         tree_id = root["sapling_tree"]
         tagged = sorted(ob.name for ob in bpy.data.objects if ob.get("sapling_tree") == tree_id)
-        self.assertEqual(tagged, ["leaves", "tree", "treeArm", "tree_curves"])
+        self.assertEqual(tagged, ["leaves", "tree", "treeArm", "tree_curves", "tree_joints"])
 
     def test_regenerate_in_place(self):
         root = self.generate()

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The armature: one bone per curve segment (or per Bone Step segments); the leaves follow the branch bones."""
+"""The armature: one bone per Joint Length curve segments of the stems within the Joint Levels. The bark follows
+through the joint proxy (JointProxy, deformed by vertex groups), the leaves through their own vertex groups."""
 
 import random
 from collections.abc import Iterator
@@ -43,8 +44,8 @@ class BoneGeometry:
         self.head_radii.append(head.radius)
         self.tail_radii.append(tail.radius)
 
-    def write(self, armature: Armature, envelope: float) -> None:
-        """Set every bone's head, tail, radii and envelope distance (after parenting and connecting them)."""
+    def write(self, armature: Armature) -> None:
+        """Set every bone's head, tail and radii (after parenting and connecting them)."""
         bones = armature.edit_bones
         if len(bones) != len(self.head_radii):
             raise RuntimeError(f"{len(bones)} bones for the geometry of {len(self.head_radii)}")
@@ -52,7 +53,6 @@ class BoneGeometry:
         bones.foreach_set("tail", self.tails)
         bones.foreach_set("head_radius", self.head_radii)
         bones.foreach_set("tail_radius", self.tail_radii)
-        bones.foreach_set("envelope_distance", [envelope] * len(self.head_radii))
 
 
 class RigSize:
@@ -60,21 +60,18 @@ class RigSize:
 
     Creating a bone costs Blender time in proportion to the bones already made (edit_bones.new, measured), so a
     rig's build time grows with the square of its bone count: 79,648 bones took 415 s. Joint Levels and Joint
-    Length with Make Mesh keep the count down; above WARN_BONES the operator warns, above MAX_BONES it refuses.
+    Length keep the count down; above WARN_BONES the operator warns, above MAX_BONES it refuses.
     """
 
     WARN_BONES = 10_000
     MAX_BONES = 40_000
     MEASURED = (79_648, 415.0)  # bones, seconds
-    ADVICE = (
-        "turn on Make Mesh and lower Joint Levels or raise Joint Length on the Armature page, "
-        "or use Wind without the rig"
-    )
+    ADVICE = "lower Joint Levels or raise Joint Length on the Armature page, or use Wind without the rig"
 
     @staticmethod
-    def bones(params: TreeParams, curve: CurveData, grown: GrownTree) -> int:
-        """The bones the rig makes for this tree (the node wind's joints are the same)."""
-        return int(WindJoints(params, curve, grown).count.sum())
+    def bones(joints: WindJoints) -> int:
+        """The bones the rig makes for these joints (one per joint)."""
+        return int(joints.count.sum())
 
     @classmethod
     def seconds(cls, bones: int) -> float:
@@ -98,15 +95,13 @@ class RigSize:
 
 
 class ArmatureBuilder:
-    """Builds the armature that deforms the tree curve, the leaves and the skin mesh."""
+    """Builds the armature that deforms the joint proxy (and so the bark), the leaves and the skin mesh."""
 
     ROLE = "treeArm"
     DATA_NAME = "tree"
     MODIFIER = "windSway"
     # Every bone is in this bone collection, hidden unless Fast Preview shows the armature instead of the tree
     BONE_COLLECTION = "Sapling Bones"
-    # Branch bones deform the curve through their envelopes, kept tight around the bone
-    BRANCH_ENVELOPE = 0.001
 
     def __init__(self, params: TreeParams, rng: random.Random, objects: ObjectFactory, context: Context) -> None:
         self.params = params
@@ -117,7 +112,7 @@ class ArmatureBuilder:
     def build(
         self,
         root: Object,
-        curve_ob: Object,
+        joints_ob: Object,
         curve: CurveData,
         grown: GrownTree,
         leaves: LeafSet | None,
@@ -126,8 +121,8 @@ class ArmatureBuilder:
         """The armature object (the rig), a child of the root, with bones for the branches (from the grown model
         `curve`) and wind.
 
-        The bones deform the tree's curve source `curve_ob` (a legacy Curve, by bone envelopes on its points,
-        as before) and the leaves (vertex groups). Switches the new armature into edit mode and back (see
+        The bones deform the joint proxy `joints_ob` (vertex groups named after them; the root's sweep reads the
+        posed curve from it) and the leaves (vertex groups). Switches the new armature into edit mode and back (see
         _editing). Draws from the rng only with Wind: two phase offsets per spline that gets bones, and two
         per leaf with Leaf Flutter. The bones are in a bone collection, hidden unless Fast Preview. The root
         stays the tree: a click on the branches selects it, and moving it moves the rig and all it deforms.
@@ -141,9 +136,7 @@ class ArmatureBuilder:
         fps = scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene
         wind = WindAnimator(armature_ob, WindModel(p, fps)) if p.armature_animation else None
 
-        # Curves have no vertex groups: the bone envelopes deform them
-        modifier = self.deform(curve_ob, armature_ob, by_envelopes=True)
-        modifier.use_apply_on_spline = True
+        modifier = self.deform(joints_ob, armature_ob, by_envelopes=False)
         if p.preview_armature:
             modifier.show_viewport = False
             armature.display_type = "WIRE"
@@ -260,7 +253,7 @@ class ArmatureBuilder:
                     if (link.bone == "") and (n <= step):
                         sway = (0, 0, 0, 0)
                     wind.add_branch_sway(name, BranchSway(sway, offsets, frequencies, wind.model.gust_frequency))
-        geometry.write(armature, self.BRANCH_ENVELOPE)
+        geometry.write(armature)
 
     def _bone_splines(self, curve: CurveData, grown: GrownTree) -> Iterator[tuple[int, BoneLink, FlatPoints]]:
         """(spline index, bone link, points) of every spline that gets bones."""

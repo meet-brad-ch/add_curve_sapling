@@ -16,6 +16,7 @@ from typing import Any
 
 import bpy
 import helpers
+from mathutils import Vector
 
 CASES = 100
 SEED = 20260929
@@ -171,10 +172,10 @@ class SettingsFuzz(unittest.TestCase):
 
     def assert_bones_on_splines(self):
         arm = next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
-        splines = helpers.tree_curves().data.splines
+        splines = helpers.spline_points()
         for bone in arm.data.bones:
             match = BONE_NAME.match(bone.name)
             if match:
                 spline, point = (int(g) for g in match.groups())
-                co = splines[spline].bezier_points[point].co
+                co = Vector(splines[spline][point][0])
                 self.assertLess((bone.head_local - co).length, 1e-4, bone.name)

@@ -17,13 +17,19 @@
 
 ### Changed
 
+- The armature rig moves the bark through a hidden joint proxy mesh (*tree_joints*: every curve point
+  and handle, weighted to its bone) that the tree's modifier reads and sweeps, instead of deforming a
+  legacy curve by bone envelopes. The bark stays the live sweep (Bevel inputs, Fast Preview and spline
+  edits keep working), a stem without bones of its own follows the nearest bone below it, and *Joint
+  Levels* / *Joint Length* now thin the rig with or without *Make Mesh*. Measured on Cambridge Oak with
+  *Joint Levels* 2 (3,713 bones): 0.024 s per animation frame instead of 1.9 s; the bark moves within
+  1.3 % of the envelope rig's on the test tree with every level rigged.
+- Fixed: rigs above 1,000 bones keep their wind F-curves in several actions played by NLA strips; the
+  strips spanned frames 1 to 2 and held their end value, so those bones did not follow their F-curves.
 - The armature rig refuses to build more than 40,000 bones and warns above 10,000, naming the count,
   the estimated time and the settings that lower it. Blender creates each bone in time proportional to
   the bones that already exist, so a rig's build time grows with the square of its bone count: 79,648
-  bones (Cambridge Oak, every segment) took 415 s. With *Make Mesh*, *Joint Levels* 2 rigs the trunk and
-  its branches (3,713 bones for Cambridge Oak, 11.4 s with leaves, 8 s of which is Blender's Skin
-  modifier building the 12 million vertex skin). Without *Make Mesh* every segment keeps its bone, because
-  the bark curve follows the bones through their envelopes, which cannot bind a stem without bones.
+  bones (Cambridge Oak, every segment) took 415 s.
 - *Make Mesh* builds its skeleton for all stems at once (vertices, edges, radii, roots and bone groups as
   arrays): the same mesh as before, byte for byte, in 0.3 s instead of per spline in Python.
 - The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each;

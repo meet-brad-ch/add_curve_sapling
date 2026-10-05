@@ -106,11 +106,10 @@ class TreeParams:
         self.gust_f = s.gustFrequency
         self.leaf_wind = (s.flutterStrength, s.flutterSpeed, s.flutterRandomness)
         self.make_mesh = s.makeMesh
-        # Joint Levels and Joint Length thin the rig (and the node wind's joints) only with Make Mesh: the skin
-        # mesh follows the nearest bone below through its vertex groups, while the bark curve is deformed by the
-        # bones' envelopes and a stem without bones would stay still. Plain values: read after the operator too.
-        self.armature_levels = s.jointLevels if s.makeMesh else 0
-        self.bone_step = tuple(int(step) for step in s.jointStep) if s.makeMesh else (1, 1, 1, 1)
+        # Joint Levels and Joint Length thin the rig and the node wind's joints: a stem above the levels follows
+        # the nearest joint below it. Plain values: read after the operator too.
+        self.armature_levels = s.jointLevels
+        self.bone_step = tuple(int(step) for step in s.jointStep)
         # Index of the last level with its own bones; -1 when every level has them (Joint Levels 0)
         self.bone_levels = min(self.armature_levels, self.levels) - 1
         leaf_level = self.levels - 1 if self.bone_levels == -1 else self.bone_levels

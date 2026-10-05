@@ -10,6 +10,8 @@ import unittest
 
 import bpy
 import helpers
+import numpy as np
+from mathutils import Vector
 
 
 def armature():
@@ -39,8 +41,7 @@ class SeveralTrunks(unittest.TestCase):
 
     def test_trunks_stand_on_the_ground_apart(self):
         self.assertEqual(self.result, {"FINISHED"})
-        splines = helpers.tree_curves().data.splines
-        bases = [s.bezier_points[0].co.copy() for s in splines if s.bezier_points[0].co.z == 0.0]
+        bases = [Vector(s[0][0]) for s in helpers.spline_points() if s[0][0][2] == 0.0]
         self.assertEqual(len(bases), self.TRUNKS)
         s = self.settings
         gap = 2.5 * s["scale"] * s["length"][0] * s["ratio"] * s["scale0"]
@@ -161,6 +162,15 @@ class LeafFlutterOptions(unittest.TestCase):
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["ARMATURE"])
 
 
+def bark_vertices(frame):
+    """The evaluated bark's vertex positions at a frame, as an (n, 3) array."""
+    bpy.context.scene.frame_set(frame)
+    mesh = bpy.data.objects["tree"].evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+    out = np.empty(len(mesh.vertices) * 3, np.float32)
+    mesh.vertices.foreach_get("co", out)
+    return out.reshape(-1, 3)
+
+
 def grown_tree(settings):
     """Generate a tree and return (result, params, curve, grown) as the generator grew it."""
     captured = []
@@ -181,41 +191,45 @@ def grown_tree(settings):
 
 
 class RigLevels(unittest.TestCase):
-    """With Make Mesh, Joint Levels and Joint Length thin the rig: level 1 rigs the trunks, level 2 adds their
-    branches, and so on; deeper levels of the skin mesh follow their parent's bones. Without Make Mesh every
-    segment gets a bone: the bones deform the bark curve by their envelopes, which cannot bind a boneless stem."""
+    """Joint Levels and Joint Length thin the rig: level 1 rigs the trunks, level 2 adds their branches, and so on;
+    a stem above the levels follows the nearest bone below it, bark and leaves alike."""
 
     def test_joint_levels_rig_the_trunk_only(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=3, showLeaves=True, useRig=True, jointLevels=1, makeMesh=True)
+        settings.update(levels=3, showLeaves=True, useRig=True, jointLevels=1)
         result, params, curve, grown = grown_tree(settings)
         self.assertEqual(result, {"FINISHED"})
         bone_name = helpers.module("model.stem").BoneName
         splines = {bone_name.spline(b.name) for b in armature().data.bones}
         self.assertTrue(splines)
         self.assertLess(max(splines), grown.level_ends[0], "a branch got bones of its own")
-        rig_size = helpers.module("build.armature").RigSize
-        self.assertEqual(len(armature().data.bones), rig_size.bones(params, curve, grown))
+        self.assertEqual(len(armature().data.bones), self.rig_bones(params, curve, grown))
+
+    def rig_bones(self, params, curve, grown):
+        joints = helpers.module("build.node_wind").WindJoints(params, curve, grown)
+        return helpers.module("build.armature").RigSize.bones(joints)
 
     def test_joint_length_thins_the_rig(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, useRig=True, jointLevels=2, jointStep=(2, 3, 1, 1), makeMesh=True)
+        settings.update(levels=2, useRig=True, jointLevels=2, jointStep=(2, 3, 1, 1))
         result, params, curve, grown = grown_tree(settings)
         self.assertEqual(result, {"FINISHED"})
         bone_name = helpers.module("model.stem").BoneName
         for bone in armature().data.bones:
             step = 2 if bone_name.spline(bone.name) < grown.level_ends[0] else 3
             self.assertEqual(bone_name.point(bone.name) % step, 0, bone.name)
-        rig_size = helpers.module("build.armature").RigSize
-        self.assertEqual(len(armature().data.bones), rig_size.bones(params, curve, grown))
+        self.assertEqual(len(armature().data.bones), self.rig_bones(params, curve, grown))
 
-    def test_without_make_mesh_every_segment_has_a_bone(self):
+    def test_bark_above_the_joint_levels_follows_the_bones(self):
+        """Joint Levels 1 with wind: the bark of the branches (no bones of their own) sways with the trunk's bones."""
         settings = helpers.resolve_preset("quaking_aspen.py")
-        settings.update(levels=3, useRig=True, jointLevels=1, jointStep=(2, 3, 1, 1), makeMesh=False)
-        result, _, curve, _ = grown_tree(settings)
+        settings.update(levels=3, branches=(0, 20, 5, 0), useRig=True, windAnim=True, jointLevels=1)
+        result, _, curve, grown = grown_tree(settings)
         self.assertEqual(result, {"FINISHED"})
-        sizes = curve.flatten().sizes
-        self.assertEqual(len(armature().data.bones), int((sizes[sizes >= 2] - 1).sum()))
+        moved = np.linalg.norm(bark_vertices(17) - bark_vertices(1), axis=1)
+        self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
+        bones = {b.name for b in armature().data.bones}
+        self.assertTrue(all(int(name[4:7]) < grown.level_ends[0] for name in bones), "only the trunk has bones")
 
 
 class RigSizeLimits(unittest.TestCase):

@@ -73,8 +73,10 @@
       "Curves": "tree_curves",
       "Fast Preview": false,
       "Fill Caps": false,
+      "Joints": null,
       "Material": "Sapling Bark",
       "Resolution U": 4,
+      "Rig": false,
       "Wind": true
      }
     }

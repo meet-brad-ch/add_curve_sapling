@@ -76,7 +76,7 @@ class PrunedArmature(unittest.TestCase):
     """Issue #4: armature on a pruned tree raised KeyError; bones must sit on their own spline."""
 
     def assert_bones_on_their_splines(self):
-        splines = helpers.tree_curves().data.splines
+        splines = helpers.spline_points()
         checked = 0
         for bone in armature().data.bones:
             match = BONE_NAME.match(bone.name)
@@ -84,7 +84,7 @@ class PrunedArmature(unittest.TestCase):
                 continue
             spline, point = (int(g) for g in match.groups())
             self.assertLess(spline, len(splines), bone.name)
-            co = splines[spline].bezier_points[point].co
+            co = Vector(splines[spline][point][0])
             self.assertLess((bone.head_local - co).length, 1e-4, bone.name)
             checked += 1
         self.assertGreater(checked, 0)
@@ -156,21 +156,20 @@ class BoneStep(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        # Joint Length thins the rig with Make Mesh only (the skin mesh follows the bones through its groups)
-        settings.update(useRig=True, windAnim=True, makeMesh=True, jointStep=(2, 2, 1, 1))
+        settings.update(useRig=True, windAnim=True, jointStep=(2, 2, 1, 1))
         cls.result = helpers.generate(settings)
 
     def test_tail_radius_from_tail_point(self):
         self.assertEqual(self.result, {"FINISHED"})
-        splines = helpers.tree_curves().data.splines
+        splines = helpers.spline_points()
         checked = 0
         for bone in armature().data.bones:
             match = BONE_NAME.match(bone.name)
             if not match:
                 continue
-            points = splines[int(match.group(1))].bezier_points
-            tail = next(p for p in points if (p.co - bone.tail_local).length < 1e-5)
-            self.assertAlmostEqual(bone.tail_radius, tail.radius, places=5, msg=bone.name)
+            points = splines[int(match.group(1))]
+            _co, radius = next(p for p in points if (Vector(p[0]) - bone.tail_local).length < 1e-5)
+            self.assertAlmostEqual(bone.tail_radius, radius, places=5, msg=bone.name)
             checked += 1
         self.assertGreater(checked, 10)
 
@@ -216,7 +215,8 @@ class LargeRigWind(unittest.TestCase):
     def test_bones_follow_their_f_curves(self):
         arm = armature()
         curves = {(c.data_path, c.array_index): c for c in helpers.fcurves_of(arm)}
-        self.assertGreater(len(curves), 500)
+        self.assertEqual(len(curves), 2 * len(arm.data.bones))
+        self.assertGreater(len(arm.data.bones), 50, "the rig takes the large-rig path")
         for frame in (17, 60):
             bpy.context.scene.frame_set(frame)
             for bone in arm.pose.bones:
@@ -343,7 +343,7 @@ class FailFast(unittest.TestCase):
         self.addCleanup(bpy.ops.object.mode_set, mode="OBJECT")
         armature.edit_bones.new("extra")  # a bone the geometry does not know
         with self.assertRaisesRegex(RuntimeError, "1 bones for the geometry of 0"):
-            helpers.module("build.armature").BoneGeometry().write(armature, 0.001)
+            helpers.module("build.armature").BoneGeometry().write(armature)
 
     def test_foreign_node_group_with_the_instancer_name(self):
         helpers.reset_scene()
@@ -415,8 +415,8 @@ class PrunedAwayStems(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(prune=True, pruneRatio=1.0, pruneWidth=0.25, useRig=True, windAnim=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        splines = helpers.tree_curves().data.splines
-        removed = [i for i, s in enumerate(splines) if i > 0 and len(s.bezier_points) == 1]
+        splines = helpers.spline_points()
+        removed = [i for i, s in enumerate(splines) if i > 0 and len(s) == 1]
         self.assertGreater(len(removed), 10)
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
         self.assertFalse(any(name.startswith(f"bone{i:03d}.") for name in bones for i in removed))

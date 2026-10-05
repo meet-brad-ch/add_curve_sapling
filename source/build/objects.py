@@ -13,7 +13,8 @@ from bpy.types import ID, Collection, Mesh, Object
 class ObjectFactory:
     """Creates the tree's objects in the target collections and knows each one by its role.
 
-    The role is the object's base name ("tree", "leaves", "treeArm", "treemesh", "envelope"); Blender
+    The role is the object's base name ("tree", "tree_curves", "tree_joints", "leaves", "treeArm", "treemesh",
+    "envelope"); Blender
     appends ".001" when an older tree still holds the name, and take_base_names() takes it back.
     """
 

@@ -11,7 +11,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "850830fb3f0f812a",
+    "co": "1970f9530f69c4a8",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -29,8 +29,10 @@
       "Curves": "tree_curves",
       "Fast Preview": false,
       "Fill Caps": false,
+      "Joints": "tree_joints",
       "Material": "Sapling Bark",
       "Resolution U": 4,
+      "Rig": true,
       "Wind": false
      }
     }
@@ -61,9 +63,7 @@
   },
   "tree_curves": {
    "data": {
-    "bevel_depth": 0.0,
     "points": 189,
-    "resolution_u": 4,
     "spline_digests": [
      "aa321c81e98df4d3",
      "0608dfe4483744f0",
@@ -100,12 +100,27 @@
     "splines": 31
    },
    "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "CURVES",
+   "vertex_groups": ""
+  },
+  "tree_joints": {
+   "data": {
+    "co": "ab660d29a22c1c52",
+    "edges": 0,
+    "faces": 0,
+    "topology": "da39a3ee5e6b4b0d",
+    "uv_layers": [],
+    "verts": 567
+   },
+   "instance_type": "NONE",
    "modifiers": [
     "ARMATURE"
    ],
    "parent": "tree",
-   "type": "CURVE",
-   "vertex_groups": ""
+   "type": "MESH",
+   "vertex_groups": "25803997ac698c5f"
   }
  },
  "settings": {

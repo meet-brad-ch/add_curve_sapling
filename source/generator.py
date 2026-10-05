@@ -10,12 +10,13 @@ from typing import Any
 from bpy.types import Collection, Context, Object
 
 from .build.armature import ArmatureBuilder, RigSize
+from .build.envelope import EnvelopeBuilder
+from .build.joint_proxy import JointProxy
 from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
 from .build.node_wind import NodeWind, WindJoints
 from .build.objects import ObjectFactory
 from .build.skin_mesh import SkinMeshBuilder
-from .build.tree_curve import EnvelopeBuilder
 from .build.tree_root import CurveSource, TreeRootBuilder
 from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
@@ -88,10 +89,11 @@ class TreeGenerator:
         grown = TreeGrower(p, rng).grow(grown_curve, scale)
         rig = p.use_armature
         if rig:
-            warning = RigSize.check(RigSize.bones(p, grown_curve, grown))
+            rig_joints = WindJoints(p, grown_curve, grown)
+            warning = RigSize.check(RigSize.bones(rig_joints))
             if warning:
                 self.warnings.append(warning)
-        curves_ob = CurveSource(p, objects).build(grown_curve, root, rig=rig)
+        curves_ob = CurveSource(p, objects).build(grown_curve, root)
 
         leaf_set = leaves_ob = None
         leaf_builder = LeafObjectBuilder(p, objects)
@@ -99,15 +101,18 @@ class TreeGenerator:
             leaf_set = LeafGenerator(p, rng).generate(grown.sprouts)
             leaves_ob = leaf_builder.build(leaf_set, root)
 
-        armature_ob = None
+        armature_ob = joints_ob = None
         joints = None
         if rig:
+            joints_ob = JointProxy(p, objects).build(root, grown_curve, rig_joints)
             armature_ob = ArmatureBuilder(p, rng, objects, self.context).build(
-                root, curves_ob, grown_curve, grown, leaf_set, leaves_ob
+                root, joints_ob, grown_curve, grown, leaf_set, leaves_ob
             )
         elif p.armature_animation:
             joints = self._node_wind(curves_ob, grown_curve, grown, rng, leaf_set, leaves_ob)
-        root_builder.sweep(root, curves_ob, wind=joints is not None, preview=p.preview_armature and not rig)
+        root_builder.sweep(
+            root, curves_ob, wind=joints is not None, preview=p.preview_armature and not rig, joints_ob=joints_ob
+        )
 
         if p.make_mesh:
             wind = (curves_ob, joints) if joints is not None else None

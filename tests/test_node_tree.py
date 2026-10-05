@@ -62,12 +62,38 @@ def set_input(ob, name, value):
 
 
 class LegacyBevel:
-    """The bark as the old tree drew it: a legacy curve with the same points, bevelled by Blender."""
+    """The bark as the old tree drew it: a legacy curve with the same points and handles, bevelled by Blender."""
 
     @staticmethod
-    def counts(settings):
-        source = helpers.tree_curves()
-        data = source.data.copy()
+    def legacy_curve(curves):
+        """A legacy Curve datablock with the Curves' points, handles, handle types and radii."""
+        data = bpy.data.curves.new("legacy_bevel", "CURVE")
+        data.dimensions = "3D"
+        attributes = curves.attributes
+        co = helpers._floats(curves.position_data, "vector", 3).reshape(-1, 3)
+        left = helpers._floats(attributes["handle_left"].data, "vector", 3).reshape(-1, 3)
+        right = helpers._floats(attributes["handle_right"].data, "vector", 3).reshape(-1, 3)
+        radius = helpers._floats(attributes["radius"].data, "value", 1)
+        h1 = helpers._ints(attributes["handle_type_left"].data, "value")
+        h2 = helpers._ints(attributes["handle_type_right"].data, "value")
+        start = 0
+        for c in curves.curves:
+            size = len(c.points)
+            span = slice(start, start + size)
+            points = data.splines.new("BEZIER").bezier_points
+            points.add(size - 1)
+            points.foreach_set("handle_left_type", h1[span].tolist())
+            points.foreach_set("handle_right_type", h2[span].tolist())
+            points.foreach_set("co", co[span].ravel())
+            points.foreach_set("handle_left", left[span].ravel())
+            points.foreach_set("handle_right", right[span].ravel())
+            points.foreach_set("radius", radius[span])
+            start += size
+        return data
+
+    @classmethod
+    def counts(cls, settings):
+        data = cls.legacy_curve(helpers.tree_curves().data)
         data.bevel_depth = 1.0 if settings["bevel"] else 0.0
         data.bevel_resolution = settings["bevelRes"]
         data.resolution_u = settings["resU"]
@@ -96,10 +122,10 @@ class RootSweep(unittest.TestCase):
         self.assertGreater(verts, faces)
 
     def test_sweep_counts_equal_the_old_bevel(self):
-        """The rig keeps a legacy curve source, so Blender's own bevel of the same points is the reference."""
+        """Blender's own bevel of a legacy curve with the same points is the reference."""
         for changes in ({}, {"bevelRes": 3, "resU": 2}, {"bevel": False}, {"prune": True}):
             with self.subTest(changes=changes):
-                settings = tree_settings(useRig=True, **changes)
+                settings = tree_settings(**changes)
                 self.assertEqual(helpers.generate(settings), {"FINISHED"})
                 self.assertEqual(evaluated_counts("tree"), LegacyBevel.counts(settings))
 
@@ -143,6 +169,42 @@ class RootSweep(unittest.TestCase):
         self.assertEqual(len(geometry.mesh.vertices) if geometry.mesh else 0, 0)  # the root's own, empty mesh
         self.assertGreater(len(geometry.curves.curves), 10)
         self.assertEqual(root.display_type, "TEXTURED")  # bounds are the rig's preview only
+
+
+class RigSweep(unittest.TestCase):
+    """With the rig, the bark is still the live sweep: its points and handles are read from the joint proxy, a
+    hidden mesh the bones deform through vertex groups."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.result = helpers.generate(tree_settings(useRig=True, windAnim=True))
+
+    def test_curves_source_and_joint_proxy(self):
+        self.assertEqual(self.result, {"FINISHED"})
+        root = bpy.data.objects["tree"]
+        self.assertEqual(helpers.tree_curves().type, "CURVES")
+        proxy = bpy.data.objects["tree_joints"]
+        self.assertEqual((proxy.type, proxy.parent, proxy.hide_viewport, proxy.hide_render), ("MESH", root, True, True))
+        points = sum(len(c.points) for c in helpers.tree_curves().data.curves)
+        self.assertEqual(len(proxy.data.vertices), 3 * points)
+        self.assertEqual([m.type for m in proxy.modifiers], ["ARMATURE"])
+        self.assertEqual(proxy.modifiers[0].object.name, "treeArm")
+        bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
+        self.assertEqual({g.name for g in proxy.vertex_groups}, bones)
+        self.assertTrue(all(len(v.groups) == 1 and v.groups[0].weight == 1.0 for v in proxy.data.vertices))
+        inputs = helpers._modifier_inputs(root)["Sapling Tree"]["inputs"]
+        self.assertEqual((inputs["Rig"], inputs["Wind"], inputs["Joints"]), (True, False, "tree_joints"))
+
+    def test_bark_sways_with_the_bones(self):
+        moved = np.linalg.norm(vertices("tree", 17) - vertices("tree", 1), axis=1)
+        self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
+        self.assertEqual(evaluated_counts("tree"), evaluated_counts("tree"))
+
+    def test_fast_preview_disables_the_proxy_deform(self):
+        self.assertEqual(helpers.generate(tree_settings(useRig=True, fastPreview=True)), {"FINISHED"})
+        proxy = bpy.data.objects["tree_joints"]
+        self.assertFalse(proxy.modifiers[0].show_viewport)
+        self.assertEqual(bpy.data.objects["tree"].display_type, "BOUNDS")
 
 
 class NodeWind(unittest.TestCase):

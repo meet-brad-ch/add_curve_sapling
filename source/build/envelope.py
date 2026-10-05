@@ -1,38 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The bulk writer of legacy curves (the rig's curve source), and the pruning envelope shown with the tree."""
+"""The pruning envelope shown with the tree."""
 
 import bpy
-from bpy.types import Curve, Object
+from bpy.types import Object
 from mathutils import Vector
 
-from ..model.curve_data import CurveData
 from ..model.geometry import Bezier
 from ..model.params import TreeParams
 from .objects import ObjectFactory
-
-
-class CurveWriter:
-    """Writes the grown curve into the empty tree curve: per spline one new(), one add() and one foreach_set per
-    attribute. Writing point by point costs Blender time in proportion to the number of splines; this does not.
-
-    foreach_set stores the values without recalculating handles, so the handles are the model's, exactly.
-    """
-
-    @staticmethod
-    def write(source: CurveData, target: Curve) -> None:
-        """Append every spline of `source` to `target`, in order, with the model's handles."""
-        flat = source.flatten()
-        for a, b in zip(flat.start[:-1].tolist(), flat.start[1:].tolist(), strict=True):
-            points = target.splines.new(Bezier.SPLINE).bezier_points
-            if b - a > 1:
-                points.add(b - a - 1)
-            points.foreach_set("handle_left_type", flat.h1[a:b].tolist())
-            points.foreach_set("handle_right_type", flat.h2[a:b].tolist())
-            points.foreach_set("co", flat.co[a:b].ravel())
-            points.foreach_set("handle_left", flat.left[a:b].ravel())
-            points.foreach_set("handle_right", flat.right[a:b].ravel())
-            points.foreach_set("radius", flat.radius[a:b])
 
 
 class EnvelopeBuilder:

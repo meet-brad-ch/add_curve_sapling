@@ -398,8 +398,8 @@ class TreeProperties:
     # Rig and skin mesh
     useRig: BoolProperty(
         name="Armature Rig",
-        description="Generate an armature with a bone per stem segment (Joint Length); with Wind, the wind animates "
-        "its bones",
+        description="Generate an armature whose bones move the branches: one bone per Joint Length stem segments "
+        "within the Joint Levels; with Wind, the wind animates its bones",
         default=False, update=update_tree,
     )  # fmt: skip
     makeMesh: BoolProperty(
@@ -408,13 +408,12 @@ class TreeProperties:
         default=False, update=update_tree,
     )  # fmt: skip
     jointLevels: IntProperty(
-        name="Joint Levels", description="With Make Mesh: number of branching levels that get bones (joints) of "
-        "their own; deeper levels of the skin mesh follow their parent's bones. 1 rigs the trunk, 2 adds its "
-        "branches (0 is all levels)", min=0, default=2, update=update_tree,
+        name="Joint Levels", description="Number of branching levels that get bones (joints) of their own; deeper "
+        "levels follow the nearest bone below them. 1 rigs the trunk, 2 adds its branches (0 is all levels)", min=0,
+        default=2, update=update_tree,
     )  # fmt: skip
     jointStep: IntVectorProperty(
-        name="Joint Length", description="With Make Mesh: number of stem segments per bone (joint), per level",
-        min=1,
+        name="Joint Length", description="Number of stem segments per bone (joint), per level", min=1,
         default=[1, 1, 1, 1], size=4, update=update_tree,
     )  # fmt: skip
 
