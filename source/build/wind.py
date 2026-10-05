@@ -8,6 +8,7 @@ from math import radians
 from random import Random
 
 import bpy
+import numpy as np
 from bpy.types import (
     FCurve,
     Float2Attribute,
@@ -189,12 +190,12 @@ class LeafFlutter:
         """
         size = leaves.verts_per_leaf
         mesh = leaves_ob.data
-        pivots = [c for sprout in leaves.sprouts for _ in range(size) for c in sprout.co.to_tuple()]
-        per_vertex = [o for i in range(0, len(offsets), 2) for _ in range(size) for o in offsets[i : i + 2]]
+        pivots = np.repeat(leaves.sprout_co, size, axis=0)
+        per_vertex = np.repeat(np.array(offsets, dtype=np.float32).reshape(-1, 2), size, axis=0)
         pivot: FloatVectorAttribute = mesh.attributes.new(LeafFlutterNodes.PIVOT, "FLOAT_VECTOR", "POINT")  # type: ignore[union-attr, assignment]  # leaves are a mesh; stub: new() returns the base class
-        pivot.data.foreach_set("vector", pivots)
+        pivot.data.foreach_set("vector", pivots.ravel())
         offset: Float2Attribute = mesh.attributes.new(LeafFlutterNodes.OFFSET, "FLOAT2", "POINT")  # type: ignore[union-attr, assignment]  # leaves are a mesh; stub: new() returns the base class
-        offset.data.foreach_set("vector", per_vertex)
+        offset.data.foreach_set("vector", per_vertex.ravel())
         strength, scale = model.leaf_flutter()
         LeafFlutterNodes.add_modifier(leaves_ob, strength, scale, model.params.loop_frames)
 

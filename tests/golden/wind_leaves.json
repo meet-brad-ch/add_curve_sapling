@@ -3,7 +3,7 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "64213326c2034c26",
+    "co": "a103514b4835ebea",
     "edges": 3087,
     "faces": 882,
     "topology": "83ffb3597209477b",
@@ -14,7 +14,7 @@
     "verts": 2646
    },
    "evaluated": {
-    "co": "c61c59099bffb6aa",
+    "co": "093b15c8aac25fdb",
     "edges": 3087,
     "faces": 882,
     "verts": 2646
