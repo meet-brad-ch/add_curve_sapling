@@ -88,7 +88,7 @@ class PresetErrors(unittest.TestCase):
         self.write("bad name!", repr(store().load("willow").values))
         (entry,) = [e for e in store().entries() if e.name == "bad name!"]
         self.assertIn("invalid name", entry.problem)
-        self.assert_add_fails("bad name!", "rename the file")
+        self.assert_add_fails("bad name!", "Rename the file")
 
     def test_save_rejects_bad_settings(self):
         for settings, message in (("", "Invalid settings JSON"), ("null", "not version 1 settings")):

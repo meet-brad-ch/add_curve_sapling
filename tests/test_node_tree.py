@@ -459,7 +459,7 @@ class NodeWindJoints(unittest.TestCase):
 
     def test_a_point_that_is_no_joint_has_no_ordinal(self):
         _, _, joints = model_joints(levels=2, makeMesh=True, jointStep=(2, 2, 1, 1))
-        with self.assertRaisesRegex(RuntimeError, "no joint"):
+        with self.assertRaisesRegex(RuntimeError, "not a joint"):
             joints.ordinals(np.array([1]))  # point 1 of the trunk is inside the first joint's span
 
     def test_a_stem_hanging_from_no_joint_is_an_error(self):

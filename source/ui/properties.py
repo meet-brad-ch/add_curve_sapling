@@ -38,7 +38,7 @@ class Choices:
     HANDLES = [("0", "Auto", "Smooth automatic handles"), ("1", "Vector", "Straight segments")]
     BRANCH_MODES = [
         (BranchingMode.ORIGINAL, "Original", "Rotate around each branch"),
-        (BranchingMode.ROTATE, "Rotate", "Evenly distribute branches to point outward from the center of the tree"),
+        (BranchingMode.ROTATE, "Rotate", "Spread the branches evenly, pointing outward from the center of the tree"),
         (BranchingMode.RANDOM, "Random", "Choose a random point"),
     ]
     LEAF_SHAPES = [
@@ -111,7 +111,7 @@ class TreeProperties:
         default="4", update=update_tree,
     )  # fmt: skip
     customShape: FloatVectorProperty(
-        name="Custom Shape", description="Custom shape branch length at (Base, Middle, Middle Position, Top)",
+        name="Custom Shape", description="Branch length of the custom shape at (Base, Middle, Middle Position, Top)",
         size=4, min=0.01, max=1, default=[0.5, 1.0, 0.3, 0.5], update=update_tree,
     )  # fmt: skip
     branchDist: FloatProperty(
@@ -131,7 +131,7 @@ class TreeProperties:
 
     # Branch radius
     ratio: FloatProperty(
-        name="Ratio", description="Base radius size (Ratio)", min=0.0, default=0.015, update=update_tree
+        name="Ratio", description="The base radius (Ratio)", min=0.0, default=0.015, update=update_tree
     )
     scale0: FloatProperty(
         name="Radius Scale", description="The scale of the trunk radius (0Scale)", min=0.0, default=1.0,
@@ -143,8 +143,7 @@ class TreeProperties:
     )  # fmt: skip
     ratioPower: FloatProperty(
         name="Branch Radius Ratio",
-        description="Power which defines the radius of a branch compared to the radius of the branch it grew from "
-        "(RatioPower)",
+        description="Power that gives the radius of a branch from the radius of the branch it grew from (RatioPower)",
         min=0.0, default=1.2, update=update_tree,
     )  # fmt: skip
     minRadius: FloatProperty(
@@ -157,11 +156,11 @@ class TreeProperties:
         name="Root Flare", description="Root radius factor", min=1.0, default=1.0, update=update_tree
     )
     autoTaper: BoolProperty(
-        name="Auto Taper", description="Calculate taper automatically based on branch lengths", default=True,
+        name="Auto Taper", description="Calculate the taper from the branch lengths", default=True,
         update=update_tree,
     )  # fmt: skip
     taper: FloatVectorProperty(
-        name="Taper", description="The fraction of tapering on each branch (nTaper)", min=0.0, max=1.0,
+        name="Taper", description="The taper of the branches at each level (nTaper)", min=0.0, max=1.0,
         default=[1, 1, 1, 1], size=4, update=update_tree,
     )  # fmt: skip
     radiusTweak: FloatVectorProperty(
@@ -171,7 +170,7 @@ class TreeProperties:
 
     # Branch splitting
     levels: IntProperty(
-        name="Levels", description="Number of recursive branches (Levels)", min=1, max=6, soft_max=4, default=3,
+        name="Levels", description="Number of branch levels (Levels)", min=1, max=6, soft_max=4, default=3,
         update=update_tree,
     )  # fmt: skip
     trunks: IntProperty(
@@ -199,7 +198,7 @@ class TreeProperties:
         soft_max=2.0, default=0.0, update=update_tree,
     )  # fmt: skip
     splitByLen: BoolProperty(
-        name="Split Relative to Length", description="Split proportional to branch length", default=False,
+        name="Split Relative to Length", description="Split in proportion to the branch length", default=False,
         update=update_tree,
     )  # fmt: skip
     branches: IntVectorProperty(
@@ -260,7 +259,7 @@ class TreeProperties:
     )  # fmt: skip
     downAngleV: FloatVectorProperty(
         name="Down Angle Variation",
-        description="Angle to decrease Down Angle by towards end of parent branch (negative values add random "
+        description="Decrease of the Down Angle toward the end of the parent branch (negative values add random "
         "variation)",
         default=[0, -50, 10, 10], size=4, update=update_tree,
     )  # fmt: skip
@@ -286,12 +285,12 @@ class TreeProperties:
         default=False, update=update_tree,
     )  # fmt: skip
     useParentAngle: BoolProperty(
-        name="Use Parent Angle", description="(First level) Rotate branch to match parent branch", default=True,
+        name="Use Parent Angle", description="Rotate the first-level branches to match the parent branch", default=True,
         update=update_tree,
     )  # fmt: skip
 
     # Pruning
-    prune: BoolProperty(name="Prune", description="Whether the tree is pruned", default=False, update=update_tree)
+    prune: BoolProperty(name="Prune", description="Prune the tree to the envelope", default=False, update=update_tree)
     pruneRatio: FloatProperty(
         name="Prune Ratio", description="Proportion of pruned length (PruneRatio)", min=0.0, max=1.0, default=1.0,
         update=update_tree,
@@ -301,7 +300,7 @@ class TreeProperties:
         update=update_tree,
     )  # fmt: skip
     pruneBase: FloatProperty(
-        name="Prune Base Height", description="The height of the base of the envelope, bound by trunk height",
+        name="Prune Base Height", description="The height of the base of the envelope, limited by the Trunk Height",
         min=0.0, max=1.0, default=0.3, update=update_tree,
     )  # fmt: skip
     pruneWidthPeak: FloatProperty(
@@ -311,19 +310,17 @@ class TreeProperties:
     )  # fmt: skip
     prunePowerHigh: FloatProperty(
         name="Prune Power High",
-        description="Power which determines the shape of the upper portion of the envelope (PrunePowerHigh)",
+        description="Power that shapes the upper part of the envelope (PrunePowerHigh)",
         default=0.5, update=update_tree,
     )  # fmt: skip
     prunePowerLow: FloatProperty(
         name="Prune Power Low",
-        description="Power which determines the shape of the lower portion of the envelope (PrunePowerLow)",
+        description="Power that shapes the lower part of the envelope (PrunePowerLow)",
         default=0.001, update=update_tree,
     )  # fmt: skip
 
     # Leaves
-    showLeaves: BoolProperty(
-        name="Show Leaves", description="Whether the leaves are shown", default=False, update=update_tree
-    )
+    showLeaves: BoolProperty(name="Show Leaves", description="Show the leaves", default=False, update=update_tree)
     leafShape: EnumProperty(
         name="Leaf Shape", description="The shape of the leaves", items=Choices.LEAF_SHAPES, default=LeafShape.HEX,
         update=update_leaves,
@@ -334,12 +331,12 @@ class TreeProperties:
     )  # fmt: skip
     leaves: IntProperty(
         name="Leaves",
-        description="Maximum number of leaves per branch (negative values grow leaves from branch tip (palmate "
-        "compound leaves))",
+        description="Maximum number of leaves per branch. Negative values grow a palmate fan of leaves from the "
+        "branch tip",
         default=25, update=update_tree,
     )  # fmt: skip
     leafDist: EnumProperty(
-        name="Leaf Distribution", description="The way leaves are distributed on branches",
+        name="Leaf Distribution", description="How the leaves are spread along the branches",
         items=Choices.SECONDARY_SHAPES, default="6", update=update_tree,
     )  # fmt: skip
     leafDownAngle: FloatProperty(
@@ -348,7 +345,7 @@ class TreeProperties:
     )  # fmt: skip
     leafDownAngleV: FloatProperty(
         name="Leaf Down Angle Variation",
-        description="Angle to decrease Down Angle by towards end of parent branch (negative values add random "
+        description="Decrease of the Leaf Down Angle toward the end of the parent branch (negative values add random "
         "variation)",
         default=10, update=update_leaves,
     )  # fmt: skip
@@ -363,11 +360,11 @@ class TreeProperties:
         update=update_leaves,
     )  # fmt: skip
     leafScale: FloatProperty(
-        name="Leaf Scale", description="The scaling applied to the whole leaf (LeafScale)", min=0.0, default=0.17,
+        name="Leaf Scale", description="The scale of the whole leaf (LeafScale)", min=0.0, default=0.17,
         update=update_leaves,
     )  # fmt: skip
     leafScaleX: FloatProperty(
-        name="Leaf Scale X", description="The scaling applied to the x direction of the leaf (LeafScaleX)", min=0.0,
+        name="Leaf Scale X", description="The scale of the leaf in its X direction (LeafScaleX)", min=0.0,
         default=1.0, update=update_leaves,
     )  # fmt: skip
     leafScaleT: FloatProperty(
@@ -375,11 +372,11 @@ class TreeProperties:
         max=1.0, default=0.0, update=update_leaves,
     )  # fmt: skip
     leafScaleV: FloatProperty(
-        name="Leaf Scale Variation", description="Randomize leaf scale", min=0.0, max=1.0, default=0.0,
+        name="Leaf Scale Variation", description="Random variation of the leaf scale", min=0.0, max=1.0, default=0.0,
         update=update_leaves,
     )  # fmt: skip
     bend: FloatProperty(
-        name="Leaf Bend", description="The proportion of bending applied to the leaf (Bend)", min=0.0, max=1.0,
+        name="Leaf Bend", description="How much the leaf bends (Bend)", min=0.0, max=1.0,
         default=0.0, update=update_leaves,
     )  # fmt: skip
     leafangle: FloatProperty(
@@ -387,8 +384,8 @@ class TreeProperties:
     )
     leafMaterial: BoolProperty(
         name="Leaf Material",
-        description="Give mesh leaves the Sapling Leaf material: Thin Wall shading, so light shines through the "
-        "leaves like through real ones",
+        description="Give mesh leaves the Sapling Leaf material. Its Thin Wall shading lets light through the leaves, "
+        "as through real ones",
         default=True, update=update_leaves,
     )  # fmt: skip
     horzLeaves: BoolProperty(
@@ -398,8 +395,8 @@ class TreeProperties:
     # Rig and baked mesh
     useRig: BoolProperty(
         name="Armature Rig",
-        description="Generate an armature whose bones move the branches: one bone per Joint Length stem segments "
-        "within the Joint Levels; with Wind, the wind animates its bones",
+        description="Generate an armature whose bones move the branches, one bone per Joint Length stem segments "
+        "within the Joint Levels. With Wind, the wind animates the bones",
         default=False, update=update_tree,
     )  # fmt: skip
     makeMesh: BoolProperty(
@@ -409,7 +406,7 @@ class TreeProperties:
         default=False, update=update_tree,
     )  # fmt: skip
     jointLevels: IntProperty(
-        name="Joint Levels", description="Number of branching levels that get bones (joints) of their own; deeper "
+        name="Joint Levels", description="Number of branch levels that get bones (joints) of their own. Deeper "
         "levels follow the nearest bone below them. 1 rigs the trunk, 2 adds its branches (0 is all levels)", min=0,
         default=2, update=update_tree,
     )  # fmt: skip
@@ -421,7 +418,7 @@ class TreeProperties:
     # Wind
     windAnim: BoolProperty(
         name="Wind",
-        description="Branches sway in the wind: in Geometry Nodes, or on the rig's bones with Armature Rig",
+        description="The branches sway in the wind, in Geometry Nodes or, with Armature Rig, on its bones",
         default=False, update=update_tree,
     )  # fmt: skip
     leafFlutter: BoolProperty(
@@ -430,16 +427,16 @@ class TreeProperties:
     )  # fmt: skip
     fastPreview: BoolProperty(
         name="Fast Preview",
-        description="Fast playback: the branches are drawn as their curves (with the rig: the tree as its bounds and "
-        "the bones as wire)",
+        description="Fast playback. The branches are drawn as their curves, or with the rig the tree as its bounds "
+        "and the bones as wire",
         default=False, update=update_tree,
     )  # fmt: skip
     animationSpeed: FloatProperty(
-        name="Animation Speed", description="Adjust speed of animation, relative to scene frame rate", min=0.001,
+        name="Animation Speed", description="The speed of the animation, relative to the scene frame rate", min=0.001,
         default=1, update=update_tree,
     )  # fmt: skip
     loopFrames: IntProperty(
-        name="Loop Frames", description="Number of frames to make the animation loop for, zero is disabled", min=0,
+        name="Loop Frames", description="Number of frames after which the animation repeats (0: no loop)", min=0,
         default=0, update=update_tree,
     )  # fmt: skip
     windStrength: FloatProperty(
@@ -466,7 +463,7 @@ class TreeProperties:
 
     # Presets (UI state)
     presetName: StringProperty(
-        name="Preset Name", description="The name of the preset to be saved", default="", subtype="FILE_NAME",
+        name="Preset Name", description="The name of the preset to save", default="", subtype="FILE_NAME",
         update=no_update_tree,
     )  # fmt: skip
     limitImport: BoolProperty(
@@ -474,7 +471,7 @@ class TreeProperties:
         update=no_update_tree,
     )  # fmt: skip
     overwrite: BoolProperty(
-        name="Overwrite", description="When checked, overwrite existing preset files when saving", default=False,
+        name="Overwrite", description="Overwrite an existing preset file with the same name", default=False,
         options={"SKIP_SAVE"}, update=no_update_tree,
     )  # fmt: skip
 

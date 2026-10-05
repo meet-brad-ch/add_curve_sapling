@@ -66,7 +66,7 @@ class RigSize:
     WARN_BONES = 10_000
     MAX_BONES = 40_000
     MEASURED = (79_648, 415.0)  # bones, seconds
-    ADVICE = "lower Joint Levels or raise Joint Length on the Armature page, or use Wind without the rig"
+    ADVICE = "Lower Joint Levels or raise Joint Length on the Armature page, or use Wind without the rig."
 
     @staticmethod
     def bones(joints: WindJoints) -> int:
@@ -85,12 +85,12 @@ class RigSize:
         if bones > cls.MAX_BONES:
             seconds = cls.seconds(bones)
             raise SettingsError(
-                f"The armature rig would have {bones:,} bones (limit {cls.MAX_BONES:,}; "
-                f"about {seconds:.0f} s to build): {cls.ADVICE}"
+                f"The armature rig would have {bones:,} bones, above the limit of {cls.MAX_BONES:,} "
+                f"(about {seconds:.0f} s to build). {cls.ADVICE}"
             )
         if bones > cls.WARN_BONES:
             seconds = cls.seconds(bones)
-            return f"The armature rig has {bones:,} bones; building it takes about {seconds:.0f} s: {cls.ADVICE}"
+            return f"The armature rig has {bones:,} bones and takes about {seconds:.0f} s to build. {cls.ADVICE}"
         return None
 
 

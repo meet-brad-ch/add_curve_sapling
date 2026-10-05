@@ -78,12 +78,12 @@ class LeafObjectBuilder:
         instance = bpy.data.objects.get(name)
         if instance is None:
             raise SettingsError(
-                f"Instanced leaves need a Leaf Object (Leaves page); '{name}' is not an object"
+                f"Instanced leaves need a Leaf Object (Leaves page). '{name}' is not an object"
                 if name
                 else "Instanced leaves need a Leaf Object (Leaves page)"
             )
         if instance.get(TreeRecord.ID):
-            raise SettingsError(f"Leaf Object '{name}' is part of a Sapling tree; choose your own leaf object")
+            raise SettingsError(f"Leaf Object '{name}' is part of a Sapling tree. Choose your own leaf object")
         return instance
 
     def _attach_instance_object(self, leaves_ob: Object) -> None:

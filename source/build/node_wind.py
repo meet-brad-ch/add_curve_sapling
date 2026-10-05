@@ -189,7 +189,7 @@ class WindJoints:
         """The consecutive number of each joint (its index in the joint arrays) for joint point indices."""
         ordinal = np.searchsorted(self.joint_point, joints)
         if (self.joint_point[np.minimum(ordinal, len(self.joint_point) - 1)] != joints).any():
-            raise RuntimeError("a point index that is no joint")
+            raise RuntimeError("a point index that is not a joint head")
         return ordinal
 
     def leaf_joints(self, leaves: LeafSet) -> np.ndarray:

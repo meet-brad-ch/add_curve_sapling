@@ -23,7 +23,7 @@ class SharedNodeGroup:
         """
         group = bpy.data.node_groups.get(name)
         if group is not None and group.bl_idname != "GeometryNodeTree":
-            raise SettingsError(f"Node group '{name}' exists but is not a Geometry Nodes group; rename it")
+            raise SettingsError(f"Node group '{name}' exists but is not a Geometry Nodes group. Rename it")
         if group is not None and group.get(cls.VERSION_KEY) == version:
             return group
         if group is None:

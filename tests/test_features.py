@@ -251,7 +251,7 @@ class RigSizeLimits(unittest.TestCase):
         for text in ("10,001 bones", "Joint Levels", "Joint Length", "Wind without the rig"):
             self.assertIn(text, warning)
         settings_error = helpers.module("settings").SettingsError
-        with self.assertRaisesRegex(settings_error, "40,001 bones .*limit 40,000"):
+        with self.assertRaisesRegex(settings_error, "40,001 bones.*limit of 40,000"):
             rig_size.check(rig_size.MAX_BONES + 1)
 
     def test_seconds_follow_the_measured_square_law(self):
@@ -287,6 +287,6 @@ class RigSizeLimits(unittest.TestCase):
         self.limit("MAX_BONES", 10)
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, useRig=True)
-        with self.assertRaisesRegex(RuntimeError, "bones .*limit 10.*Joint Levels"):
+        with self.assertRaisesRegex(RuntimeError, "bones.*limit of 10 .*Joint Levels"):
             helpers.generate(settings)
         self.assertEqual(len(bpy.data.objects), 0)

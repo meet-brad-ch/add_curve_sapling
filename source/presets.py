@@ -77,7 +77,7 @@ class PresetStore:
         if entry is None:
             raise PresetError(f"Preset '{name}' not found")
         if entry.problem:
-            raise PresetError(f"Preset file '{name}': {entry.problem}; rename the file")
+            raise PresetError(f"Preset file '{name}': {entry.problem}. Rename the file")
         path = (self.builtin if entry.builtin else self.user_folder(create=False)) / (name + self.SUFFIX)
         try:
             text = path.read_text(encoding="utf-8")
@@ -105,7 +105,7 @@ class PresetStore:
         folder = self.user_folder(create=True)
         same = [p for p in folder.glob("*" + self.SUFFIX) if p.stem.casefold() == name.casefold()]
         if same and not overwrite:
-            raise PresetError(f"Preset '{same[0].stem}' exists; enable Overwrite to replace it")
+            raise PresetError(f"Preset '{same[0].stem}' exists. Enable Overwrite to replace it")
         path = same[0] if same else folder / (name + self.SUFFIX)
         path.write_text(self.HEADER + repr(settings.values) + "\n", encoding="utf-8")
         return path

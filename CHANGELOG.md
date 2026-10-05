@@ -9,37 +9,38 @@
   size, curve direction and branches. With 1 trunk, trees are unchanged.
 - 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
-  Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. Its Weber–Penn values are mapped to the
-  settings of Sapling by `tools/port_treegen.py`, checked against renders of tree-gen's own trees in
-  Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak, Sphere Tree) and
-  random branch bending, which Sapling does not have. *Cambridge Oak* takes about 15 s to generate.
-  tree-gen's palm, fan palm and bamboo are not ported (no multi-stem clumps or fronds in Sapling).
+  Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their
+  Weber–Penn values to the settings of Sapling. The presets were checked against renders of tree-gen's
+  own trees in Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak,
+  Sphere Tree) and random branch bending, which Sapling does not have. tree-gen's palm, fan palm and
+  bamboo are not ported (Sapling has no fronds).
 
 ### Changed
 
-- The armature rig moves the bark through a hidden joint proxy mesh (*tree_joints*: every curve point
-  and handle, weighted to its bone) that the tree's modifier reads and sweeps, instead of deforming a
-  legacy curve by bone envelopes. The bark stays the live sweep (Bevel inputs, Fast Preview and spline
-  edits keep working), a stem without bones of its own follows the nearest bone below it, and *Joint
-  Levels* / *Joint Length* now thin the rig with or without *Make Mesh*. Measured on Cambridge Oak with
-  *Joint Levels* 2 (3,713 bones): 0.024 s per animation frame instead of 1.9 s; the bark moves within
-  1.3 % of the envelope rig's on the test tree with every level rigged.
-- Fixed: rigs above 1,000 bones keep their wind F-curves in several actions played by NLA strips; the
+- The armature rig moves the bark through a hidden joint proxy mesh, *tree_joints*, instead of
+  deforming a legacy curve by bone envelopes. The proxy holds every curve point and handle, weighted to
+  its bone. The tree's modifier reads the posed points from it and sweeps the bark. So the bark stays the
+  live sweep: the Bevel inputs, Fast Preview and spline edits keep working. A stem without bones of its
+  own follows the nearest bone below it. *Joint Levels* and *Joint Length* now thin the rig with or
+  without *Make Mesh*. Measured on Cambridge Oak with *Joint Levels* 2 (3,713 bones): 0.024 s per
+  animation frame instead of 1.9 s. On the test tree with every level rigged, the bark moves within
+  1.3 % of the envelope rig's motion.
+- Fixed: rigs above 1,000 bones keep their wind F-curves in several actions played by NLA strips. The
   strips spanned frames 1 to 2 and held their end value, so those bones did not follow their F-curves.
-- The armature rig refuses to build more than 40,000 bones and warns above 10,000, naming the count,
-  the estimated time and the settings that lower it. Blender creates each bone in time proportional to
-  the bones that already exist, so a rig's build time grows with the square of its bone count: 79,648
-  bones (Cambridge Oak, every segment) took 415 s.
-- *Make Mesh* bakes the branches into a plain mesh in the tree object, weighted to the rig's bones or
-  following the node wind, instead of building a vertex skeleton with a Skin modifier. The Skin modifier
-  rebuilt its 12 million vertex skin of Cambridge Oak on every animation frame (11 s per frame); the baked
-  mesh deforms in a few hundredths of a second. The welded junctions of the skin are gone: the baked mesh is
-  the swept bark, which exports as a skinned mesh with the rig.
-- *Wind* without the rig runs its forward kinematics on the joints only: a hidden Curves object
-  (*tree_wind*) holds one point per joint, the *Sapling Wind* modifier composes the joint transforms
-  there, and the bark's sweep, the leaves and a baked mesh read their joint's transform from it by joint
-  number. Before, the modifier ran over every curve point (124,000 on Cambridge Oak, where *Joint Levels* 2
-  gives 3,713 joints). The motion is unchanged (at most 1e-5 on seven trees, Cambridge Oak included).
+- The armature rig refuses to build more than 40,000 bones and warns above 10,000. The message names
+  the count, the estimated time and the settings that lower it. Blender creates each bone in time
+  proportional to the bones that already exist, so the build time of a rig grows with the square of
+  its bone count. 79,648 bones (Cambridge Oak, every segment) took 415 s.
+- *Make Mesh* bakes the branches into a plain mesh in the tree object, instead of building a vertex
+  skeleton with a Skin modifier. The mesh is weighted to the rig's bones, or it follows the node wind.
+  The Skin modifier rebuilt its 12 million vertex skin of Cambridge Oak on every animation frame (11 s
+  per frame). The baked mesh deforms in a few hundredths of a second. The welded junctions of the skin
+  are gone. The baked mesh is the swept bark, which exports as a skinned mesh with the rig.
+- *Wind* without the rig runs its forward kinematics on the joints only. A hidden Curves object,
+  *tree_wind*, holds one point per joint, and the *Sapling Wind* modifier composes the joint transforms
+  there. The bark's sweep, the leaves and a baked mesh read their joint's transform from it by joint
+  number. Before, the modifier ran over every curve point (124,000 on Cambridge Oak, where *Joint Levels*
+  2 gives 3,713 joints). The motion is unchanged (at most 1e-5 on seven trees, Cambridge Oak included).
   Measured on Cambridge Oak with leaves and flutter, headless, seconds per animation frame:
 
   | | Before | After |
@@ -47,8 +48,8 @@
   | Wind, leaves, flutter | 0.19–0.22 | 0.02–0.03 |
   | Wind, leaves, flutter, Make Mesh | 0.03 | 0.01–0.02 |
 
-- The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each;
-  the evaluated tree moves by at most 2e-5 against the previous build.
+- The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each.
+  The evaluated tree moves by at most 2e-5 against the previous build.
 - *Leaf Animation* turns the leaves with a Geometry Nodes modifier (*Sapling Leaf Flutter*) instead of
   one bone, one vertex group and two F-curves per leaf. Each leaf still turns about its sprout with the
   same noise, strength, frequency and random offsets, then follows its branch bone. Big trees no longer
@@ -62,28 +63,29 @@
   | Playback, frames 1–48 | 1,021 ms per frame | 92 ms per frame |
 
   The armature has no leaf bones any more, so a rig export no longer carries them. Leaf Animation
-  without Armature Animation used to add still leaf bones; now it adds nothing. Point-instanced leaves
-  do not flutter (as before: a point does not move when it turns about itself).
+  without Armature Animation added still leaf bones. Now it adds nothing. Point-instanced leaves do
+  not flutter (as before: a point does not move when it turns about itself).
 - Wind F-curves are no longer grouped per bone in the Dope Sheet and Graph Editor. Blender 5.2 takes
-  about 4 times as long to create a grouped F-curve, and the cost of each grows with the number of
-  curves (at 16,000 bones: 450 against 100 µs per bone).
+  about 4 times as long to create a grouped F-curve. The cost of each grows with the number of curves
+  (at 16,000 bones: 450 against 100 µs per bone).
 - *Douglas Fir* and *Willow* are replaced with tree-gen's Douglas fir and weeping willow. The old
   presets loaded bare: Douglas Fir had leaves off and hexagon leaves, and Willow had only 2 of its
   4 levels and almost no leaves.
-- Split angles from tree-gen are halved: tree-gen tilts each fork by half its split angle, Sapling by the
-  full angle, so the trunk forks spread into near-horizontal limbs (seen first on the willow).
+- Split angles from tree-gen are halved. tree-gen tilts each fork by half its split angle, Sapling by
+  the full angle. With the full value, the trunk forks spread into near-horizontal limbs (seen first on
+  the willow).
 - Ported presets take tree-gen's defaults for values a species leaves out: *Black Tupelo* and *Douglas Fir*
   get its slight upward bend of the fine branches. *Silver Birch* leaves are 0.7 as wide as long (the
   heart-shaped leaf's real proportion), not 1.0.
-- *Quaking Aspen* has 3 levels again, as in the original preset from 2011. A 2016 rewrite had cut it to
-  2, which left it nearly bare (882 leaves, now about 12,000).
+- *Quaking Aspen* has 3 levels again, as in the original preset from 2011. A 2016 rewrite cut it to 2,
+  which left it nearly bare (882 leaves, now about 12,000).
 - *Quaking Aspen* and *Weeping Willow* load with their leaves. Both were saved with Show Leaves off
   since 2011, so they were the only presets whose leaves had to be turned on by hand.
 - Pruning removes a stem that would keep less than 15 % of its length when *Prune Ratio* is 1, as
   tree-gen does. Before, such stems became stubs of about 1 cm: invisible, but their leaves floated
   next to the branches.
 - The pruning envelope is hidden after generation. Its two profile curves showed as lines in the
-  viewport; *Object Properties > Visibility* shows them again.
+  viewport. *Object Properties > Visibility* shows them again.
 - *Limit Import* is off by default. With it on, every preset loaded with 2 levels and no leaves, so
   trees with more levels looked bare when the leaves were turned on.
 
@@ -129,13 +131,13 @@ Requires Blender 5.2 LTS.
   Wall mode with Subsurface Weight 1.0, so light scatters through the leaves; EEVEE uses
   Thickness mode Slab with Thickness 0. Branches get *Sapling Bark*.
   Measured on a single backlit leaf seen from its unlit side (mean green): Cycles opaque 0.11 →
-  0.54; Thin Wall + Transmission 0.3 gives 0.76 but looks like clear glass, so it was not used.
+  0.54. Thin Wall + Transmission 0.3 gives 0.76 but looks like clear glass, so it was not used.
   EEVEE opaque 0.11 → 0.23. On a backlit tree in Cycles, leaf pixels are 2.3× brighter.
 - **Edit Sapling Tree** (sidebar *Sapling* tab and *Object* menu): regenerate a tree from the
   settings stored on it, in place: same transform, parent (object, bone or vertex parent) and
-  collections; your objects parented to the tree are re-attached, or listed in a warning when
+  collections. Your objects parented to the tree are re-attached, or listed in a warning when
   their part of the tree is gone. The new tree is built before the old one is removed, so a
-  failed edit keeps the old tree; a duplicated tree (Shift+D) is edited on its own.
+  failed edit keeps the old tree. A duplicated tree (Shift+D) is edited on its own.
 - New trees are added at the 3D cursor, in the active collection, selected and active.
 
 ### Changed
@@ -143,17 +145,17 @@ Requires Blender 5.2 LTS.
 - The code is rewritten as classes (`model/`, `build/`, `ui/`); the generated trees are
   bit-identical to 0.3.7 for every built-in preset, except where a fix above changes them.
 - User presets live in the extension's user folder.
-- Faster generation: the spline count Blender walks as a linked list and the per-stem pruning
-  snapshots made growth O(n²), and leaf rotations were rebuilt per vertex. The built-in presets
-  generate 18–56 % faster than in 0.3.7 (japanese_maple 4.4 s → 1.9 s); see the README.
+- Faster generation. Blender walks the spline count as a linked list, and the per-stem pruning
+  snapshots made growth O(n²). Leaf rotations were rebuilt per vertex. The built-in presets
+  generate 18–56 % faster than in 0.3.7 (japanese_maple 4.4 s → 1.9 s). See the README.
 - Wind F-curves are grouped by bone in the Graph Editor.
-- The tree curve is always the top object; the armature hangs under it (it was the other way
-  round). Clicking the branches and moving the tree used to pull the curve and the leaves away
-  from their bones; now the whole tree moves.
+- The tree curve is always the top object, and the armature hangs under it (it was the other way
+  round). Clicking the branches and moving the tree pulled the curve and the leaves away from their
+  bones. Now the whole tree moves.
 - The armature's bones are hidden after generation, in the bone collection *Sapling Bones*.
   *Fast Preview* shows them and draws the tree as its bounding box (it hid the tree).
 - Errors fail fast with a message instead of silent defaults; a failed Add leaves nothing behind.
 - The settings stored on a tree are versioned JSON.
 - Development: `tools/check.py` gates ruff (complexity ≤ 10, docstrings, annotations), mypy,
-  the manifest and the Blender test suite with branch coverage ≥ 98 %; a pre-commit hook runs
+  the manifest and the Blender test suite with branch coverage ≥ 98 %. A pre-commit hook runs
   the fast part. Tests include 38 exact golden trees, 100 fuzzed trees and architecture checks.
