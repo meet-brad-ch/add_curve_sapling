@@ -203,7 +203,7 @@ class LeafFlutter:
     def offsets(leaves: LeafSet, randomness: float, rng: Random) -> list[float]:
         """Two random noise offsets per leaf (X, then Z), drawn in leaf order."""
         values: list[float] = []
-        for _ in leaves.sprouts:
+        for _ in range(leaves.count):
             values += (rng.uniform(-randomness, randomness), rng.uniform(-randomness, randomness))
         return values
 

@@ -136,8 +136,8 @@ class WindJoints:
         size = leaves.verts_per_leaf
         step = self.params.leaf_bone_step
         joints = []
-        for sprout in leaves.sprouts:
-            joints += [self.joint_of(BoneName.rounded(sprout.parent_bone, step))] * size
+        for parent_bone in leaves.parent_bones:
+            joints += [self.joint_of(BoneName.rounded(parent_bone, step))] * size
         return joints
 
     def passes(self) -> tuple[int, int]:

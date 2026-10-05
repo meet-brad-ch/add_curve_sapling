@@ -240,8 +240,8 @@ class ArmatureBuilder:
         randomness = p.leaf_wind[2]
         flutter = wind if p.leaf_animation else None
         groups: dict[str, list[int]] = {}
-        for i, sprout in enumerate(leaves.sprouts):
-            parent = BoneName.rounded(sprout.parent_bone, p.leaf_bone_step)
+        for i, parent_bone in enumerate(leaves.parent_bones):
+            parent = BoneName.rounded(parent_bone, p.leaf_bone_step)
             while parent not in bones:
                 parent = bone_names[BoneName.spline(parent)]
             groups.setdefault(parent, []).extend(range(size * i, size * i + size))

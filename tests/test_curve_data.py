@@ -85,6 +85,81 @@ class HandlesMatchBlender(unittest.TestCase):
         np.testing.assert_array_equal(right[~free], flat.right[~free])
 
 
+class FlatViews(unittest.TestCase):
+    """A curve loaded from flat arrays reads like a grown one, and cannot be grown further."""
+
+    def loaded(self):
+        grown = curve_data().CurveData()
+        HandlesMatchBlender.write(
+            grown.splines.new("BEZIER"), [(Vector((0, 0, 0)), "VECTOR", "VECTOR"), (Vector((0, 0, 1)), "AUTO", "AUTO")]
+        )
+        HandlesMatchBlender.write(
+            grown.splines.new("BEZIER"),
+            [
+                (Vector((1, 0, 0)), "FREE", "AUTO"),
+                (Vector((1, 0, 2)), "AUTO", "VECTOR"),
+                (Vector((1, 1, 3)), "AUTO", "AUTO"),
+            ],
+        )
+        flat = grown.flatten()
+        curve = curve_data().CurveData()
+        curve.load(flat)
+        return grown, curve
+
+    def test_points_read_alike(self):
+        grown, curve = self.loaded()
+        self.assertEqual(len(curve.splines), 2)
+        for i in range(2):
+            a, b = grown.splines[i].bezier_points, curve.splines[i].bezier_points
+            self.assertEqual(len(a), len(b))
+            for j in range(-len(a), len(a)):
+                self.assertEqual(tuple(a[j].co), tuple(b[j].co))
+                self.assertEqual(tuple(a[j].handle_left), tuple(b[j].handle_left))
+                self.assertEqual(tuple(a[j].handle_right), tuple(b[j].handle_right))
+                self.assertEqual(
+                    (a[j].handle_left_type, a[j].handle_right_type), (b[j].handle_left_type, b[j].handle_right_type)
+                )
+                self.assertEqual(a[j].radius, b[j].radius)
+        self.assertIs(curve.flatten(), curve.flatten())
+        self.assertIs(curve.splines[1].id_data, curve)
+        curve.splines[1].ensure_handles()  # nothing to do, nothing raised
+        self.assertEqual([len(s.co) for s in curve.splines], [2, 3])
+
+    def test_out_of_range_and_growth_rejected(self):
+        _, curve = self.loaded()
+        with self.assertRaises(IndexError):
+            curve.splines[2]
+        with self.assertRaises(IndexError):
+            curve.splines[0].bezier_points[2]
+        with self.assertRaisesRegex(RuntimeError, "cannot grow"):
+            curve.splines.new("BEZIER")
+        with self.assertRaisesRegex(RuntimeError, "cannot be cleared"):
+            curve.splines.clear()
+        with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
+            curve.load(curve.flatten())
+        grown = curve_data().CurveData()
+        grown.splines.new("BEZIER")
+        with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
+            grown.load(curve.flatten())
+
+    def test_concatenate(self):
+        _, curve = self.loaded()
+        flat = curve.flatten()
+        both = curve_data().FlatCurve.concatenate([flat, flat])
+        self.assertEqual(both.start.tolist(), [0, 2, 5, 7, 10])
+        np.testing.assert_array_equal(both.co[5:], flat.co)
+        with self.assertRaises(ValueError):
+            curve_data().FlatCurve.concatenate([])
+
+    def test_flat_recalculation_needs_two_points(self):
+        auto = curve_data().AutoHandles
+        co = np.zeros((1, 3), np.float32)
+        with self.assertRaisesRegex(ValueError, "two or more points"):
+            auto.recalculate_flat(
+                co, co.copy(), co.copy(), np.zeros(1, np.int8), np.zeros(1, np.int8), np.array([0]), np.array([0])
+            )
+
+
 class BlenderWriteRules(unittest.TestCase):
     """Blender's update rules, which the model's reads depend on."""
 

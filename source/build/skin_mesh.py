@@ -6,7 +6,7 @@ import bpy
 from bpy.types import Object, SkinModifier
 from mathutils import Vector
 
-from ..model.curve_data import CurveData, CurveSpline
+from ..model.curve_data import CurveData, CurveSpline, FlatSpline
 from ..model.geometry import BezierSegment
 from ..model.params import TreeParams
 from ..model.stem import BoneMap, BoneName
@@ -61,7 +61,7 @@ class SkinMeshBuilder:
         """The skin mesh object: under the rig (deformed by it), or under the root (moved by the node wind when
         `wind` gives the tree's curves and joints)."""
         skeleton = SkinSkeleton()
-        splines = list(curve.splines)
+        splines: list[CurveSpline | FlatSpline] = list(curve.splines)
         for i, spline in enumerate(splines):
             if len(spline.bezier_points) < 2:
                 skeleton.add_removed_stem()
@@ -69,7 +69,9 @@ class SkinMeshBuilder:
                 self._add_spline(skeleton, splines, grown, i)
         return self._object(skeleton, root, armature_ob, wind)
 
-    def _add_spline(self, skeleton: SkinSkeleton, splines: list[CurveSpline], grown: GrownTree, i: int) -> None:
+    def _add_spline(
+        self, skeleton: SkinSkeleton, splines: list[CurveSpline | FlatSpline], grown: GrownTree, i: int
+    ) -> None:
         """Vertices along spline i (Resolution U per segment), their edges and bone vertex groups."""
         p = self.params
         res = p.res_u

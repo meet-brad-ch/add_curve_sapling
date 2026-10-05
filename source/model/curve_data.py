@@ -333,16 +333,158 @@ class FlatCurve:
         """Points per spline."""
         return np.diff(self.start)
 
+    @classmethod
+    def concatenate(cls, parts: list["FlatCurve"]) -> "FlatCurve":
+        """The parts' splines one after another."""
+        if not parts:
+            raise ValueError("concatenate needs at least one part")
+        offsets = np.cumsum([0] + [part.start[-1] for part in parts[:-1]])
+        start = np.concatenate(
+            [parts[0].start[:1]] + [part.start[1:] + offset for part, offset in zip(parts, offsets, strict=True)]
+        )
+        return cls(
+            np.concatenate([part.co for part in parts]),
+            np.concatenate([part.left for part in parts]),
+            np.concatenate([part.right for part in parts]),
+            np.concatenate([part.h1 for part in parts]),
+            np.concatenate([part.h2 for part in parts]),
+            np.concatenate([part.radius for part in parts]),
+            start,
+        )
+
+
+class FlatPoint:
+    """One point of a flat spline, read like Blender's BezierSplinePoint (read-only: the arrays are final)."""
+
+    __slots__ = ("_flat", "_index")
+
+    def __init__(self, flat: FlatCurve, index: int) -> None:
+        self._flat = flat
+        self._index = index
+
+    @property
+    def co(self) -> Vector:
+        """The position."""
+        return Vector(self._flat.co[self._index].tolist())
+
+    @property
+    def handle_left(self) -> Vector:
+        """The handle towards the previous point."""
+        return Vector(self._flat.left[self._index].tolist())
+
+    @property
+    def handle_right(self) -> Vector:
+        """The handle towards the next point."""
+        return Vector(self._flat.right[self._index].tolist())
+
+    @property
+    def handle_left_type(self) -> str:
+        """FREE, AUTO or VECTOR."""
+        return HandleType.NAMES[self._flat.h1[self._index]]
+
+    @property
+    def handle_right_type(self) -> str:
+        """FREE, AUTO or VECTOR."""
+        return HandleType.NAMES[self._flat.h2[self._index]]
+
+    @property
+    def radius(self) -> float:
+        """The branch radius at this point."""
+        return float(self._flat.radius[self._index])
+
+
+class FlatPoints:
+    """A flat spline's points (Blender's spline.bezier_points): indexing and length."""
+
+    def __init__(self, flat: FlatCurve, start: int, end: int) -> None:
+        self._flat = flat
+        self._start = start
+        self._end = end
+
+    def __len__(self) -> int:
+        return self._end - self._start
+
+    def __getitem__(self, index: int) -> FlatPoint:
+        count = len(self)
+        position = index + count if index < 0 else index
+        if not 0 <= position < count:
+            raise IndexError(f"point {index} of a spline with {count} points")
+        return FlatPoint(self._flat, self._start + position)
+
+
+class FlatSpline:
+    """One spline of a flat curve: its columns as array slices, and its points."""
+
+    def __init__(self, curve: "CurveData", flat: FlatCurve, index: int) -> None:
+        self.id_data = curve
+        start, end = int(flat.start[index]), int(flat.start[index + 1])
+        self.co = flat.co[start:end]
+        self.left = flat.left[start:end]
+        self.right = flat.right[start:end]
+        self.h1 = flat.h1[start:end]
+        self.h2 = flat.h2[start:end]
+        self.radius = flat.radius[start:end]
+        self.bezier_points = FlatPoints(flat, start, end)
+
+    def ensure_handles(self) -> None:
+        """The handles of a flat curve are final: nothing to recalculate."""
+
+
+class FlatSplines:
+    """The splines of a curve loaded from flat arrays: read like CurveSplines, but not grown further."""
+
+    def __init__(self, curve: "CurveData", flat: FlatCurve) -> None:
+        self._curve = curve
+        self._flat = flat
+
+    def new(self, spline_type: str) -> CurveSpline:
+        """Not possible: raises RuntimeError."""
+        raise RuntimeError("a curve loaded from flat arrays cannot grow new splines")
+
+    def clear(self) -> None:
+        """Not possible: raises RuntimeError."""
+        raise RuntimeError("a curve loaded from flat arrays cannot be cleared")
+
+    def __len__(self) -> int:
+        return len(self._flat.start) - 1
+
+    def __getitem__(self, index: int) -> FlatSpline:
+        count = len(self)
+        position = index + count if index < 0 else index
+        if not 0 <= position < count:
+            raise IndexError(f"spline {index} of a curve with {count} splines")
+        return FlatSpline(self._curve, self._flat, position)
+
+    def __iter__(self) -> Iterator[FlatSpline]:
+        return (self[i] for i in range(len(self)))
+
 
 class CurveData:
-    """The tree's curve in memory: its splines, in the order they are grown."""
+    """The tree's curve in memory: its splines, in the order they are grown.
+
+    Grown spline by spline (CurveSplines, with O(1) point writes), or loaded from flat arrays once a level
+    grew as arrays (FlatSplines); build/ reads either the same way.
+    """
 
     def __init__(self) -> None:
-        self.splines = CurveSplines(self)
+        self.splines: CurveSplines | FlatSplines = CurveSplines(self)
+        self._flat: FlatCurve | None = None
+
+    def load(self, flat: FlatCurve) -> None:
+        """Become the curve the flat arrays describe (only an empty, ungrown curve can be loaded)."""
+        if len(self.splines):
+            raise RuntimeError("only an empty curve can be loaded from flat arrays")
+        self.splines = FlatSplines(self, flat)
+        self._flat = flat
 
     def flatten(self) -> FlatCurve:
         """All splines as flat arrays, handles recalculated: one pass per column instead of one per point."""
-        splines = list(self.splines)
+        if self._flat is not None:
+            return self._flat
+        grown = self.splines
+        if not isinstance(grown, CurveSplines):
+            raise RuntimeError("a curve without flat arrays holds grown splines")
+        splines = list(grown)
         for spline in splines:
             spline.ensure_handles()
         sizes = np.array([len(spline.co) for spline in splines], dtype=np.int64)

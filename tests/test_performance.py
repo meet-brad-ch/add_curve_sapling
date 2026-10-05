@@ -44,6 +44,32 @@ class LeafScaling(unittest.TestCase):
         self.assertLess(full / half, MAX_RATIO, f"leaf part {half:.3f} s at 40 leaves, {full:.3f} s at 80")
 
 
+class ModelSpeed(unittest.TestCase):
+    """The array model grows the test tree (Quaking Aspen, 1,336 stems) in well under a tenth of a second."""
+
+    LIMIT = 0.1
+    RUNS = 3
+
+    def test_quaking_aspen_model(self):
+        from types import SimpleNamespace
+
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=3, branches=(0, 100, 30, 10))
+        params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
+        grower = helpers.module("model.tree").TreeGrower
+        curve_class = helpers.module("model.curve_data").CurveData
+        import random
+
+        times = []
+        with helpers.untraced():
+            for _ in range(self.RUNS):
+                started = time.perf_counter()
+                grown = grower(params, random.Random(params.seed)).grow(curve_class(), None, params.scale)
+                times.append(time.perf_counter() - started)
+        self.assertGreater(grown.level_ends[-1], 1000)
+        self.assertLess(min(times), self.LIMIT, f"model time {min(times):.3f} s for {grown.level_ends[-1]} stems")
+
+
 class BuildScaling(unittest.TestCase):
     """The whole build (growth, curves, leaves, node wind, skin mesh) grows linearly with the tree.
 

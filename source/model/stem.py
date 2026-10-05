@@ -133,6 +133,15 @@ class BoneMap:
     def __init__(self) -> None:
         self._links = [BoneLink("")]
 
+    @classmethod
+    def from_links(cls, links: list[BoneLink]) -> "BoneMap":
+        """A map of the given links, in spline order (the first must be a trunk's)."""
+        if not links or links[0].bone:
+            raise ValueError("the first spline must be a trunk")
+        bone_map = cls()
+        bone_map._links = list(links)
+        return bone_map
+
     def __len__(self) -> int:
         return len(self._links)
 

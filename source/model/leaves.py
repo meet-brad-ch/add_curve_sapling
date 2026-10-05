@@ -14,8 +14,8 @@ from random import Random
 import numpy as np
 
 from .params import TreeParams
-from .rotations import Quaternions, Rotation
-from .stem import ChildPoint
+from .rotations import Rotation
+from .sprouting import SproutArrays
 
 
 class LeafShape:
@@ -55,11 +55,11 @@ class LeafShape:
 
 
 class LeafSet:
-    """The generated leaves as arrays, and per leaf the sprout it grows from.
+    """The generated leaves as arrays, and per leaf the bone it hangs from.
 
     vertices (V, 3) float32: the leaf meshes' points (one point per leaf for Instance Points); faces (F, 4) int32
     into vertices; normals (L, 3) float32: each leaf's direction (Instance Points only, else empty); sprout_co
-    (L, 3) float32; sprouts: one ChildPoint per leaf, in leaf order (a fan repeats its sprout).
+    (L, 3) float32; parent_bones: per leaf, the name of the parent bone (a fan repeats its sprout's).
     """
 
     def __init__(
@@ -69,14 +69,19 @@ class LeafSet:
         faces: np.ndarray,
         normals: np.ndarray,
         sprout_co: np.ndarray,
-        sprouts: list[ChildPoint],
+        parent_bones: list[str],
     ) -> None:
         self.shape = shape
         self.vertices = vertices
         self.faces = faces
         self.normals = normals
         self.sprout_co = sprout_co
-        self.sprouts = sprouts
+        self.parent_bones = parent_bones
+
+    @property
+    def count(self) -> int:
+        """How many leaves."""
+        return len(self.parent_bones)
 
     @property
     def verts_per_leaf(self) -> int:
@@ -87,17 +92,17 @@ class LeafSet:
 class LeafPlacement:
     """Per leaf, what its random draws and its sprout decided: arrays of length L, in leaf order."""
 
-    def __init__(self, sprouts: list[ChildPoint], rows: list[tuple[float, float, float, float]]) -> None:
-        self.sprouts = sprouts
+    def __init__(self, sprouts: SproutArrays, index: list[int], rows: list[tuple[float, float, float, float]]) -> None:
+        self.index = np.array(index, dtype=np.int64)
         values = np.array(rows, dtype=np.float64).reshape(-1, 4)
         self.spin = values[:, 0]  # the rotation about the stem the leaf starts from
         self.rotation = values[:, 1]  # the rotation after this leaf's turn
         self.down = values[:, 2]
         self.scale = values[:, 3]
-        self.co = np.array([s.co.to_tuple() for s in sprouts], dtype=np.float64).reshape(-1, 3)
-        self.quat = np.array([(s.quat.w, s.quat.x, s.quat.y, s.quat.z) for s in sprouts], dtype=np.float64).reshape(
-            -1, 4
-        )
+        self.co = sprouts.co[self.index]
+        self.frame = sprouts.frame[self.index]
+        bones = sprouts.parent_bones()
+        self.parent_bones = [bones[i] for i in index]
 
 
 class LeafGenerator:
@@ -107,7 +112,7 @@ class LeafGenerator:
         self.params = params
         self.rng = rng
 
-    def generate(self, sprouts: list[ChildPoint]) -> LeafSet:
+    def generate(self, sprouts: SproutArrays) -> LeafSet:
         """The leaves of all sprouts, in sprout order: one per sprout, or a fan of |leaves| for a negative count."""
         p = self.params
         placement = self._place(sprouts)
@@ -116,10 +121,9 @@ class LeafGenerator:
         scale = placement.scale
         scaled = verts[None, :, :] * np.stack([p.leaf_scale_x * scale, scale, scale], axis=1)[:, None, :]
         placed = np.einsum("lij,lvj->lvi", matrices, scaled)
-        count = len(placement.sprouts)
+        count = len(placement.index)
         if p.leaf_shape == LeafShape.INSTANCE_POINTS:
-            direction = placed[:, 0, :]
-            normals = direction / np.linalg.norm(direction, axis=1)[:, None]
+            normals = Rotation.unit(placed[:, 0, :])
             vertices = placement.co
             all_faces = np.zeros((0, 4), dtype=np.int32)
         else:
@@ -133,38 +137,39 @@ class LeafGenerator:
             all_faces.astype(np.int32),
             normals.astype(np.float32),
             placement.co.astype(np.float32),
-            placement.sprouts,
+            placement.parent_bones,
         )
 
-    def _place(self, sprouts: list[ChildPoint]) -> LeafPlacement:
+    def _place(self, sprouts: SproutArrays) -> LeafPlacement:
         """Every leaf's draws, in leaf order; the leaf rotation carries over from one sprout to the next (a fan
         restarts it)."""
         p = self.params
-        leaves: list[ChildPoint] = []
+        index: list[int] = []
         rows: list[tuple[float, float, float, float]] = []
         rotation = 0.0
-        for sprout in sprouts:
+        for i, offset in enumerate(sprouts.offset.tolist()):
             if p.leaves < 0:
                 rotation = -p.leaf_rotate / 2
                 for _ in range(-p.leaves):
-                    rotation = self._place_one(sprout, rotation, leaves, rows)
+                    rotation = self._place_one(i, offset, rotation, index, rows)
             else:
-                rotation = self._place_one(sprout, rotation, leaves, rows)
-        return LeafPlacement(leaves, rows)
+                rotation = self._place_one(i, offset, rotation, index, rows)
+        return LeafPlacement(sprouts, index, rows)
 
     def _place_one(
         self,
-        sprout: ChildPoint,
+        sprout: int,
+        offset: float,
         rotation: float,
-        leaves: list[ChildPoint],
+        index: list[int],
         rows: list[tuple[float, float, float, float]],
     ) -> float:
         """One leaf's draws, in this order: the turn around the stem, the down angle, the scale."""
         spin = 0.0 if self.params.leaves == -1 else rotation  # a fan of one leaf does not spin
         rotation = self._turn(rotation)
-        down = self._down(sprout)
-        scale = self._scale(sprout, rotation)
-        leaves.append(sprout)
+        down = self._down(offset)
+        scale = self._scale(offset, rotation)
+        index.append(sprout)
         rows.append((spin, rotation, down, scale))
         return rotation
 
@@ -182,18 +187,18 @@ class LeafGenerator:
             return rotation + rotate / (-count - 1)
         return rotation + rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
 
-    def _down(self, sprout: ChildPoint) -> float:
+    def _down(self, offset: float) -> float:
         """The angle away from the stem (Leaf Down Angle); unused by palmate leaves, which draw nothing for it."""
         p = self.params
         if p.leaves < 0:
             return 0.0
         if p.leaf_down_angle_v > 0.0:
-            down_v = -p.leaf_down_angle_v * sprout.offset
+            down_v = -p.leaf_down_angle_v * offset
         else:
             down_v = self.rng.uniform(-p.leaf_down_angle_v, p.leaf_down_angle_v)
         return p.leaf_down_angle + down_v
 
-    def _scale(self, sprout: ChildPoint, rotation: float) -> float:
+    def _scale(self, offset: float, rotation: float) -> float:
         """Leaf size: tapered along the parent (or across the fan), then randomly varied."""
         p = self.params
         count = p.leaves
@@ -201,7 +206,7 @@ class LeafGenerator:
         if (count < -1) and (rotate != 0):
             f = 1 - abs((rotation - (rotate / (-count - 1))) / (rotate / 2))
         else:
-            f = sprout.offset
+            f = offset
         if p.leaf_scale_t < 0:
             scale = p.leaf_scale * (1 - (1 - f) * -p.leaf_scale_t)
         else:
@@ -225,17 +230,16 @@ class LeafGenerator:
         if count > 0:
             turns.append(Rotation.about(placement.down, "X"))
         turns.append(Rotation.about(placement.spin, "Y" if count < 0 else "Z"))
-        sprout_rotation = Quaternions.to_matrices(placement.quat)
-        turns.append(sprout_rotation)
+        turns.append(placement.frame)
         if (p.leaf_bend != 0.0) and (count > 0):
-            turns.extend(self._bend(placement, sprout_rotation))
+            turns.extend(self._bend(placement))
         return turns
 
-    def _bend(self, placement: LeafPlacement, sprout_rotation: np.ndarray) -> list[np.ndarray]:
+    def _bend(self, placement: LeafPlacement) -> list[np.ndarray]:
         """Rotations that turn each leaf towards the outside of the tree (Leaf Bend)."""
         bend = self.params.leaf_bend
-        normal = sprout_rotation[:, :, 1]  # the sprout's rotation applied to the y axis
-        orientation_vec = sprout_rotation[:, :, 2]  # and to the z axis
+        normal = placement.frame[:, :, 1]  # the sprout's rotation applied to the y axis
+        orientation_vec = placement.frame[:, :, 2]  # and to the z axis
         theta_pos = np.arctan2(placement.co[:, 1], placement.co[:, 0])
         theta_bend = theta_pos - np.arctan2(normal[:, 1], normal[:, 0])
         rotate_z = Rotation.about(bend * theta_bend, "Z")
