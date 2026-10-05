@@ -180,6 +180,8 @@ def _curves_fp(curves) -> dict:
     sizes = [len(c.points) for c in curves.curves]
     co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
     attrs = curves.attributes
+    if "handle_left" not in attrs:  # the wind's joint curves: poly curves, one point per joint
+        return {"splines": len(sizes), "points": sum(sizes), "co": _hash(co.tobytes())}
     left = _floats(attrs["handle_left"].data, "vector", 3).reshape(-1, 3)
     right = _floats(attrs["handle_right"].data, "vector", 3).reshape(-1, 3)
     radius = _floats(attrs["radius"].data, "value", 1)

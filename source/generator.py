@@ -22,7 +22,7 @@ from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
 from .model.leaves import LeafGenerator, LeafSet, LeafShape
 from .model.params import TreeParams
-from .model.tree import GrownTree, TreeGrower
+from .model.tree import TreeGrower
 
 
 class TreeResult:
@@ -100,7 +100,7 @@ class TreeGenerator:
             leaf_set = LeafGenerator(p, rng).generate(grown.sprouts)
             leaves_ob = leaf_builder.build(leaf_set, root)
 
-        armature_ob = joints_ob = None
+        armature_ob = joints_ob = wind_ob = None
         joints = None
         if rig_joints is not None:
             joints_ob = JointProxy(p, objects).build(root, grown_curve, rig_joints)
@@ -108,38 +108,38 @@ class TreeGenerator:
                 root, joints_ob, grown_curve, grown, leaf_set, leaves_ob
             )
         elif p.armature_animation:
-            joints = self._node_wind(curves_ob, grown_curve, grown, rng, leaf_set, leaves_ob)
-        root_builder.sweep(
-            root, curves_ob, wind=joints is not None, preview=p.preview_armature and not rig, joints_ob=joints_ob
-        )
+            joints = WindJoints(p, grown_curve, grown)
+            wind_ob = self._node_wind(root, curves_ob, joints, objects, rng, leaf_set, leaves_ob)
+        root_builder.sweep(root, curves_ob, wind_ob, preview=p.preview_armature and not rig, joints_ob=joints_ob)
 
         MaterialLibrary.assign(TreeResult(objects), p)  # before a bake: the baked mesh keeps the sweep's material
         if p.make_mesh:
             bake_joints = rig_joints or joints or WindJoints(p, grown_curve, grown)
-            BarkBake(p, self.context).bake(root, curves_ob, bake_joints, armature_ob)
+            BarkBake(p, self.context).bake(root, curves_ob, bake_joints, armature_ob, wind_ob)
 
         if leaves_ob:
             leaf_builder.finish(leaves_ob, leaf_set)  # type: ignore[arg-type]  # leaves_ob implies leaf_set
 
     def _node_wind(
         self,
+        root: Object,
         curves_ob: Object,
-        curve: CurveData,
-        grown: GrownTree,
+        joints: WindJoints,
+        objects: ObjectFactory,
         rng: random.Random,
         leaf_set: LeafSet | None,
         leaves_ob: Object | None,
-    ) -> WindJoints:
-        """Wind without the rig: on the curves, then the leaves' flutter and their following, drawing from the rng
-        in the rig's order (joint phases, then two offsets per leaf)."""
+    ) -> Object:
+        """Wind without the rig: the wind curves under the root, then the leaves' flutter and their following,
+        drawing from the rng in the rig's order (joint phases, then two offsets per leaf); returns the wind curves."""
         p = self.params
         scene = self.context.scene
         fps = scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene
-        node_wind = NodeWind(p, rng, fps)
-        joints = node_wind.build(curves_ob, curve, grown)
+        node_wind = NodeWind(p, rng, fps, objects)
+        wind_ob = node_wind.build(root, curves_ob, joints)
         if leaves_ob is not None and leaf_set is not None:
             if p.leaf_animation:
                 offsets = LeafFlutter.offsets(leaf_set, p.leaf_wind[2], rng)
                 LeafFlutter.add(leaves_ob, leaf_set, offsets, node_wind.model)
-            NodeWind.follow(leaves_ob, curves_ob, joints.leaf_joints(leaf_set))
-        return joints
+            NodeWind.follow(leaves_ob, wind_ob, joints.leaf_joints(leaf_set))
+        return wind_ob

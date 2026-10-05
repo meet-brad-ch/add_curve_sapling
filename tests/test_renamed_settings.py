@@ -104,7 +104,7 @@ class OldScriptCalls(unittest.TestCase):
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         stored = helpers.stored_settings(helpers.active_object())
         self.assertEqual((stored["useRig"], stored["windAnim"]), (False, False))
-        self.assertFalse(helpers.tree_curves().modifiers, "no node wind")
+        self.assertNotIn("tree_wind", bpy.data.objects, "no node wind")
 
     def test_old_and_new_keyword_disagree(self):
         helpers.reset_scene()

@@ -33,7 +33,8 @@
       "Material": "Sapling Bark",
       "Resolution U": 4,
       "Rig": false,
-      "Wind": false
+      "Wind": false,
+      "Wind Joints": null
      }
     }
    },

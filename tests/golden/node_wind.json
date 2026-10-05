@@ -27,7 +27,7 @@
     "Sapling Follow Wind": {
      "group": "Sapling Follow Wind",
      "inputs": {
-      "Curves": "tree_curves"
+      "Curves": "tree_wind"
      }
     }
    },
@@ -45,7 +45,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "a1fef316a0ffe0a7",
+    "co": "63f44ac7599b408e",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -67,7 +67,8 @@
       "Material": "Sapling Bark",
       "Resolution U": 4,
       "Rig": false,
-      "Wind": true
+      "Wind": true,
+      "Wind Joints": "tree_wind"
      }
     }
    },
@@ -114,6 +115,18 @@
     "splines": 31
    },
    "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "CURVES",
+   "vertex_groups": ""
+  },
+  "tree_wind": {
+   "data": {
+    "co": "f24ea7739d1f8655",
+    "points": 158,
+    "splines": 31
+   },
+   "instance_type": "NONE",
    "modifiers": [
     "NODES"
    ],
@@ -123,7 +136,7 @@
      "inputs": {
       "Depth Passes": 1,
       "Gust": 0.019634954631328583,
-      "Scan Passes": 4
+      "Scan Passes": 3
      }
     }
    },

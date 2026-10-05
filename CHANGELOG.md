@@ -35,6 +35,18 @@
   rebuilt its 12 million vertex skin of Cambridge Oak on every animation frame (11 s per frame); the baked
   mesh deforms in a few hundredths of a second. The welded junctions of the skin are gone: the baked mesh is
   the swept bark, which exports as a skinned mesh with the rig.
+- *Wind* without the rig runs its forward kinematics on the joints only: a hidden Curves object
+  (*tree_wind*) holds one point per joint, the *Sapling Wind* modifier composes the joint transforms
+  there, and the bark's sweep, the leaves and a baked mesh read their joint's transform from it by joint
+  number. Before, the modifier ran over every curve point (124,000 on Cambridge Oak, where *Joint Levels* 2
+  gives 3,713 joints). The motion is unchanged (at most 1e-5 on seven trees, Cambridge Oak included).
+  Measured on Cambridge Oak with leaves and flutter, headless, seconds per animation frame:
+
+  | | Before | After |
+  | --- | --- | --- |
+  | Wind, leaves, flutter | 0.19–0.22 | 0.02–0.03 |
+  | Wind, leaves, flutter, Make Mesh | 0.03 | 0.01–0.02 |
+
 - The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each;
   the evaluated tree moves by at most 2e-5 against the previous build.
 - *Leaf Animation* turns the leaves with a Geometry Nodes modifier (*Sapling Leaf Flutter*) instead of

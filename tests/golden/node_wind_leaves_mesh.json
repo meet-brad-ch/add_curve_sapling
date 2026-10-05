@@ -37,7 +37,7 @@
     "Sapling Follow Wind": {
      "group": "Sapling Follow Wind",
      "inputs": {
-      "Curves": "tree_curves"
+      "Curves": "tree_wind"
      }
     }
    },
@@ -68,7 +68,7 @@
     "Sapling Follow Wind": {
      "group": "Sapling Follow Wind",
      "inputs": {
-      "Curves": "tree_curves"
+      "Curves": "tree_wind"
      }
     }
    },
@@ -115,6 +115,18 @@
     "splines": 31
    },
    "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "CURVES",
+   "vertex_groups": ""
+  },
+  "tree_wind": {
+   "data": {
+    "co": "f24ea7739d1f8655",
+    "points": 158,
+    "splines": 31
+   },
+   "instance_type": "NONE",
    "modifiers": [
     "NODES"
    ],
@@ -124,7 +136,7 @@
      "inputs": {
       "Depth Passes": 1,
       "Gust": 0.13089969754219055,
-      "Scan Passes": 4
+      "Scan Passes": 3
      }
     }
    },

@@ -4,9 +4,10 @@
 
 The live sweep is evaluated once at rest and copied into a plain mesh that replaces the root's empty mesh and its
 "Sapling Tree" modifier: the tree exports as it is (with the rig, as a skinned mesh), at the price of fixed Bevel
-inputs and a heavier playback (every vertex is deformed). Each vertex knows its joint through a consecutive joint
-number written on the curve points (a float: Resample Curve interpolates it inside a segment, and the floor gives
-the joint the segment starts with) and so gets the bone's vertex group, or the joint for the Follow Wind modifier.
+inputs and a heavier playback (every vertex is deformed). Each vertex knows its joint through the joint number
+written on the curve points as a float (Resample Curve interpolates it inside a segment, and the floor gives the
+joint the segment starts with) and so gets the bone's vertex group, or the joint number for the Follow Wind
+modifier.
 """
 
 from typing import Any
@@ -35,9 +36,11 @@ class BarkBake:
         self.params = params
         self.context = context
 
-    def bake(self, root: Object, curves_ob: Object, joints: WindJoints, armature_ob: Object | None) -> None:
-        """Replace the root's live sweep by the baked mesh; with `armature_ob` weighted to its bones, otherwise
-        following the node wind of `curves_ob` when the tree has wind."""
+    def bake(
+        self, root: Object, curves_ob: Object, joints: WindJoints, armature_ob: Object | None, wind_ob: Object | None
+    ) -> None:
+        """Replace the root's live sweep by the baked mesh; with `armature_ob` weighted to its bones, with the node
+        wind's curves `wind_ob` following them."""
         p = self.params
         ordinals = joints.ordinals(joints.point_joints())
         attribute: Any = curves_ob.data.attributes.new(self.ORDINAL, "FLOAT", "POINT")  # type: ignore[union-attr]  # a Curves object; Any: the data type depends on the kind
@@ -46,6 +49,10 @@ class BarkBake:
         curves_ob.data.attributes.remove(attribute)  # type: ignore[union-attr]  # as above
         vertex_ordinals = self._vertex_ordinals(mesh, len(joints.joint_point))
         mesh.attributes.remove(mesh.attributes[self.ORDINAL])
+        if NodeWind.JOINT in mesh.attributes:
+            # the curve points' joint numbers, rounded inside the segments by the resample: the float ordinal above
+            # gives every vertex its joint; the Follow Wind modifier gets its own, exact numbers below
+            mesh.attributes.remove(mesh.attributes[NodeWind.JOINT])
         old = root.data
         root.data = mesh
         bpy.data.meshes.remove(old)  # type: ignore[arg-type]  # the root's data is a mesh
@@ -55,8 +62,8 @@ class BarkBake:
             VertexGroupWriter.assign(root, JointProxy.groups_of(vertex_ordinals, joints))
             modifier = ArmatureBuilder.deform(root, armature_ob, by_envelopes=False)
             modifier.show_viewport = not p.preview_armature
-        elif p.armature_animation:
-            NodeWind.follow(root, curves_ob, joints.joint_point[vertex_ordinals].astype(np.int32))
+        elif wind_ob is not None:
+            NodeWind.follow(root, wind_ob, vertex_ordinals.astype(np.int32))
         if p.preview_armature:
             root.display_type = "BOUNDS"  # a baked tree has no curves to show instead
 

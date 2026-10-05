@@ -6,9 +6,10 @@ The root is a Mesh object whose "Sapling Tree" modifier sweeps the tree's curves
 selection and rendering treat it as an ordinary mesh. Bevel Depth, Bevel Resolution, Resolution U and Fill Caps
 are live inputs of that modifier, and so is its bark Material (a mesh made by Geometry Nodes has no material
 slots of its own: the slot of the root's mesh data would not reach the render). The curves live on a hidden child,
-"tree_curves", a Curves object written in bulk from the grown curve; it holds the node wind's per-point data. With
-the armature rig, the sweep reads each point's posed position and handles from the joint proxy (JointProxy), which
-the rig's bones deform.
+"tree_curves", a Curves object written in bulk from the grown curve. With the node wind, every point carries its
+joint number and the sweep moves it by that joint's transform, read from the wind curves (NodeWind); with the
+armature rig, the sweep reads each point's posed position and handles from the joint proxy (JointProxy), which the
+rig's bones deform.
 """
 
 from typing import Any
@@ -20,7 +21,7 @@ from bpy.types import Curves, Material, NodeSocket, NodeTree, Object
 from ..model.curve_data import CurveData
 from ..model.params import TreeParams
 from .node_groups import SharedNodeGroup
-from .node_wind import NodeMath
+from .node_wind import NodeMath, NodeWind
 from .objects import ObjectFactory
 
 
@@ -43,9 +44,11 @@ class TreeRootBuilder:
         """The bark's material: an input of the root's modifier (its swept mesh carries it, also when applied)."""
         SharedNodeGroup.set_input(root.modifiers[cls.MODIFIER], "Material", material)  # type: ignore[arg-type]  # a root's modifier is a Geometry Nodes modifier
 
-    def sweep(self, root: Object, curves_ob: Object, wind: bool, preview: bool, joints_ob: Object | None) -> None:
-        """The bark: the root's modifier sweeps `curves_ob`, moved by the node wind when `wind`, or posed by the
-        rig's joint proxy `joints_ob` when given."""
+    def sweep(
+        self, root: Object, curves_ob: Object, wind_ob: Object | None, preview: bool, joints_ob: Object | None
+    ) -> None:
+        """The bark: the root's modifier sweeps `curves_ob`, moved by the node wind's curves `wind_ob` when given,
+        or posed by the rig's joint proxy `joints_ob` when given."""
         p = self.params
         group = SharedNodeGroup.ensure(TreeSweepNodes.GROUP, TreeSweepNodes.VERSION, TreeSweepNodes.build)
         modifier = SharedNodeGroup.add_modifier(root, self.MODIFIER, group)
@@ -56,7 +59,8 @@ class TreeRootBuilder:
             "Resolution U": p.res_u,
             "Fill Caps": False,
             "Fast Preview": preview,
-            "Wind": wind,
+            "Wind": wind_ob is not None,
+            "Wind Joints": wind_ob,
             "Rig": joints_ob is not None,
             "Joints": joints_ob,
         }
@@ -109,7 +113,7 @@ class TreeSweepNodes:
     """
 
     GROUP = "Sapling Tree"
-    VERSION = 3
+    VERSION = 4
     INPUTS = (
         ("Curves", "NodeSocketObject"),
         ("Bevel Depth", "NodeSocketFloat"),
@@ -121,6 +125,7 @@ class TreeSweepNodes:
         ("Material", "NodeSocketMaterial"),
         ("Rig", "NodeSocketBool"),
         ("Joints", "NodeSocketObject"),
+        ("Wind Joints", "NodeSocketObject"),
     )
 
     @classmethod
@@ -134,8 +139,7 @@ class TreeSweepNodes:
         m = NodeMath(group)
         inputs = m.nodes.new("NodeGroupInput").outputs
         source = cls._object(m, inputs["Curves"])
-        moved = m.set_position(source, m.transform_point(m.position(), m.attr("fk_total", "FLOAT4X4")))
-        windy = cls._switch(m, inputs["Wind"], source, moved)
+        windy = cls._switch(m, inputs["Wind"], source, cls._windy(m, source, cls._object(m, inputs["Wind Joints"])))
         curves = cls._switch(m, inputs["Rig"], windy, cls._posed(m, source, cls._object(m, inputs["Joints"])))
         resolution = m.nodes.new("GeometryNodeSetSplineResolution")
         m.link(cls._drop_single_points(m, curves), resolution.inputs["Curve"])
@@ -155,6 +159,14 @@ class TreeSweepNodes:
         info.transform_space = "RELATIVE"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
         m.link(object_input, info.inputs["Object"])
         return info.outputs["Geometry"]
+
+    @staticmethod
+    def _windy(m: NodeMath, curves: NodeSocket, wind: NodeSocket) -> NodeSocket:
+        """The curves with every point moved by the transform of its joint (NodeWind numbers the points), read from
+        the wind curves: the joint's own pose turns about its head, so the head itself stays where the joints above
+        it put it, and the points up to the next joint turn with it, as the rig's bones turn the bark."""
+        transform = m.sample(wind, m.attr("fk_incl", "FLOAT4X4"), m.attr(NodeWind.JOINT, "INT"))
+        return m.set_position(curves, m.transform_point(m.position(), transform))
 
     @classmethod
     def _posed(cls, m: NodeMath, curves: NodeSocket, proxy: NodeSocket) -> NodeSocket:

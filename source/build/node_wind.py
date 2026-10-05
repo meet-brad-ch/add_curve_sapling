@@ -8,17 +8,19 @@ head, composed along every stem and down the branch hierarchy, as an armature co
 against the armature on the test tree: 5.2 % (wind 1) and 0.9 % (wind 3) relative RMS difference of the bark's
 motion, with no more stretch than the armature's envelopes.
 
-The joints are the bones the rig would make (one per Joint Length segments, levels per Joint Levels with Make
-Mesh). The transforms are computed once, by the "Sapling Wind" modifier on the tree's curves; the bark, the
-leaves and the skin mesh read them ("Sapling Follow Wind").
+The joints are the bones the rig would make (one per Joint Length segments, levels per Joint Levels). Their
+transforms are computed once per frame by the "Sapling Wind" modifier on a hidden Curves object with one point
+per joint ("tree_wind": a few thousand points, where the tree has a hundred thousand); the bark's sweep, the
+leaves and a baked mesh read their joint's transform from it by joint number ("sapling_joint").
 """
 
 import math
 from random import Random
 from typing import Any
 
+import bpy
 import numpy as np
-from bpy.types import NodeSocket, NodeTree, Object
+from bpy.types import Curves, NodeSocket, NodeTree, Object
 
 from ..model.curve_data import CurveData
 from ..model.leaves import LeafSet
@@ -27,6 +29,7 @@ from ..model.rotations import Quaternions, Rotation
 from ..model.stem import BoneName
 from ..model.tree import GrownTree
 from .node_groups import SharedNodeGroup
+from .objects import ObjectFactory
 from .wind import WindModel
 
 
@@ -102,14 +105,9 @@ class WindJoints:
         return depth.astype(np.int32), attach.astype(np.int32)
 
     def poses(self, model: WindModel, rng: Random) -> dict[str, np.ndarray]:
-        """The wind of every joint, with the rig's random draws in the rig's order (ArmatureBuilder._branch_bones):
-        two phases per curve that has joints."""
+        """Per joint, its wind (FLOAT_KEYS and the rest quaternion "bone_rest"), with the rig's random draws in the
+        rig's order (ArmatureBuilder._branch_bones): two phases per curve that has joints."""
         p = self.params
-        total = int(self.flat.start[-1])
-        out: dict[str, np.ndarray] = {key: np.zeros(total, np.float32) for key in self.FLOAT_KEYS}
-        rest = np.zeros((total, 4), np.float32)
-        rest[:, 0] = 1.0  # identity where no joint starts
-        out["bone_rest"] = rest
         co = self.flat.co.astype(np.float64)
         spline = self.joint_spline
         segments = (self.sizes - 1)[spline]
@@ -131,12 +129,21 @@ class WindJoints:
         sway = np.stack([a1, a1 * model.SECOND_WAVE_AMPLITUDE, -direction[:, 0] * gust, direction[:, 2] * gust], axis=1)
         # the first two joints of every trunk hold the tree base still
         sway[(self.link_spline[spline] < 0) & (n <= self.step[spline])] = 0.0
-        for key, column in zip(("a1", "a2", "a3", "a4"), np.radians(sway).T, strict=True):
-            out[key][head] = column
-        out["f1"][head], out["f2"][head] = frequencies[0][spline], frequencies[1][spline]
-        out["ox"][head], out["oz"][head] = offsets[0][spline], offsets[1][spline]
-        out["bone_rest"][head] = JointFrame.rests(direction)
+        out = dict(zip(("a1", "a2", "a3", "a4"), np.radians(sway).T, strict=True))
+        out["f1"], out["f2"] = frequencies[0][spline], frequencies[1][spline]
+        out["ox"], out["oz"] = offsets[0][spline], offsets[1][spline]
+        out = {key: out[key].astype(np.float32) for key in self.FLOAT_KEYS}
+        out["bone_rest"] = JointFrame.rests(direction).astype(np.float32)
         return out
+
+    def joint_hierarchy(self) -> tuple[np.ndarray, np.ndarray]:
+        """Per joint: its curve's depth below a trunk, and the joint its curve's first joint hangs from (the
+        nearest joint at or before the attach point on the parent; -1 for a trunk)."""
+        depth, _attach = self.hierarchy()
+        attach = np.full(len(self.sizes), -1, dtype=np.int64)
+        linked = np.flatnonzero(self.eligible & (self.link_spline >= 0))
+        attach[linked] = self.ordinals(self.nearest_joint(self.link_spline[linked], self.link_point[linked]))
+        return depth[self.joint_spline].astype(np.int32), attach[self.joint_spline].astype(np.int32)
 
     def _offsets(self, rng: Random) -> tuple[np.ndarray, np.ndarray]:
         """The two wind phases of every curve with joints, drawn in curve order as the rig draws them."""
@@ -186,55 +193,78 @@ class WindJoints:
         return ordinal
 
     def leaf_joints(self, leaves: LeafSet) -> np.ndarray:
-        """Per leaf vertex, the joint its leaf hangs from (int32)."""
-        joints = self.nearest_joint(leaves.parent_spline, leaves.parent_point)
+        """Per leaf vertex, the joint number of the joint its leaf hangs from (int32)."""
+        joints = self.ordinals(self.nearest_joint(leaves.parent_spline, leaves.parent_point))
         return np.repeat(joints, leaves.verts_per_leaf).astype(np.int32)
 
     def passes(self) -> tuple[int, int]:
-        """(scan passes along the longest curve, depth passes down the hierarchy) the wind group needs."""
-        longest = int(self.sizes.max())
+        """(scan passes along the curve with the most joints, depth passes down the hierarchy) the wind group needs."""
+        longest = int(self.count.max())
         depth, _attach = self.hierarchy()
-        return max(0, math.ceil(math.log2(longest))) if longest > 1 else 0, int(depth.max())
+        return max(0, math.ceil(math.log2(longest))) if longest > 1 else 0, int(depth[self.eligible].max())
 
 
 class NodeWind:
-    """Writes the joints' wind onto the tree's curves and gives them the "Sapling Wind" modifier."""
+    """Builds the "tree_wind" curves (one point per joint, carrying the joints' wind) with the "Sapling Wind"
+    modifier, and numbers the tree's curve points by their joint."""
 
+    ROLE = "tree_wind"
     MODIFIER = "Sapling Wind"
+    JOINT = "sapling_joint"
 
-    def __init__(self, params: TreeParams, rng: Random, fps: float) -> None:
+    def __init__(self, params: TreeParams, rng: Random, fps: float, objects: ObjectFactory) -> None:
         self.params = params
         self.rng = rng
+        self.objects = objects
         self.model = WindModel(params, fps)
 
-    def build(self, curves_ob: Object, curve: CurveData, grown: GrownTree) -> WindJoints:
-        """The wind attributes (drawing from the rng as the rig would) and the modifier; returns the joints."""
-        joints = WindJoints(self.params, curve, grown)
-        attributes: Any = curves_ob.data.attributes  # type: ignore[union-attr]  # the curves source is a Curves object; Any: attribute data types vary
+    def build(self, root: Object, curves_ob: Object, joints: WindJoints) -> Object:
+        """The hidden wind curves under the root: a poly curve per curve with joints, a point per joint at its head,
+        the wind attributes (drawing from the rng as the rig would) and the modifier. `curves_ob` gets each point's
+        joint number, by which the sweep reads its transform."""
+        self._number_points(curves_ob, joints)
+        data: Curves = bpy.data.hair_curves.new(self.ROLE)
+        data.add_curves(joints.count[joints.eligible].tolist())
+        data.set_types(type="POLY")
+        data.position_data.foreach_set("vector", joints.flat.co[joints.joint_point].ravel())
+        attributes: Any = data.attributes  # Any: attribute data types vary
         for key, values in joints.poses(self.model, self.rng).items():
             if key == "bone_rest":
                 attributes.new(key, "QUATERNION", "POINT").data.foreach_set("value", values.ravel())
             else:
                 attributes.new(key, "FLOAT", "POINT").data.foreach_set("value", values)
-        depth, attach = joints.hierarchy()
-        attributes.new("depth", "INT", "POINT").data.foreach_set("value", np.repeat(depth, joints.sizes))
-        attributes.new("attach", "INT", "POINT").data.foreach_set("value", np.repeat(attach, joints.sizes))
+        depth, attach = joints.joint_hierarchy()
+        attributes.new("depth", "INT", "POINT").data.foreach_set("value", depth)
+        attributes.new("attach", "INT", "POINT").data.foreach_set("value", attach)
+        ob = self.objects.new(self.ROLE, data, parent=root)
+        # a part the root reads: hidden itself, still evaluated for the root (Object > Visibility shows it again)
+        ob.hide_viewport = True
+        ob.hide_render = True
         scan, levels = joints.passes()
         group = SharedNodeGroup.ensure(WindNodes.GROUP, WindNodes.VERSION, WindNodes.build)
-        modifier = SharedNodeGroup.add_modifier(curves_ob, self.MODIFIER, group)
+        modifier = SharedNodeGroup.add_modifier(ob, self.MODIFIER, group)
         SharedNodeGroup.set_input(modifier, "Gust", self.model.gust_frequency)
         SharedNodeGroup.set_input(modifier, "Scan Passes", scan)
         SharedNodeGroup.set_input(modifier, "Depth Passes", levels)
-        return joints
+        return ob
+
+    @classmethod
+    def _number_points(cls, curves_ob: Object, joints: WindJoints) -> None:
+        """Every point of the tree's curves gets the number of the joint it follows."""
+        ordinals = joints.ordinals(joints.point_joints()).astype(np.int32)
+        attributes: Any = curves_ob.data.attributes  # type: ignore[union-attr]  # a Curves object; Any: as above
+        attributes.new(cls.JOINT, "INT", "POINT").data.foreach_set("value", ordinals)
 
     @staticmethod
-    def follow(ob: Object, curves_ob: Object, joints: np.ndarray | list[int]) -> None:
-        """Make ob's points follow the wind of their joints (one joint index per point)."""
-        mesh = ob.data
-        mesh.attributes.new(FollowWindNodes.JOINT, "INT", "POINT").data.foreach_set("value", joints)  # type: ignore[union-attr]  # a mesh
+    def follow(ob: Object, wind_ob: Object, joints: np.ndarray | list[int]) -> None:
+        """Make ob's mesh points follow the wind of their joints (one joint number per point) from `wind_ob`."""
+        mesh: Any = ob.data  # a mesh; Any: the attribute's data type depends on its kind
+        if FollowWindNodes.JOINT in mesh.attributes:  # attributes.new would quietly make a ".001" twin
+            raise RuntimeError(f"{ob.name} already has a '{FollowWindNodes.JOINT}' attribute")
+        mesh.attributes.new(FollowWindNodes.JOINT, "INT", "POINT").data.foreach_set("value", joints)
         group = SharedNodeGroup.ensure(FollowWindNodes.GROUP, FollowWindNodes.VERSION, FollowWindNodes.build)
         modifier = SharedNodeGroup.add_modifier(ob, FollowWindNodes.MODIFIER, group)
-        SharedNodeGroup.set_input(modifier, "Curves", curves_ob)
+        SharedNodeGroup.set_input(modifier, "Curves", wind_ob)
 
 
 class NodeMath:
@@ -333,11 +363,13 @@ class NodeMath:
 
 
 class WindNodes:
-    """The "Sapling Wind" group: per point, the composed transform of every joint above it, stored as attributes.
+    """The "Sapling Wind" group: per joint point of the wind curves, the composed transform of every joint above
+    it, stored as attributes.
 
-    fk_s: along the point's curve, the joints up to and including its own (a Hillis-Steele scan, 2^k points per
-    pass); fk_a: the ancestors' transform at the curve's attach point (one pass per depth); fk_total = fk_a @ the
-    joints before the point (what moves the point); fk_incl = fk_a @ fk_s (what moves things hanging from it).
+    fk_s: along the joint's curve, the joints up to and including its own (a Hillis-Steele scan, 2^k joints per
+    pass); fk_a: the ancestors' transform at the curve's attach joint (one pass per depth); fk_incl = fk_a @ fk_s
+    (what moves everything the joint carries: the curve points up to the next joint, the leaves hanging there);
+    fk_total = fk_a @ the joints before it (what moves the joint's own head).
     """
 
     GROUP = "Sapling Wind"
@@ -444,7 +476,8 @@ class WindNodes:
 
 
 class FollowWindNodes:
-    """The "Sapling Follow Wind" group: points move with the joint they hang from (leaves, the skin mesh)."""
+    """The "Sapling Follow Wind" group: mesh points move with the joint they hang from (leaves, a baked mesh),
+    read from the wind curves by joint number."""
 
     GROUP = "Sapling Follow Wind"
     VERSION = 1
@@ -453,7 +486,7 @@ class FollowWindNodes:
 
     @classmethod
     def build(cls, group: NodeTree) -> None:
-        """Fill the empty group: sample each point's joint transform from the curves and move the point."""
+        """Fill the empty group: sample each point's joint transform from the wind curves and move the point."""
         interface = group.interface
         interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: as in WindNodes
         interface.new_socket("Curves", in_out="INPUT", socket_type="NodeSocketObject")  # type: ignore[union-attr, arg-type]  # stub: as above

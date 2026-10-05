@@ -90,7 +90,10 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   it, and one bone spans *Joint Length* stem segments. Blender creates each bone in time proportional
   to the bones that already exist, so a rig's build time grows with the square of its bone count
   (measured: 79,648 bones took 415 s). The operator warns above 10,000 bones and refuses above 40,000;
-  *Wind* without *Armature Rig* moves the same joints in Geometry Nodes and needs no bones.
+  *Wind* without *Armature Rig* moves the same joints in Geometry Nodes and needs no bones: a hidden
+  Curves object, *tree_wind*, holds one point per joint, the *Sapling Wind* modifier composes the joint
+  transforms on it every frame, and the tree's sweep, the leaves and a baked mesh read their joint's
+  transform from it.
 - **Make Mesh** (Armature page): bakes the branches into a plain mesh in the tree object, weighted to the
   rig's bones when there is a rig (so it exports as a skinned mesh), or following the node wind. The
   *Bevel* inputs are then fixed, *Fast Preview* shows the bounds, and playback is heavier because every
@@ -133,7 +136,7 @@ vertex. The benchmark is not part of the checks, because the times depend on the
 - `source/` — the extension package
   - `model/` — tree growth on the curve: `TreeGrower`, `StemBuilder`, `StemGrower`,
     `BranchSpawner`, `SproutPlanner`, `LeafGenerator`, `TreeParams` and geometry classes
-  - `build/` — the Blender objects: curve, leaves, armature, wind, skin mesh, materials, tree record
+  - `build/` — the Blender objects: curves, leaves, armature, wind, baked mesh, materials, tree record
   - `ui/` — the Add Tree operator, its properties and pages, the panels and the menus
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
   - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 15 from tree-gen
