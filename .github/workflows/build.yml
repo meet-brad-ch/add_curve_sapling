@@ -44,6 +44,7 @@ jobs:
       - name: Download Blender
         shell: bash
         run: |
+          cd "$RUNNER_TEMP"  # outside the checkout: the gate lints and formats every Python file in it
           file="blender-$BLENDER_VERSION-windows-x64.zip"
           for mirror in $BLENDER_MIRRORS; do
             if curl -fsSL --retry 3 -o "$file" "$mirror/$file"; then break; fi
