@@ -298,6 +298,12 @@ class TreeProperties:
         name="Back Curvature", description="Curvature for the second half of a branch (nCurveBack)",
         default=[0, 0, 0, 0], size=4, update=update_tree,
     )  # fmt: skip
+    bendV: FloatVectorProperty(
+        name="Bend Variation",
+        description="Maximum random sideways turn of a branch, in degrees. Each segment turns by a part of it. A "
+        "segment that splits does not turn",
+        default=[0, 0, 0, 0], size=4, min=0, max=360, update=update_tree,
+    )  # fmt: skip
     attractUp: FloatVectorProperty(
         name="Vertical Attraction", description="Branch upward attraction", default=[0, 0, 0, 0], size=4,
         update=update_tree,

@@ -143,6 +143,7 @@ class TreeParams(PlainParams):
         self.curve = Angles.to_radians(s.curve)
         self.curve_v = Angles.to_radians(s.curveV)
         self.curve_back = Angles.to_radians(s.curveBack)
+        self.bend_v = Angles.to_radians(s.bendV)
         self.attract_up = self._floats(s.attractUp)
         self.attract_out = self._floats(s.attractOut)
 

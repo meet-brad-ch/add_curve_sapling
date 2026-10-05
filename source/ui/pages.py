@@ -115,6 +115,7 @@ class SettingsPages:
         col.prop(props, "downAngle")
         col.prop(props, "curve")
         col.prop(props, "curveBack")
+        col.prop(props, "bendV")
         col = split.column()
         col.prop(props, "lengthV")
         col.prop(props, "downAngleV")

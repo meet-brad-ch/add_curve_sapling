@@ -7,12 +7,16 @@
 - *Trunks* (Branch Splitting page): grow a clump of trunks from one root, as tree-gen does for bamboo.
   The further trunks stand on a disc around the first, at least 2.5 trunk radii apart, each with its own
   size, curve direction and branches. With 1 trunk, trees are unchanged.
+- *Bend Variation* (Branch Growth page): turn each segment of a level sideways by a random angle, as
+  tree-gen's `bend_v` does. A segment turns by at most the value divided by the level's segments. The
+  first segment of a stem and a segment that splits do not turn. With 0 on every level, trees are
+  unchanged.
 - 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their
   Weber–Penn values to the settings of Sapling. The presets were checked against renders of tree-gen's
   own trees in Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak,
-  Sphere Tree) and random branch bending, which Sapling does not have. tree-gen's palm, fan palm and
+  Sphere Tree) and random branch bending. Sapling did not have these features. tree-gen's palm, fan palm and
   bamboo are not ported (Sapling has no fronds).
 
 ### Fixed
@@ -36,7 +40,15 @@
 - The armature rig and the node wind use one joint layout and one set of sway numbers. The rig's
   F-curve values stay within 3 float32 units of the previous values (2e-7 relative). The node wind's
   bark and leaves move by at most 1.5e-5 against the previous build. The bones no longer get radii:
-  they served only bone envelopes, and the rig deforms by vertex groups.
+  they served only bone envelopes, and the rig deforms by vertex groups. Measured on Cambridge Oak with
+  leaves and flutter after this change, headless, alone:
+
+  | | Build | Seconds per animation frame |
+  | --- | --- | --- |
+  | Wind | 0.84 s | 0.02–0.03 |
+  | Wind, Make Mesh | 0.98 s | 0.01 |
+  | Rig with wind | 1.56 s | 0.03–0.04 |
+  | Rig with wind, Make Mesh | 2.83 s | 0.02 |
 - Development: the GitHub workflow runs the full check (`python tools/check.py`) on Windows before it
   builds the zip. Methods have a cyclomatic complexity of 9 or less.
 - The armature rig moves the bark through a hidden joint proxy mesh, *tree_joints*, instead of

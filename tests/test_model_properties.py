@@ -5,6 +5,7 @@
 import math
 import random
 import unittest
+import unittest.mock
 from types import SimpleNamespace
 
 import helpers
@@ -424,3 +425,69 @@ class JointParents(unittest.TestCase):
                 self.assertGreater(len(linked), 10)
                 for c in linked.tolist():
                     self.assertEqual(names[parents[c]], model.grown.bone_map[c].bone, f"curve {c}")
+
+
+class BendVariation(unittest.TestCase):
+    """Bend Variation turns each segment of a level sideways by a random part of the level's maximum."""
+
+    STRAIGHT = {
+        "levels": 2,
+        "curve": (0.0, 0.0, 0.0, 0.0),
+        "curveV": (0.0, 0.0, 0.0, 0.0),
+        "curveBack": (0.0, 0.0, 0.0, 0.0),
+        "attractUp": (0.0, 0.0, 0.0, 0.0),
+        "segSplits": (0.0, 0.0, 0.0, 0.0),
+    }
+
+    def draws(self, **changes):
+        """The draw ids the growth asks KeyedRandom.between for."""
+        randomness = helpers.module("model.randomness").KeyedRandom
+        original = randomness.between
+        seen = set()
+
+        def spy(keys, step, draw, low, high):
+            seen.add(draw)
+            return original(keys, step, draw, low, high)
+
+        with unittest.mock.patch.object(randomness, "between", side_effect=spy):
+            grow(**changes)
+        return seen
+
+    def turns(self, bend):
+        """Every level-1 stem's turn angles between its segments, in degrees, and the level's segment count."""
+        model = grow(**self.STRAIGHT, bendV=(0.0, bend, 0.0, 0.0))
+        flat = model.curve.flatten()
+        ends = model.grown.level_ends
+        turns = []
+        for spline in range(ends[0], ends[1]):
+            co = flat.co[flat.start[spline] : flat.start[spline + 1]].astype(np.float64)
+            d = np.diff(co, axis=0)
+            d /= np.linalg.norm(d, axis=1, keepdims=True)
+            turns.append(np.degrees(np.arccos(np.clip((d[:-1] * d[1:]).sum(axis=1), -1, 1))))
+        return np.concatenate(turns), model.params.curve_res[1]
+
+    def test_bend_off_draws_nothing(self):
+        bend = helpers.module("model.randomness").Draw.BEND
+        self.assertNotIn(bend, self.draws(levels=2, bendV=(0.0, 0.0, 0.0, 0.0)))
+        self.assertIn(bend, self.draws(levels=2, bendV=(0.0, 30.0, 0.0, 0.0)))
+
+    def test_bend_turns_level_stems_sideways(self):
+        straight, _ = self.turns(0.0)
+        self.assertLess(straight.max(), 1e-3)
+        bent, segments = self.turns(60.0)
+        self.assertGreater(bent.max(), 1.0)
+        self.assertLessEqual(bent.max(), 60.0 / segments + 1e-3)
+
+    def test_split_step_does_not_bend(self):
+        growth = helpers.module("model.growth")
+        stems = SimpleNamespace(roll=np.array([0.2, 0.2]))
+        split = growth.SplitAngles(np.full(2, 0.3), np.full(2, 0.1), np.full(2, 0.5))
+        has_split = np.array([True, False])
+
+        def rotations(bend):
+            curve = growth.CurveAngles(np.full(2, 0.4), np.full(2, 0.05), bend)
+            return growth.LevelGrower._local_rotations(stems, growth.StepAngles(curve, split), 1, has_split)
+
+        unbent, bent = rotations(None), rotations(np.full(2, 0.25))
+        np.testing.assert_array_equal(bent[0], unbent[0])
+        self.assertGreater(np.abs(bent[1] - unbent[1]).max(), 0.1)

@@ -39,6 +39,7 @@ CAPS: dict[str, Any] = {
     # armature on every level that is 30,000+ bones, and Blender's own cost to create each bone, F-curve and
     # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
     "segSplits": [(0.0, 0.5)] * 4,
+    "bendV": [(0.0, 180.0)] * 4,
     "jointStep": [(1, 3)] * 4,
     "jointLevels": (0, 4),
     "loopFrames": (0, 60),
@@ -95,7 +96,7 @@ class SettingsFuzz(unittest.TestCase):
 
     FEATURES = (
         "prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves", "levels_4",
-        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks",
+        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend",
     )  # fmt: skip
 
     @staticmethod
@@ -108,6 +109,8 @@ class SettingsFuzz(unittest.TestCase):
             flags.append("levels_4")
         if settings["trunks"] > 1:
             flags.append("trunks")
+        if any(settings["bendV"][: settings["levels"]]):
+            flags.append("bend")
         if settings["showLeaves"]:
             flags.append(f"leaf_{settings['leafShape']}")
             if settings["leaves"] < 0:

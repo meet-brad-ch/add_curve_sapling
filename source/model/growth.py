@@ -16,10 +16,12 @@ from .rotations import AttractUp, EulerXYZ, Rotation, TrackFrame, TrunkFrame
 
 @dataclass(frozen=True, slots=True)
 class CurveAngles:
-    """Every row's curve angle at a step, and the curve variation that bends it sideways."""
+    """Every row's curve angle at a step, the curve variation that bends it sideways, and the Bend Variation's
+    random sideways turn (None when the level does not bend at this step)."""
 
     angle: np.ndarray
     variation: np.ndarray
+    bend: np.ndarray | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +116,11 @@ class LevelGrower:
         side of a split."""
         curve, split = angles.curve, angles.split
         bend = Rotation.about(curve.variation, "Y")
-        plain = Rotation.about(stems.roll, "Z") @ bend @ Rotation.about(curve.angle, "X")
+        plain = Rotation.about(stems.roll, "Z") @ bend
+        if curve.bend is not None:
+            # multiplied in only when present: a product with an identity turn can change signed zeros
+            plain = plain @ Rotation.about(curve.bend, "Y")
+        plain = plain @ Rotation.about(curve.angle, "X")
         side = Rotation.about(split.branch_rot, "Z") if level == 0 else Rotation.about(-split.spread, "Y")
         continued = side @ bend @ Rotation.about(-split.angle + curve.angle, "X")
         return np.where(has_split[:, None, None], continued, plain)
@@ -173,7 +179,15 @@ class LevelGrower:
         angle = curvature + KeyedRandom.between(stems.key, k, Draw.CURVE_ANGLE, 0.0, stems.curvature_v) * kp * sign
         variation = KeyedRandom.between(stems.key, k, Draw.CURVE_VARIATION, 0.0, stems.curvature_v) * kp * sign
         stems.curve_sign = -sign
-        return CurveAngles(angle, variation)
+        return CurveAngles(angle, variation, self._bend_angles(grid, k))
+
+    def _bend_angles(self, grid: LevelGrid, k: int) -> np.ndarray | None:
+        """Bend Variation: every row's random sideways turn at step k, a part of the level's maximum per segment
+        (None, and nothing drawn, when the level does not bend; the first segment keeps its start direction)."""
+        bend_v = self.params.bend_v[grid.level]
+        if bend_v <= 0 or k == 0:
+            return None
+        return KeyedRandom.between(grid.stems.key, k, Draw.BEND, -1.0, 1.0) * (bend_v / grid.segments)
 
     def _frames(self, directions: np.ndarray, level: int) -> GrowthFrames:
         """The growth frames and taper factors: the trunk's frame keeps no roll and tapers its sideways splits."""
