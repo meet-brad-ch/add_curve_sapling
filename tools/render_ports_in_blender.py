@@ -11,6 +11,7 @@ fixed bark and leaf colours, orthographic front and top views framing all trees.
 import ast
 import importlib
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import bpy
@@ -20,15 +21,50 @@ from mathutils import Vector
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from blender_env import MODULE  # noqa: E402  (needs the sys.path entry above)
 
-BARK = (0.35, 0.22, 0.12)
-LEAF = (0.15, 0.5, 0.12)
-BLOSSOM = (0.95, 0.75, 0.8)
+
+@dataclass(frozen=True, slots=True)
+class Colour:
+    """A viewport colour, each component 0..1."""
+
+    red: float
+    green: float
+    blue: float
+
+    @property
+    def rgba(self) -> list[float]:
+        return [self.red, self.green, self.blue, 1.0]
+
+
+@dataclass(frozen=True, slots=True)
+class MaterialColour:
+    """The sheet colour of the add-on's materials whose names start with `prefix`."""
+
+    prefix: str
+    colour: Colour
+
+
+@dataclass(frozen=True, slots=True)
+class Bounds:
+    """World-space bounds: the lowest and highest corner, (3,) arrays."""
+
+    low: np.ndarray
+    high: np.ndarray
+
+
+BARK = Colour(0.35, 0.22, 0.12)
+LEAF = Colour(0.15, 0.5, 0.12)
+BLOSSOM = Colour(0.95, 0.75, 0.8)
+SAPLING_MATERIALS = [
+    MaterialColour("Sapling Bark", BARK),
+    MaterialColour("Sapling Leaf", LEAF),
+    MaterialColour("Sapling Blossom", BLOSSOM),
+]
 WIDTH = 2400  # pixels across a sheet
 
 
-def material(name: str, rgb: tuple) -> bpy.types.Material:
+def material(name: str, colour: Colour) -> bpy.types.Material:
     found = bpy.data.materials.get(name) or bpy.data.materials.new(name)
-    found.diffuse_color = (*rgb, 1.0)  # type: ignore[assignment]  # stub: a colour property takes a sequence
+    found.diffuse_color = colour.rgba  # type: ignore[assignment]  # stub: a colour property takes a sequence
     return found
 
 
@@ -66,7 +102,7 @@ def sapling_tree(settings: dict, seed: int) -> bpy.types.Object:
     return next(ob for ob in bpy.data.objects if ob not in before and ob.parent is None)
 
 
-def bounds() -> tuple:
+def bounds() -> Bounds:
     """The world bounds of every renderable object, evaluated."""
     bpy.context.view_layer.update()
     graph = bpy.context.evaluated_depsgraph_get()
@@ -78,10 +114,10 @@ def bounds() -> tuple:
         for corner in evaluated.bound_box:
             point = np.array(evaluated.matrix_world @ Vector(corner))
             low, high = np.minimum(low, point), np.maximum(high, point)
-    return low, high
+    return Bounds(low, high)
 
 
-def camera(name: str, location: tuple, rotation: tuple, scale: float) -> bpy.types.Object:
+def camera(name: str, location: list[float], rotation: list[float], scale: float) -> bpy.types.Object:
     data = bpy.data.cameras.new(name)
     data.type = "ORTHO"
     data.ortho_scale = scale
@@ -101,9 +137,9 @@ def render(cam: bpy.types.Object, path: Path, height: int) -> None:
 
 def colour_sapling_materials() -> None:
     for found in bpy.data.materials:
-        for prefix, rgb in (("Sapling Bark", BARK), ("Sapling Leaf", LEAF), ("Sapling Blossom", BLOSSOM)):
-            if found.name.startswith(prefix):
-                found.diffuse_color = (*rgb, 1.0)  # type: ignore[assignment]  # stub: as above
+        for rule in SAPLING_MATERIALS:
+            if found.name.startswith(rule.prefix):
+                found.diffuse_color = rule.colour.rgba  # type: ignore[assignment]  # stub: as above
 
 
 def sheet(gen, out: Path, seed: int, folders: list, spec: str) -> None:
@@ -113,15 +149,15 @@ def sheet(gen, out: Path, seed: int, folders: list, spec: str) -> None:
     roots = [treegen_tree(gen, species, seed)]
     roots += [sapling_tree(preset(folder, name or species), seed) for folder in folders]
     colour_sapling_materials()
-    low, high = bounds()
-    spacing = max(high[0] - low[0], high[1] - low[1]) * 1.1
+    box = bounds()
+    spacing = max(box.high[0] - box.low[0], box.high[1] - box.low[1]) * 1.1
     for column, root in enumerate(roots):
         root.location.x = column * spacing
-    low, high = bounds()
-    span = high - low
-    centre = (low + high) / 2
-    front = camera("front", (centre[0], low[1] - 100, centre[2]), (np.pi / 2, 0, 0), max(span[0], span[2]) * 1.05)
-    top = camera("top", (centre[0], centre[1], high[2] + 100), (0, 0, 0), max(span[0], span[1]) * 1.05)
+    box = bounds()
+    span = box.high - box.low
+    centre = (box.low + box.high) / 2
+    front = camera("front", [centre[0], box.low[1] - 100, centre[2]], [np.pi / 2, 0, 0], max(span[0], span[2]) * 1.05)
+    top = camera("top", [centre[0], centre[1], box.high[2] + 100], [0, 0, 0], max(span[0], span[1]) * 1.05)
     render(front, out / f"{name or species}_front.png", int(WIDTH * span[2] / span[0]))
     render(top, out / f"{name or species}_top.png", int(WIDTH * span[1] / span[0]))
     print(f"RENDERED {species}: tree-gen, then {len(folders)} preset folder(s)", flush=True)

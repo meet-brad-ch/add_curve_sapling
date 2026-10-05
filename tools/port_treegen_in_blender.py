@@ -43,6 +43,7 @@ both projects' code (tree-gen parametric/gen.py, Sapling source/model):
 
 import ast
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +58,23 @@ DEFAULT_LEAF = 8
 NEUTRAL_RADIUS = [1, 1, 1, 1]
 
 
+@dataclass(frozen=True, slots=True)
+class Clamped:
+    """A setting the port clamped to the operator's hard limits: its name, the value it had, and the clamped one."""
+
+    key: str
+    given: Any
+    fixed: Any
+
+
+@dataclass(frozen=True, slots=True)
+class Ported:
+    """One species' Sapling settings, and the settings the port had to clamp."""
+
+    settings: dict[str, Any]
+    clamped: list[Clamped]
+
+
 def literal_dict(path: Path) -> dict[str, Any]:
     """The first dictionary literal in a tree-gen parameter file."""
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -65,7 +83,7 @@ def literal_dict(path: Path) -> dict[str, Any]:
     raise SystemExit(f"{path}: no parameter dictionary")
 
 
-def shape_points(path: Path, function: str) -> list[list[tuple]]:
+def shape_points(path: Path, function: str) -> list[list[list[float]]]:
     """The vertex lists of the shapes a leaf_shapes.py function (`leaves` or `blossom`) returns, in order."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == function)
@@ -78,7 +96,8 @@ def shape_points(path: Path, function: str) -> list[list[tuple]]:
     for shape_id, shape in enumerate(returned.elts, start=1):
         if not (isinstance(shape, ast.Tuple) and isinstance(shape.elts[0], ast.List)):
             raise SystemExit(f"{path}: {function} shape {shape_id} has an unexpected form")
-        shapes.append([ast.literal_eval(call.args[0]) for call in shape.elts[0].elts if isinstance(call, ast.Call)])
+        calls = [call for call in shape.elts[0].elts if isinstance(call, ast.Call)]
+        shapes.append([list(ast.literal_eval(call.args[0])) for call in calls])
     return shapes
 
 
@@ -118,8 +137,8 @@ class Porter:
         settings_cls = sys.modules[MODULE + ".settings"].TreeSettings
         self.defaults = settings_cls.defaults_from_rna(self.rna, self.names).values
 
-    def convert(self, species: str) -> tuple[dict[str, Any], list]:
-        """(Sapling settings, clamped values) for one tree-gen species."""
+    def convert(self, species: str) -> Ported:
+        """The Sapling settings of one tree-gen species, and what the port clamped."""
         tg = {**self.defaults_tg, **literal_dict(self.params_dir / f"{species}.py")}
         s = dict(self.defaults)
         levels = int(tg["levels"])
@@ -203,7 +222,7 @@ class Porter:
         clamped = self.clamp(s)
         if set(s) != set(self.names):
             raise SystemExit(f"{species}: settings do not match the add-on's generation settings")
-        return s, clamped
+        return Ported(s, clamped)
 
     @staticmethod
     def taper(value: float) -> float:
@@ -212,7 +231,7 @@ class Porter:
             return value
         return max(0.0, 2 - value)
 
-    def clamp(self, s: dict[str, Any]) -> list:
+    def clamp(self, s: dict[str, Any]) -> list[Clamped]:
         """Clamp numbers to the operator's hard limits; return what was changed."""
         clamped = []
         for key, value in s.items():
@@ -223,7 +242,7 @@ class Porter:
             values = list(value) if vector else [value]
             fixed = [min(max(v, prop.hard_min), prop.hard_max) for v in values]
             if fixed != values:
-                clamped.append((key, value, fixed))
+                clamped.append(Clamped(key, value, fixed))
                 s[key] = tuple(fixed) if vector else fixed[0]
         return clamped
 
@@ -250,12 +269,13 @@ def main() -> None:
     porter = Porter(treegen, commit)
     for spec in args[3:]:
         species, _, preset = spec.partition(":")
-        settings, clamped = porter.convert(species)
+        ported = porter.convert(species)
         path = presets / f"{preset or species}.py"
         path.write_text(
-            porter.header(species) + repr(dict(sorted(settings.items()))) + "\n", encoding="utf-8", newline="\n"
+            porter.header(species) + repr(dict(sorted(ported.settings.items()))) + "\n", encoding="utf-8", newline="\n"
         )
-        print(f"PORTED {species} -> {path.name}; clamped: {clamped or 'nothing'}")
+        clamped = "; ".join(f"{c.key} {c.given} -> {c.fixed}" for c in ported.clamped) or "nothing"
+        print(f"PORTED {species} -> {path.name}; clamped: {clamped}")
     sys.stdout.flush()
 
 
