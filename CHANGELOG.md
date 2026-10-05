@@ -7,6 +7,11 @@
 - *Trunks* (Branch Splitting page): grow a clump of trunks from one root, as tree-gen does for bamboo.
   The further trunks stand on a disc around the first, at least 2.5 trunk radii apart, each with its own
   size, curve direction and branches. With 1 trunk, trees are unchanged.
+- *Trunks Face Out* (Branch Splitting page): each further trunk of a clump curves away from the centre,
+  as tree-gen's bamboo grows. Off, each trunk curves in a random direction, as before.
+- *Count Above Base* (Branch Splitting page): the branch count is for the part of a stem above its bare
+  base, as in tree-gen. tree-gen's palm (Trunk Height 0.95) then gets its 25 fronds in the crown
+  instead of 1. Leaf counts do not change.
 - *Bend Variation* (Branch Growth page): turn each segment of a level sideways by a random angle, as
   tree-gen's `bend_v` does. A segment turns by at most the value divided by the level's segments. The
   first segment of a stem and a segment that splits do not turn. With 0 on every level, trees are
@@ -17,43 +22,24 @@
   Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
   handles with their joints (Blender's Set Position moves a free handle with its point but does not
   turn it).
-- *Trunks Face Out* (Branch Splitting page): each further trunk of a clump curves away from the centre,
-  as tree-gen's bamboo grows. Off, each trunk curves in a random direction, as before.
-- *Count Above Base* (Branch Splitting page): the branch count is for the part of a stem above its bare
-  base, as in tree-gen. tree-gen's palm (Trunk Height 0.95) then gets its 25 fronds in the crown
-  instead of 1. Leaf counts do not change.
 - *Leaves Above Base* (Leaves page): the leaves keep off the bare base of their stems, as branches do.
   Measured on tree-gen's bamboo: 19 leaves per branch against tree-gen's 17 (32 without it).
-- *Fan Angles* (Leaves page): palmate fans use *Leaf Down Angle*, which tilts their leaves into a
-  shallow cup, and *Leaf Rotate Variation*, which turns each leaf at random, as tree-gen's fans do.
+- *Fan Angles* (Leaves page): palmate fans use *Leaf Down Angle* and *Leaf Rotate Variation*, as
+  tree-gen's fans do. The down angle tilts the leaves of a fan into a shallow cup. The variation turns
+  each leaf at random.
 - *Blossom Rate*, *Blossom Shape* and *Blossom Scale* (Leaves page): a part of the leaf positions grows
   a flower instead of a leaf, as tree-gen's blossoms do. The flowers are this add-on's own geometry:
   cherry (5 round petals), orange (5 narrow petals that bend back) and magnolia (8 petals in a deep
   cup). They go into a *blossoms* object with the *Sapling Blossom* material and follow the rig, the
   node wind and Leaf Flutter as the leaves do. A higher rate keeps every blossom of a lower one. With
   rate 0, trees are unchanged.
-- 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
-  Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
-  Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their
-  Weber–Penn values to the settings of Sapling. The presets were checked against renders of tree-gen's
-  own trees in Blender 5.2.
-- The 15 presets ported from tree-gen are ported again with the new mapping, one change at a time:
-  the leaf down angle variation sign (tree-gen's positive value is random, Sapling's varies along the
-  parent), Bend Variation from `bend_v`, Helix on Black Oak's third level and Sphere Tree's trunk,
-  blossoms on Apple and Hill Cherry, and Count Above Base with Leaves Above Base. Trees made from these
-  presets change. Cambridge Oak grows more branches above its bare base. Measured headless, alone:
-
-  | Cambridge Oak with leaves and flutter | Build | Seconds per animation frame |
-  | --- | --- | --- |
-  | Wind | 0.91 s | 0.02–0.03 |
-  | Wind, Make Mesh | 1.04 s | 0.01–0.02 |
-  | Rig with wind | 1.66 s | 0.03–0.04 |
-  | Rig with wind, Make Mesh | 2.93 s | 0.02 |
-
-- 3 more presets ported from tree-gen: *Palm*, *Fan Palm* and *Bamboo*. They use *Trunks*, *Trunks Face
-  Out*, *Count Above Base*, *Leaves Above Base* and *Fan Angles*. Measured against tree-gen (seeds 1 to
-  5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees), bamboo 50 culms
-  with 1,250 branches (1,197).
+- 16 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*,
+  *Bamboo*, *Black Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Fan Palm*, *Hill Cherry*,
+  *Lombardy Poplar*, *Palm*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*.
+  `tools/port_treegen.py` maps their Weber–Penn values to the settings of Sapling, and
+  `tools/render_ports.py` renders each preset next to tree-gen's own tree. Measured against tree-gen
+  (seeds 1 to 5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees),
+  bamboo 50 culms with 1,250 branches (1,197).
 
 ### Fixed
 
@@ -68,6 +54,19 @@
 - A class that failed to register left the classes before it registered.
 
 ### Changed
+
+- The 18 presets from tree-gen use the full mapping: the leaf down angle variation sign (tree-gen's
+  positive value is random, Sapling's varies along the parent), Bend Variation from `bend_v`, Helix on
+  Black Oak's third level and Sphere Tree's trunk, blossoms on Apple and Hill Cherry, and Count Above
+  Base with Leaves Above Base. Each change is a commit of its own. Trees made from these presets change.
+  Cambridge Oak grows more branches above its bare base. Measured headless, alone:
+
+  | Cambridge Oak with leaves and flutter | Build | Seconds per animation frame |
+  | --- | --- | --- |
+  | Wind | 0.91 s | 0.02–0.03 |
+  | Wind, Make Mesh | 1.04 s | 0.01–0.02 |
+  | Rig with wind | 1.66 s | 0.03–0.04 |
+  | Rig with wind, Make Mesh | 2.93 s | 0.02 |
 
 - A preset or a tree from an older version that lacks settings gets their defaults, as before, and
   the operator now names them in a warning. The built-in presets set every setting.

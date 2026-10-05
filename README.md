@@ -1,8 +1,8 @@
 # Sapling Tree Gen for Blender 5.2 LTS
 
 **What:** A Blender 5.2 LTS extension that makes parametric trees (Weber–Penn model) with leaves,
-pruning, an armature rig and wind animation. It is a fork of the official Sapling Tree Gen, which is
-no longer maintained.
+blossoms, pruning, an armature rig and wind animation. It is a fork of the official Sapling Tree Gen,
+which is no longer maintained.
 
 **Why:** The original extension does not work correctly on Blender 5.x. For example, the wind
 animation stops with an error. This fork makes the extension work on Blender 5.2 LTS and corrects
@@ -10,9 +10,10 @@ old bugs. It also uses the Thin Wall shading of Blender 5.2 for the leaves. The 
 restructured into classes, with tests, lint and type checks.
 
 **Status:** Working on Blender 5.2.2 LTS. Tree generation, pruning, the armature rig, wind, presets,
-tree editing and the leaf material are complete. 242 automated tests pass in headless Blender, with
-99.7 % line and 97.7 % branch coverage. The features were also checked by hand in the Blender user
-interface.
+tree editing and the leaf material are complete. Clumps of trunks, helix stems, random branch bending
+and blossoms came from tree-gen, so its palms and bamboo port too. 276 automated tests pass in
+headless Blender, with 99.7 % line and 97.9 % branch coverage. The features were also checked by hand
+in the Blender user interface.
 
 ## Download
 
@@ -78,8 +79,9 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   collections. Objects that you parented to the tree stay attached.
 - **Leaf Material** (Leaves page, on by default): Mesh leaves get the material *Sapling Leaf*. This
   material is a Principled BSDF in the **Thin Wall** mode of Blender 5.2, with thin subsurface
-  scattering, so light goes through the leaves. Branches get the material *Sapling Bark*. The
-  extension makes each material one time and then uses it again, so your changes to them stay.
+  scattering, so light goes through the leaves. Blossoms get *Sapling Blossom*, in the same mode.
+  Branches get the material *Sapling Bark*. The extension makes each material one time and then uses
+  it again, so your changes to them stay.
 - **The tree object:** The tree (*tree*) is a mesh whose *Sapling Tree* modifier sweeps the branches
   from a hidden Curves object, *tree_curves*. *Bevel Depth*, *Bevel Resolution*, *Resolution U* and
   *Fill Caps* are live inputs of that modifier. To edit the splines, show *tree_curves* in *Object
@@ -113,15 +115,16 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Bend Variation** (Branch Growth page): Turns each segment of a level sideways by a random angle,
   up to the value divided by the level's segments. The first segment of a stem and a segment that
   splits do not turn.
-- **Count Above Base** (Branch Splitting page), **Leaves Above Base** and **Fan Angles** (Leaves
-  page): tree-gen's ways to count branches above the bare base, keep leaves off it, and cup a
-  palmate fan. Palms and bamboo need them. Each is off by default.
-- **Blossoms** (Leaves page): *Blossom Rate* is the part of the leaf positions that grows a flower
-  instead of a leaf. The flowers (cherry, orange or magnolia, *Blossom Scale* across) are in a
-  separate *blossoms* object and move with the leaves.
 - **Helix** (Branch Growth page): Grows the stems of a level as helixes, half a turn per segment.
   *Curvature Variation* sets the helix angle. It must be less than 90 degrees. Helix stems do not
   split, curve or bend.
+- **Count Above Base** (Branch Splitting page), **Leaves Above Base** and **Fan Angles** (Leaves
+  page): These settings work as tree-gen does. The branch count is for the part of a stem above its
+  bare base. The leaves keep off that base. A palmate fan tilts into a shallow cup. Palms and bamboo
+  need them. Each is off by default.
+- **Blossoms** (Leaves page): *Blossom Rate* is the part of the leaf positions that grows a flower
+  instead of a leaf. The flowers (cherry, orange or magnolia, *Blossom Scale* across) are in a
+  separate *blossoms* object and move with the leaves.
 - **Pruning:** Stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a
   stem that would keep less than 15 % of its length is removed, with its leaves. The envelope (two
   profile curves) is hidden after generation. *Object Properties > Visibility* shows it.
@@ -166,10 +169,11 @@ the times depend on the machine.
   - `generator.py` (`TreeGenerator`), `settings.py` (`TreeSettings`), `presets.py` (`PresetStore`)
   - `presets/` — the built-in presets (one Python dictionary each): 7 from upstream, 18 from tree-gen
 - `tests/` — the unittest suite, which runs in headless Blender. `tests/golden/` holds the exact
-  fingerprints of 55 generated trees. `test_fuzz` grows 100 trees from random settings.
+  fingerprints of 70 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
 - `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
-  `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`
+  `bench_baseline.json`), `port_treegen.py` and `render_ports.py` (each with its `*_in_blender.py`),
+  `blender_env.py` and `hooks/pre-commit`
 
 ## Decisions
 
@@ -182,7 +186,10 @@ Each item gives the decision and the reason for it.
 - **Named records.** Every record in `source/` is a class with named fields: no tuple and no
   dictionary holds a record, also as a return value. A sequence of values of one kind is a list or a
   NumPy array. Only Blender's enum items are tuples, because its API takes them. `test_architecture`
-  checks this rule.
+  checks this rule. The tools keep their records in dataclasses too.
+- **A new feature is off by default and changes no tree.** With the feature off, the model draws
+  nothing for it and multiplies nothing in. So every golden fingerprint stays the same, and only the
+  settings blocks of the golden files get the new key. Each feature commit shows this.
 - **One joint layout for the rig and the wind.** The rig's bones and the node wind's joints come from
   the same `Joints`, with the same sway numbers. The lengths match the old per-bone mathutils code to
   the bit. A bone direction can differ in its last float32 bit, because the reciprocal in mathutils'
@@ -238,6 +245,7 @@ GPL-3.0-or-later (see `source/blender_manifest.toml`).
 Eighteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `bamboo`, `black_oak`,
 `black_tupelo`, `cambridge_oak`, `douglas_fir`, `european_larch`, `fan_palm`, `hill_cherry`,
 `lombardy_poplar`, `palm`, `quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and
-`willow` (tree-gen's weeping willow). They come from tree-gen (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and
-contributors. `tools/port_treegen.py` maps their Weber–Penn values to the settings of Sapling and
-documents the mapping. These files are GPL-3.0-only, as tree-gen is.
+`willow` (tree-gen's weeping willow). They come from tree-gen (<https://github.com/friggog/tree-gen>)
+by Charlie Hewitt and contributors. `tools/port_treegen.py` maps their Weber–Penn values to the
+settings of Sapling and documents the mapping. These files are GPL-3.0-only, as tree-gen is. The
+blossom geometry is not from tree-gen. This extension makes its own flowers (GPL-3.0-or-later).
