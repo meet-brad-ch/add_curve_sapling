@@ -55,14 +55,13 @@ class Ownership(unittest.TestCase):
         self.assertEqual(sorted(ob.name for ob in record().owned(twin)), twin_parts)
         self.assertNotEqual(twin[record().ID], helpers.active_object()[record().ID])
 
-    def test_skin_mesh_without_armature_belongs_to_the_tree(self):
+    def test_baked_mesh_is_the_tree_itself(self):
         helpers.reset_scene()
         root = add_tree(makeMesh=True, useRig=False)
-        mesh = bpy.data.objects["treemesh"]
-        self.assertEqual(mesh.parent, root)
-        self.assertTrue(record().is_tree(mesh))
-        self.assertEqual(record().root_of(mesh), root)
-        self.assertNotIn("sharp_face", mesh.data.attributes, "an edge-only skeleton has no faces to shade")
+        self.assertGreater(len(root.data.vertices), 0)
+        self.assertEqual(root.data.name, "tree")
+        self.assertNotIn("treemesh", bpy.data.objects)
+        self.assertEqual(sorted(ob.name for ob in record().owned(root)), ["leaves", "tree", "tree_curves"])
 
     def test_broken_record_is_an_error(self):
         helpers.reset_scene()
@@ -161,14 +160,14 @@ class FailureSafety(unittest.TestCase):
     """A generation that fails part-way leaves nothing behind, and a failed edit keeps the old tree."""
 
     def fail_during_skin_mesh(self):
-        builder = helpers.module("build.skin_mesh").SkinMeshBuilder
-        original = builder.build
+        builder = helpers.module("build.bake").BarkBake
+        original = builder.bake
 
         def failing(*args, **kwargs):
             raise RuntimeError("injected failure")
 
-        builder.build = failing
-        self.addCleanup(setattr, builder, "build", original)
+        builder.bake = failing
+        self.addCleanup(setattr, builder, "bake", original)
 
     def test_failed_add_leaves_nothing(self):
         helpers.reset_scene()

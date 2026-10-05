@@ -47,7 +47,11 @@ class JointProxy:
     @classmethod
     def groups(cls, joints: WindJoints) -> dict[str, list[int]]:
         """Vertex indices per bone name, in joint order: the vertices of every point following that joint."""
-        ordinals = np.repeat(joints.ordinals(joints.point_joints()), cls.PER_POINT)
+        return cls.groups_of(np.repeat(joints.ordinals(joints.point_joints()), cls.PER_POINT), joints)
+
+    @classmethod
+    def groups_of(cls, ordinals: np.ndarray, joints: WindJoints) -> dict[str, list[int]]:
+        """Vertex indices per bone name for vertices with these joint numbers (bones with no vertex left out)."""
         order = np.argsort(ordinals, kind="stable")
         counts = np.bincount(ordinals, minlength=len(joints.joint_point))
         starts = np.concatenate([[0], np.cumsum(counts)[:-1]])

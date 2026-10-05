@@ -1,88 +1,41 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
-  "leaves": {
-   "data": {
-    "co": "6f393f8635220657",
-    "edges": 3087,
-    "faces": 882,
-    "topology": "83ffb3597209477b",
-    "uv": "8b943bb927f2cc15",
-    "uv_layers": [
-     "leafUV"
-    ],
-    "verts": 2646
-   },
-   "evaluated": {
-    "co": "1f6efb635d7b0952",
-    "edges": 3087,
-    "faces": 882,
-    "verts": 2646
-   },
-   "instance_type": "NONE",
-   "modifiers": [
-    "NODES",
-    "NODES"
-   ],
-   "node_inputs": {
-    "Leaf Flutter": {
-     "group": "Sapling Leaf Flutter",
-     "inputs": {
-      "Loop": true,
-      "Loop End": 48.0,
-      "Scale": 6.0,
-      "Strength": 0.25
-     }
-    },
-    "Sapling Follow Wind": {
-     "group": "Sapling Follow Wind",
-     "inputs": {
-      "Curves": "tree_curves"
-     }
-    }
-   },
-   "parent": "tree",
-   "type": "MESH",
-   "vertex_groups": ""
-  },
   "tree": {
    "data": {
-    "co": "da39a3ee5e6b4b0d",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 0
-   },
-   "evaluated": {
-    "co": "2d8894091180fee1",
+    "co": "e00495ff6ffd1514",
     "edges": 5180,
     "faces": 2528,
+    "topology": "eafeef210f556b05",
+    "uv_layers": [],
     "verts": 2652
    },
    "instance_type": "NONE",
    "modifiers": [
-    "NODES"
+    "ARMATURE"
    ],
-   "node_inputs": {
-    "Sapling Tree": {
-     "group": "Sapling Tree",
-     "inputs": {
-      "Bevel Depth": 1.0,
-      "Bevel Resolution": 0,
-      "Curves": "tree_curves",
-      "Fast Preview": false,
-      "Fill Caps": false,
-      "Joints": null,
-      "Material": "Sapling Bark",
-      "Resolution U": 4,
-      "Rig": false,
-      "Wind": true
-     }
-    }
-   },
    "parent": null,
    "type": "MESH",
+   "vertex_groups": "9298aaa57be1a9b7"
+  },
+  "treeArm": {
+   "animation": {
+    "fcurves": 188,
+    "groups": "3f8b0861d7b4844d",
+    "modifiers": "db00dd084533dafe",
+    "paths": "af5731c732157b84"
+   },
+   "data": {
+    "bones": 94,
+    "connect": "33b611ac292c556c",
+    "geometry": "1837720f9e04e417",
+    "names": "18b4df009ddca913",
+    "parents": "89ed2e3f4bef8c46"
+   },
+   "instance_type": "NONE",
+   "modifiers": [],
+   "parent": "tree",
+   "type": "ARMATURE",
    "vertex_groups": ""
   },
   "tree_curves": {
@@ -124,55 +77,27 @@
     "splines": 31
    },
    "instance_type": "NONE",
-   "modifiers": [
-    "NODES"
-   ],
-   "node_inputs": {
-    "Sapling Wind": {
-     "group": "Sapling Wind",
-     "inputs": {
-      "Depth Passes": 1,
-      "Gust": 0.13089969754219055,
-      "Scan Passes": 4
-     }
-    }
-   },
+   "modifiers": [],
    "parent": "tree",
    "type": "CURVES",
    "vertex_groups": ""
   },
-  "treemesh": {
+  "tree_joints": {
    "data": {
-    "co": "71ed85ba138932c1",
-    "edges": 632,
+    "co": "ab660d29a22c1c52",
+    "edges": 0,
     "faces": 0,
-    "skin": "46805076476c26c0",
     "topology": "da39a3ee5e6b4b0d",
     "uv_layers": [],
-    "verts": 662
-   },
-   "evaluated": {
-    "co": "b25cb453f96882ad",
-    "edges": 34272,
-    "faces": 17136,
-    "verts": 17196
+    "verts": 567
    },
    "instance_type": "NONE",
    "modifiers": [
-    "NODES",
-    "SKIN"
+    "ARMATURE"
    ],
-   "node_inputs": {
-    "Sapling Follow Wind": {
-     "group": "Sapling Follow Wind",
-     "inputs": {
-      "Curves": "tree_curves"
-     }
-    }
-   },
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "a506ac98a0947658"
+   "vertex_groups": "0ad81008a2fc72db"
   }
  },
  "settings": {
@@ -256,15 +181,15 @@
   "horzLeaves": true,
   "jointLevels": 2,
   "jointStep": [
-   1,
-   1,
+   2,
+   2,
    1,
    1
   ],
   "leafDist": "6",
   "leafDownAngle": 45.0,
   "leafDownAngleV": 10.0,
-  "leafFlutter": true,
+  "leafFlutter": false,
   "leafMaterial": true,
   "leafRotate": 137.5,
   "leafRotateV": 0.0,
@@ -288,7 +213,7 @@
    0.0
   ],
   "levels": 2,
-  "loopFrames": 48,
+  "loopFrames": 0,
   "makeMesh": true,
   "minRadius": 0.001500000013038516,
   "nrings": 0,
@@ -335,7 +260,7 @@
   ],
   "shape": "7",
   "shapeS": "4",
-  "showLeaves": true,
+  "showLeaves": false,
   "splitAngle": [
    0.0,
    0.0,
@@ -361,7 +286,7 @@
   "trunks": 1,
   "useOldDownAngle": false,
   "useParentAngle": true,
-  "useRig": false,
+  "useRig": true,
   "windAnim": true,
   "windStrength": 1.0
  }

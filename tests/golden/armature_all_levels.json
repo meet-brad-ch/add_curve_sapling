@@ -23,43 +23,20 @@
   },
   "tree": {
    "data": {
-    "co": "da39a3ee5e6b4b0d",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 0
-   },
-   "evaluated": {
-    "co": "c706e137e2802e1f",
+    "co": "e00495ff6ffd1514",
     "edges": 5180,
     "faces": 2528,
+    "topology": "eafeef210f556b05",
+    "uv_layers": [],
     "verts": 2652
    },
    "instance_type": "NONE",
    "modifiers": [
-    "NODES"
+    "ARMATURE"
    ],
-   "node_inputs": {
-    "Sapling Tree": {
-     "group": "Sapling Tree",
-     "inputs": {
-      "Bevel Depth": 1.0,
-      "Bevel Resolution": 0,
-      "Curves": "tree_curves",
-      "Fast Preview": false,
-      "Fill Caps": false,
-      "Joints": "tree_joints",
-      "Material": "Sapling Bark",
-      "Resolution U": 4,
-      "Rig": true,
-      "Wind": false
-     }
-    }
-   },
    "parent": null,
    "type": "MESH",
-   "vertex_groups": ""
+   "vertex_groups": "68387bb720335fff"
   },
   "treeArm": {
    "animation": {
@@ -141,25 +118,6 @@
    "parent": "tree",
    "type": "MESH",
    "vertex_groups": "62e275f2c17ddf7e"
-  },
-  "treemesh": {
-   "data": {
-    "co": "71ed85ba138932c1",
-    "edges": 632,
-    "faces": 0,
-    "skin": "46805076476c26c0",
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 662
-   },
-   "instance_type": "NONE",
-   "modifiers": [
-    "ARMATURE",
-    "SKIN"
-   ],
-   "parent": "treeArm",
-   "type": "MESH",
-   "vertex_groups": "3813fce70ffa8ec3"
   }
  },
  "settings": {

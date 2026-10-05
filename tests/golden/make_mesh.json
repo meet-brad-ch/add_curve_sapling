@@ -1,59 +1,56 @@
 {
  "blender": "5.2.2 LTS",
  "fingerprint": {
+  "leaves": {
+   "data": {
+    "co": "6f393f8635220657",
+    "edges": 3087,
+    "faces": 882,
+    "topology": "83ffb3597209477b",
+    "uv": "8b943bb927f2cc15",
+    "uv_layers": [
+     "leafUV"
+    ],
+    "verts": 2646
+   },
+   "instance_type": "NONE",
+   "modifiers": [
+    "ARMATURE"
+   ],
+   "parent": "tree",
+   "type": "MESH",
+   "vertex_groups": "5201fd8dabd65fba"
+  },
   "tree": {
    "data": {
-    "co": "da39a3ee5e6b4b0d",
-    "edges": 0,
-    "faces": 0,
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 0
-   },
-   "evaluated": {
-    "co": "15f91f1573e6fd1b",
+    "co": "e00495ff6ffd1514",
     "edges": 5180,
     "faces": 2528,
+    "topology": "eafeef210f556b05",
+    "uv_layers": [],
     "verts": 2652
    },
    "instance_type": "NONE",
    "modifiers": [
-    "NODES"
+    "ARMATURE"
    ],
-   "node_inputs": {
-    "Sapling Tree": {
-     "group": "Sapling Tree",
-     "inputs": {
-      "Bevel Depth": 1.0,
-      "Bevel Resolution": 0,
-      "Curves": "tree_curves",
-      "Fast Preview": false,
-      "Fill Caps": false,
-      "Joints": "tree_joints",
-      "Material": "Sapling Bark",
-      "Resolution U": 4,
-      "Rig": true,
-      "Wind": false
-     }
-    }
-   },
    "parent": null,
    "type": "MESH",
-   "vertex_groups": ""
+   "vertex_groups": "8679ba0b8a1b91c3"
   },
   "treeArm": {
    "animation": {
-    "fcurves": 188,
-    "groups": "3f8b0861d7b4844d",
-    "modifiers": "db00dd084533dafe",
-    "paths": "af5731c732157b84"
+    "fcurves": 0,
+    "groups": "da39a3ee5e6b4b0d",
+    "modifiers": "da39a3ee5e6b4b0d",
+    "paths": "da39a3ee5e6b4b0d"
    },
    "data": {
-    "bones": 94,
-    "connect": "33b611ac292c556c",
-    "geometry": "1837720f9e04e417",
-    "names": "18b4df009ddca913",
-    "parents": "89ed2e3f4bef8c46"
+    "bones": 158,
+    "connect": "41663ef0cbb633b6",
+    "geometry": "780234eaad820ebd",
+    "names": "b869fe8ad1b37bd6",
+    "parents": "dcb9e98e71750b96"
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -120,26 +117,7 @@
    ],
    "parent": "tree",
    "type": "MESH",
-   "vertex_groups": "0ad81008a2fc72db"
-  },
-  "treemesh": {
-   "data": {
-    "co": "71ed85ba138932c1",
-    "edges": 632,
-    "faces": 0,
-    "skin": "46805076476c26c0",
-    "topology": "da39a3ee5e6b4b0d",
-    "uv_layers": [],
-    "verts": 662
-   },
-   "instance_type": "NONE",
-   "modifiers": [
-    "ARMATURE",
-    "SKIN"
-   ],
-   "parent": "treeArm",
-   "type": "MESH",
-   "vertex_groups": "aa8ac58ef1edd200"
+   "vertex_groups": "25803997ac698c5f"
   }
  },
  "settings": {
@@ -223,8 +201,8 @@
   "horzLeaves": true,
   "jointLevels": 2,
   "jointStep": [
-   2,
-   2,
+   1,
+   1,
    1,
    1
   ],
@@ -302,7 +280,7 @@
   ],
   "shape": "7",
   "shapeS": "4",
-  "showLeaves": false,
+  "showLeaves": true,
   "splitAngle": [
    0.0,
    0.0,
@@ -329,7 +307,7 @@
   "useOldDownAngle": false,
   "useParentAngle": true,
   "useRig": true,
-  "windAnim": true,
+  "windAnim": false,
   "windStrength": 1.0
  }
 }

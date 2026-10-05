@@ -13,8 +13,8 @@ from bpy.types import ID, Collection, Mesh, Object
 class ObjectFactory:
     """Creates the tree's objects in the target collections and knows each one by its role.
 
-    The role is the object's base name ("tree", "tree_curves", "tree_joints", "leaves", "treeArm", "treemesh",
-    "envelope"); Blender
+    The role is the object's base name ("tree", "tree_curves", "tree_joints", "leaves", "treeArm", "envelope");
+    Blender
     appends ".001" when an older tree still holds the name, and take_base_names() takes it back.
     """
 
@@ -112,7 +112,8 @@ class VertexGroupWriter:
         """(name, domain, type) of every attribute that holds data, sorted.
 
         Left out: Blender's internal storage (names starting with "."; bmesh adds topology and UV selection
-        layers), and attributes on a domain with no elements (bmesh drops sharp_face from a mesh without faces).
+        layers), attributes on a domain with no elements (bmesh drops sharp_face from a mesh without faces), and
+        material_index (bmesh keeps it on its faces and writes the attribute back only when an index is not 0).
         """
         sizes = {
             "POINT": len(mesh.vertices),
@@ -121,5 +122,7 @@ class VertexGroupWriter:
             "CORNER": len(mesh.loops),
         }
         return sorted(
-            (a.name, a.domain, a.data_type) for a in mesh.attributes if not a.name.startswith(".") and sizes[a.domain]
+            (a.name, a.domain, a.data_type)
+            for a in mesh.attributes
+            if not a.name.startswith(".") and a.name != "material_index" and sizes[a.domain]
         )

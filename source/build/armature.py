@@ -95,7 +95,7 @@ class RigSize:
 
 
 class ArmatureBuilder:
-    """Builds the armature that deforms the joint proxy (and so the bark), the leaves and the skin mesh."""
+    """Builds the armature that deforms the joint proxy (and so the bark), the leaves and a baked bark mesh."""
 
     ROLE = "treeArm"
     DATA_NAME = "tree"
@@ -171,12 +171,6 @@ class ArmatureBuilder:
         modifier.use_bone_envelopes = by_envelopes
         modifier.use_vertex_groups = not by_envelopes
         return modifier
-
-    @staticmethod
-    def preview_with_skin_mesh(armature_ob: Object) -> None:
-        """Fast Preview with Make Mesh: the skin mesh shows the tree, so the armature is hidden."""
-        armature_ob.hide_viewport = True
-        armature_ob.data.display_type = "STICK"  # type: ignore[union-attr]  # stub: Object.data is a union of all data types
 
     @contextmanager
     def _editing(self, armature_ob: Object) -> Iterator[None]:

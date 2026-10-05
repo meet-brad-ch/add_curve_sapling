@@ -164,7 +164,7 @@ class SettingsPages:
 
     @staticmethod
     def armature(props: Any, box: UILayout) -> None:
-        """Armature, skin mesh and armature simplification."""
+        """Armature rig, baked mesh and armature simplification."""
         box.prop(props, "useRig")
         box.prop(props, "makeMesh")
         box.label(text="Armature Simplification:")

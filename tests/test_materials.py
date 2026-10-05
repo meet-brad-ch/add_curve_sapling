@@ -33,11 +33,10 @@ class LeafMaterial(unittest.TestCase):
         self.assertEqual(bsdf.inputs["Subsurface Weight"].default_value, 1.0)
         self.assertEqual(material.thickness_mode, "SLAB")
 
-    def test_bark_on_branches_and_skin_mesh(self):
+    def test_bark_on_the_baked_mesh(self):
         self.generate(useRig=True, makeMesh=True)
-        for name in ("tree", "treemesh"):
-            with self.subTest(object=name):
-                self.assertEqual(evaluated_materials(name), ["Sapling Bark"])
+        self.assertEqual(evaluated_materials("tree"), ["Sapling Bark"])
+        self.assertEqual([m.name for m in bpy.data.objects["tree"].data.materials], ["Sapling Bark"])
 
     def test_option_off(self):
         self.generate(leafMaterial=False)

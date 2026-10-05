@@ -102,7 +102,7 @@ class ModelSpeed(unittest.TestCase):
 
 
 class BuildScaling(unittest.TestCase):
-    """The whole build (growth, curves, leaves, node wind, skin mesh) grows linearly with the tree.
+    """The whole build (growth, curves, leaves, node wind, baked mesh) grows linearly with the tree.
 
     Every per-item Blender call used to cost time in proportion to the items already made, so trees of 20,000
     stems took about a minute; the model now grows in memory and every part is written in bulk.

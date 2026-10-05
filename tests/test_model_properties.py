@@ -100,6 +100,29 @@ class TreeStructure(unittest.TestCase):
             self.assertLess(best, 0.02, f"sprout {i} is {best:.3f} from its segment")
 
 
+class RadiusRange(unittest.TestCase):
+    """Settings that multiply the radius level by level (ratio power above 1 on branches longer than their parent)
+    grew radii past float32: an infinite radius gave the swept bark NaN vertices (fuzz case 56)."""
+
+    def test_radii_stay_within_float32(self):
+        _, curve, _ = grow(
+            levels=4,
+            trunks=3,
+            scale=13.2,
+            ratio=1.616,
+            ratioPower=2.424,
+            minRadius=1.11,
+            branches=(39, 13, 8, 3),
+            length=(1.084, 1.589, 0.9, 0.8),
+            lengthV=(0.583, 0.372, 0.339, 0.308),
+            curveRes=(6, 1, 4, 2),
+        )
+        radius = curve.flatten().radius
+        self.assertTrue(np.isfinite(radius).all())
+        self.assertGreater(radius.max(), 1e6, "the settings do blow the radii up")
+        self.assertLessEqual(radius.max(), np.finfo(np.float32).max)
+
+
 class FailFast(unittest.TestCase):
     def test_stem_rows_need_every_field(self):
         with self.assertRaisesRegex(ValueError, "stem rows need"):

@@ -69,7 +69,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
         {"levels": 2, "showLeaves": False, "shape": "8", "customShape": (0.3, 1.0, 0.4, 0.6)},
     ),
     ("no_bevel", "quaking_aspen", {"levels": 2, "showLeaves": False, "bevel": False}),
-    # Pruning, armature, animation, skin mesh.
+    # Pruning, armature, animation, baked mesh.
     ("prune", "callistemon", {"prune": True}),
     ("prune_armature", "callistemon", {"prune": True, "useRig": True, "showLeaves": True}),
     ("armature", "callistemon", {"showLeaves": True, "useRig": True}),
@@ -85,7 +85,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
         "quaking_aspen",
         {"levels": 2, "showLeaves": False, "useRig": True, "windAnim": True, "loopFrames": 48},
     ),
-    ("skin_mesh", "quaking_aspen", {"levels": 2, "showLeaves": True, "useRig": True, "makeMesh": True}),
+    ("make_mesh", "quaking_aspen", {"levels": 2, "showLeaves": True, "useRig": True, "makeMesh": True}),
     (
         "armature_all_levels",
         "quaking_aspen",
@@ -99,7 +99,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
         },
     ),
     (
-        "skin_mesh_step",
+        "make_mesh_step",
         "quaking_aspen",
         {
             "levels": 2,
@@ -118,7 +118,7 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     # Wind without the rig: forward kinematics in Geometry Nodes.
     ("node_wind", "quaking_aspen", {"levels": 2, "showLeaves": True, "windAnim": True}),
     (
-        "node_wind_leaves_skin",
+        "node_wind_leaves_mesh",
         "quaking_aspen",
         {"levels": 2, "showLeaves": True, "windAnim": True, "leafFlutter": True, "makeMesh": True, "loopFrames": 48},
     ),

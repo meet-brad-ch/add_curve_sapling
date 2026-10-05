@@ -107,16 +107,16 @@ class PrunedArmature(unittest.TestCase):
 class SecondTree(unittest.TestCase):
     """The skin mesh looked the armature up by the name 'treeArm', so a second tree got the first one's."""
 
-    def test_skin_mesh_uses_its_own_armature(self):
+    def test_baked_mesh_uses_its_own_armature(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        for mesh_name, arm_name in (("treemesh", "treeArm"), ("treemesh.001", "treeArm.001")):
-            mesh = bpy.data.objects[mesh_name]
-            modifier = next(m for m in mesh.modifiers if m.type == "ARMATURE")
-            self.assertEqual(modifier.object.name, arm_name, mesh_name)
-            self.assertEqual(mesh.parent.name, arm_name, mesh_name)
+        for root_name, arm_name in (("tree", "treeArm"), ("tree.001", "treeArm.001")):
+            root = bpy.data.objects[root_name]
+            modifier = next(m for m in root.modifiers if m.type == "ARMATURE")
+            self.assertEqual(modifier.object.name, arm_name, root_name)
+            self.assertEqual(bpy.data.objects[arm_name].parent, root, root_name)
 
 
 class LeafInstanceObject(unittest.TestCase):

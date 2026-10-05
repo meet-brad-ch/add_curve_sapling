@@ -10,7 +10,6 @@ from bpy.types import Material, Node
 from ..model.leaves import LeafShape
 from ..model.params import TreeParams
 from .leaf_object import LeafObjectBuilder
-from .skin_mesh import SkinMeshBuilder
 from .tree_root import TreeRootBuilder
 
 
@@ -68,15 +67,13 @@ class MaterialLibrary:
 
     @classmethod
     def assign(cls, result: Any, params: TreeParams) -> None:
-        """Bark on the branches (the root's sweep and the skin mesh); the leaf material on mesh leaves (not instanced).
+        """Bark on the branches (the root's sweep; a baked mesh keeps it); the leaf material on mesh leaves (not
+        instanced).
 
         `result` is the generator's TreeResult (build/ must not import it): anything with role(name).
         """
         bark = cls.bark()
         TreeRootBuilder.set_material(result.role(TreeRootBuilder.ROLE), bark)
-        skin = result.role(SkinMeshBuilder.ROLE)
-        if skin is not None:
-            skin.data.materials.append(bark)
         leaves = result.role(LeafObjectBuilder.ROLE)
         if params.leaf_material and leaves is not None and params.leaf_shape in LeafShape.MESH:
             leaves.data.materials.append(cls.leaf())

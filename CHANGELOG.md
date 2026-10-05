@@ -30,8 +30,11 @@
   the estimated time and the settings that lower it. Blender creates each bone in time proportional to
   the bones that already exist, so a rig's build time grows with the square of its bone count: 79,648
   bones (Cambridge Oak, every segment) took 415 s.
-- *Make Mesh* builds its skeleton for all stems at once (vertices, edges, radii, roots and bone groups as
-  arrays): the same mesh as before, byte for byte, in 0.3 s instead of per spline in Python.
+- *Make Mesh* bakes the branches into a plain mesh in the tree object, weighted to the rig's bones or
+  following the node wind, instead of building a vertex skeleton with a Skin modifier. The Skin modifier
+  rebuilt its 12 million vertex skin of Cambridge Oak on every animation frame (11 s per frame); the baked
+  mesh deforms in a few hundredths of a second. The welded junctions of the skin are gone: the baked mesh is
+  the swept bark, which exports as a skinned mesh with the rig.
 - The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each;
   the evaluated tree moves by at most 2e-5 against the previous build.
 - *Leaf Animation* turns the leaves with a Geometry Nodes modifier (*Sapling Leaf Flutter*) instead of

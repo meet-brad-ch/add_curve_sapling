@@ -257,8 +257,6 @@ def _mesh_fp(mesh) -> dict:
     }
     if mesh.uv_layers:
         out["uv"] = _hash(_floats(mesh.uv_layers[0].data, "uv", 2).tobytes())
-    if mesh.skin_vertices:
-        out["skin"] = _hash(_floats(mesh.skin_vertices[0].data, "radius", 2).tobytes())
     return out
 
 

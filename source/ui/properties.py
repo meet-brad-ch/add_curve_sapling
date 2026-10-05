@@ -54,7 +54,7 @@ class Choices:
         ("3", "Branch Growth", "Length, angles and curvature"),
         ("4", "Pruning", "Pruning envelope"),
         ("5", "Leaves", "Leaf shape and placement"),
-        ("6", "Armature", "Armature and skin mesh"),
+        ("6", "Armature", "Armature rig and baked mesh"),
         ("7", "Animation", "Wind animation"),
     ]
 
@@ -395,7 +395,7 @@ class TreeProperties:
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
     )
 
-    # Rig and skin mesh
+    # Rig and baked mesh
     useRig: BoolProperty(
         name="Armature Rig",
         description="Generate an armature whose bones move the branches: one bone per Joint Length stem segments "
@@ -404,7 +404,8 @@ class TreeProperties:
     )  # fmt: skip
     makeMesh: BoolProperty(
         name="Make Mesh",
-        description="Also build a skin-modifier mesh of the branches (welded junctions), weighted to the rig",
+        description="Bake the branches into a plain mesh, weighted to the rig's bones, for export. The Bevel inputs "
+        "are then fixed, Fast Preview shows the bounds, and playback is heavier (every vertex is deformed)",
         default=False, update=update_tree,
     )  # fmt: skip
     jointLevels: IntProperty(

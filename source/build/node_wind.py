@@ -147,13 +147,6 @@ class WindJoints:
             oz[i] = rng.uniform(0, math.tau)
         return ox, oz
 
-    def joint_of(self, bone: str) -> int:
-        """The point index of the joint `bone` (a bone name the rig would make, rounded to Joint Length)."""
-        point = int(self.starts[BoneName.spline(bone)]) + int(bone[-3:])
-        if not self.is_joint[point]:
-            raise RuntimeError(f"{bone} is not a joint")
-        return point
-
     def nearest_joint(self, spline: np.ndarray, point: np.ndarray) -> np.ndarray:
         """Per (curve, point on it): the point index of the joint the point follows.
 

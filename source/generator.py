@@ -10,13 +10,13 @@ from typing import Any
 from bpy.types import Collection, Context, Object
 
 from .build.armature import ArmatureBuilder, RigSize
+from .build.bake import BarkBake
 from .build.envelope import EnvelopeBuilder
 from .build.joint_proxy import JointProxy
 from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
 from .build.node_wind import NodeWind, WindJoints
 from .build.objects import ObjectFactory
-from .build.skin_mesh import SkinMeshBuilder
 from .build.tree_root import CurveSource, TreeRootBuilder
 from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
@@ -69,9 +69,7 @@ class TreeGenerator:
         except BaseException:
             objects.discard()
             raise
-        result = TreeResult(objects)
-        MaterialLibrary.assign(result, p)
-        return result
+        return TreeResult(objects)
 
     def _build(self, objects: ObjectFactory) -> None:
         p = self.params
@@ -88,6 +86,7 @@ class TreeGenerator:
         grown_curve = CurveData()
         grown = TreeGrower(p, rng).grow(grown_curve, scale)
         rig = p.use_armature
+        rig_joints = None
         if rig:
             rig_joints = WindJoints(p, grown_curve, grown)
             warning = RigSize.check(RigSize.bones(rig_joints))
@@ -103,7 +102,7 @@ class TreeGenerator:
 
         armature_ob = joints_ob = None
         joints = None
-        if rig:
+        if rig_joints is not None:
             joints_ob = JointProxy(p, objects).build(root, grown_curve, rig_joints)
             armature_ob = ArmatureBuilder(p, rng, objects, self.context).build(
                 root, joints_ob, grown_curve, grown, leaf_set, leaves_ob
@@ -114,11 +113,10 @@ class TreeGenerator:
             root, curves_ob, wind=joints is not None, preview=p.preview_armature and not rig, joints_ob=joints_ob
         )
 
+        MaterialLibrary.assign(TreeResult(objects), p)  # before a bake: the baked mesh keeps the sweep's material
         if p.make_mesh:
-            wind = (curves_ob, joints) if joints is not None else None
-            SkinMeshBuilder(p, objects).build(root, grown_curve, grown, armature_ob, wind)
-            if armature_ob and p.preview_armature:
-                ArmatureBuilder.preview_with_skin_mesh(armature_ob)
+            bake_joints = rig_joints or joints or WindJoints(p, grown_curve, grown)
+            BarkBake(p, self.context).bake(root, curves_ob, bake_joints, armature_ob)
 
         if leaves_ob:
             leaf_builder.finish(leaves_ob, leaf_set)  # type: ignore[arg-type]  # leaves_ob implies leaf_set

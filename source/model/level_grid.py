@@ -248,7 +248,10 @@ class LevelGrid:
         right[at] = (self.co[stems.removed, 0] + self.dir0[stems.removed]).astype(np.float32)
         grown = sizes >= 2
         AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1][grown], (start[1:] - 1)[grown])
-        return FlatCurve(co, left, right, h1, h2, self.radius[valid].astype(np.float32), start)
+        # radii within the float32 range, as Blender's RNA clamps a curve point's radius (absurd settings can
+        # grow them past it; an infinite radius would give the swept bark NaN vertices)
+        radius = np.clip(self.radius[valid], 0.0, np.finfo(np.float32).max).astype(np.float32)
+        return FlatCurve(co, left, right, h1, h2, radius, start)
 
     def bone_links(self, bone_step: Sequence[int]) -> list[BoneLink]:
         """Where each row hangs in the armature, in row order (BoneMap entries)."""

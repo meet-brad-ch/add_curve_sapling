@@ -91,6 +91,11 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   to the bones that already exist, so a rig's build time grows with the square of its bone count
   (measured: 79,648 bones took 415 s). The operator warns above 10,000 bones and refuses above 40,000;
   *Wind* without *Armature Rig* moves the same joints in Geometry Nodes and needs no bones.
+- **Make Mesh** (Armature page): bakes the branches into a plain mesh in the tree object, weighted to the
+  rig's bones when there is a rig (so it exports as a skinned mesh), or following the node wind. The
+  *Bevel* inputs are then fixed, *Fast Preview* shows the bounds, and playback is heavier because every
+  vertex is deformed. Without *Make Mesh* the branches stay a live Geometry Nodes sweep, which an export
+  with modifiers applied also writes as a mesh.
 - **Trunks** (Branch Splitting page): more than 1 grows a clump, such as bamboo. The further trunks
   stand on a disc around the first, each with its own size, curve direction and branches.
 - **Pruning:** stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a stem

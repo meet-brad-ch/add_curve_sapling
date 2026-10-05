@@ -3,6 +3,7 @@
 """The tree as a mesh root whose "Sapling Tree" modifier sweeps the curves to the bark, and the wind without the
 rig: forward kinematics in Geometry Nodes, matching the armature's wind."""
 
+import json
 import random
 import tempfile
 import unittest
@@ -378,12 +379,6 @@ class NodeWindJoints(unittest.TestCase):
         moved = np.linalg.norm(vertices("leaves", 17) - vertices("leaves", 1), axis=1)
         self.assertGreater(moved.max(), 1e-3)
 
-    def test_a_name_that_is_no_joint_is_an_error(self):
-        params, _, joints = model_joints(levels=2, windAnim=True, makeMesh=True)
-        self.assertEqual(joints.joint_of("bone000.000"), 0)
-        with self.assertRaisesRegex(RuntimeError, "is not a joint"):
-            joints.joint_of(f"bone000.{params.curve_res[0]:03d}")  # a stem's last point starts no bone
-
     def test_every_point_follows_the_last_joint_head_before_it(self):
         """Joint Length 2: points 0 and 1 follow the joint at 0, points 2 and 3 the one at 2, the last the last."""
         _, _, joints = model_joints(levels=2, makeMesh=True, jointLevels=0, jointStep=(2, 2, 1, 1))
@@ -427,13 +422,51 @@ class NodeWindJoints(unittest.TestCase):
             joints.nearest_joint(np.array([1]), np.array([0]))
 
 
-class NodeWindSkinMesh(unittest.TestCase):
-    """Make Mesh without the rig: the skin mesh follows the node wind."""
+class BakedBark(unittest.TestCase):
+    """Make Mesh bakes the sweep into the root's mesh: with the rig weighted to its bones, otherwise following the
+    node wind through the Follow Wind modifier."""
 
-    def test_skin_mesh_moves_with_the_wind(self):
-        self.assertEqual(helpers.generate(tree_settings(windAnim=True, makeMesh=True)), {"FINISHED"})
-        skin = bpy.data.objects["treemesh"]
-        self.assertEqual([m.type for m in skin.modifiers], ["NODES", "SKIN"])
-        self.assertTrue(skin.vertex_groups)  # one per joint, as with the rig: the skin mesh can still be rigged
-        moved = np.linalg.norm(vertices("treemesh", 17) - vertices("treemesh", 1), axis=1)
-        self.assertGreater(moved.max(), 1e-3)
+    def test_baked_mesh_follows_the_node_wind(self):
+        settings = tree_settings(windAnim=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        live = evaluated_counts("tree")
+        settings["makeMesh"] = True
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        root = bpy.data.objects["tree"]
+        self.assertEqual([m.name for m in root.modifiers], ["Sapling Follow Wind"])
+        self.assertEqual((len(root.data.vertices), len(root.data.edges), len(root.data.polygons)), live)
+        self.assertEqual([m.name for m in root.data.materials], ["Sapling Bark"])
+        self.assertNotIn("treemesh", bpy.data.objects)
+        moved = np.linalg.norm(vertices("tree", 17) - vertices("tree", 1), axis=1)
+        self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the baked bark moves")
+
+    def test_baked_mesh_is_skinned_to_the_rig(self):
+        self.assertEqual(helpers.generate(tree_settings(useRig=True, windAnim=True, makeMesh=True)), {"FINISHED"})
+        root = bpy.data.objects["tree"]
+        self.assertEqual([m.type for m in root.modifiers], ["ARMATURE"])
+        self.assertEqual(root.modifiers[0].object.name, "treeArm")
+        bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
+        self.assertTrue({g.name for g in root.vertex_groups} <= bones)
+        self.assertTrue(all(len(v.groups) == 1 and v.groups[0].weight == 1.0 for v in root.data.vertices))
+        self.assertEqual([m.name for m in root.data.materials], ["Sapling Bark"])
+        moved = np.linalg.norm(vertices("tree", 17) - vertices("tree", 1), axis=1)
+        self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the baked bark moves")
+
+    def test_baked_rig_tree_exports_a_skin(self):
+        self.assertEqual(helpers.generate(tree_settings(useRig=True, makeMesh=True)), {"FINISHED"})
+        root = bpy.data.objects["tree"]
+        bones = len(bpy.data.objects["treeArm"].data.bones)
+        for ob in bpy.context.view_layer.objects:
+            ob.select_set(ob.name in ("tree", "treeArm"))
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "tree.gltf"
+            result = bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLTF_SEPARATE", use_selection=True)
+            self.assertEqual(result, {"FINISHED"})
+            document = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(len(document["skins"]), 1)
+        self.assertEqual(len(document["skins"][0]["joints"]), bones)
+        self.assertEqual(len(root.data.vertices), document["accessors"][0]["count"])
+
+    def test_fast_preview_shows_the_bounds(self):
+        self.assertEqual(helpers.generate(tree_settings(windAnim=True, makeMesh=True, fastPreview=True)), {"FINISHED"})
+        self.assertEqual(bpy.data.objects["tree"].display_type, "BOUNDS")
