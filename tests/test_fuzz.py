@@ -51,6 +51,10 @@ CAPS: dict[str, Any] = {
 SPREAD = {"angle": 90.0, "other": 2.0}
 ANGLES = re.compile(r"(?i)angle|rotate|curve(V|Back)?$|leafangle")
 SKIP = {"leafDupliObj"}  # set explicitly (instanced leaves need an object)
+# A boolean vector element is on with this probability (helix stems on half of all levels would leave few plain ones)
+BOOL_ODDS = {"helix": 0.15}
+# A helix level needs a Curvature Variation below 90 degrees: larger draws are folded below this
+HELIX_ANGLE = 89.0
 
 FACES_PER_LEAF = {"hex": 2, "rect": 1, "dFace": 1, "dVert": 0}
 
@@ -67,10 +71,16 @@ class SettingsFuzz(unittest.TestCase):
             if name in SKIP:
                 continue
             settings[name] = self.random_value(rna.properties[name])
+        settings["curveV"] = [
+            math.copysign(abs(v) % HELIX_ANGLE, v) if helix else v
+            for v, helix in zip(settings["curveV"], settings["helix"], strict=True)
+        ]
         return settings
 
     def random_value(self, prop):
         name = prop.identifier
+        if prop.type == "BOOLEAN" and prop.is_array:
+            return [self.rng.random() < BOOL_ODDS[name] for _ in range(prop.array_length)]
         if prop.type == "BOOLEAN":
             return self.rng.random() < 0.5
         if prop.type == "ENUM":
@@ -96,7 +106,7 @@ class SettingsFuzz(unittest.TestCase):
 
     FEATURES = (
         "prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves", "levels_4",
-        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend",
+        "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend", "helix",
     )  # fmt: skip
 
     @staticmethod
@@ -111,6 +121,8 @@ class SettingsFuzz(unittest.TestCase):
             flags.append("trunks")
         if any(settings["bendV"][: settings["levels"]]):
             flags.append("bend")
+        if any(settings["helix"][: settings["levels"]]):
+            flags.append("helix")
         if settings["showLeaves"]:
             flags.append(f"leaf_{settings['leafShape']}")
             if settings["leaves"] < 0:

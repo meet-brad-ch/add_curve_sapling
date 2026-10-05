@@ -4781,6 +4781,12 @@
   "gustFrequency": 0.07500000298023224,
   "gustStrength": 1.0,
   "handleType": "0",
+  "helix": [
+   false,
+   false,
+   false,
+   false
+  ],
   "horzLeaves": true,
   "jointLevels": 2,
   "jointStep": [

@@ -11,6 +11,12 @@
   tree-gen's `bend_v` does. A segment turns by at most the value divided by the level's segments. The
   first segment of a stem and a segment that splits do not turn. With 0 on every level, trees are
   unchanged.
+- *Helix* (Branch Growth page): grow the stems of a level as helixes, as tree-gen does for a negative
+  `curve_v`. Each segment is half a turn around the stem's start direction. *Curvature Variation* sets
+  the helix angle and must be less than 90 degrees; a larger value is an error that names the level.
+  Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
+  handles with their joints (Blender's Set Position moves a free handle with its point but does not
+  turn it).
 - 13 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*, *Black
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from bpy.props import (
     BoolProperty,
+    BoolVectorProperty,
     EnumProperty,
     FloatProperty,
     FloatVectorProperty,
@@ -303,6 +304,12 @@ class TreeProperties:
         description="Maximum random sideways turn of a branch, in degrees. Each segment turns by a part of it. A "
         "segment that splits does not turn",
         default=[0, 0, 0, 0], size=4, min=0, max=360, update=update_tree,
+    )  # fmt: skip
+    helix: BoolVectorProperty(
+        name="Helix",
+        description="Grow the stems of a level as helixes. Curvature Variation sets the helix angle. It must be "
+        "less than 90 degrees. Helix stems do not split, curve or bend",
+        default=[False, False, False, False], size=4, update=update_tree,
     )  # fmt: skip
     attractUp: FloatVectorProperty(
         name="Vertical Attraction", description="Branch upward attraction", default=[0, 0, 0, 0], size=4,

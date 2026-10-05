@@ -110,6 +110,9 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Bend Variation** (Branch Growth page): Turns each segment of a level sideways by a random angle,
   up to the value divided by the level's segments. The first segment of a stem and a segment that
   splits do not turn.
+- **Helix** (Branch Growth page): Grows the stems of a level as helixes, half a turn per segment.
+  *Curvature Variation* sets the helix angle. It must be less than 90 degrees. Helix stems do not
+  split, curve or bend.
 - **Pruning:** Stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a
   stem that would keep less than 15 % of its length is removed, with its leaves. The envelope (two
   profile curves) is hidden after generation. *Object Properties > Visibility* shows it.

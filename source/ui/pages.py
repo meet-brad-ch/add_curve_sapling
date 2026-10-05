@@ -121,6 +121,7 @@ class SettingsPages:
         col.prop(props, "downAngleV")
         col.prop(props, "curveV")
         col.prop(props, "attractUp")
+        box.prop(props, "helix")
         box.prop(props, "useOldDownAngle")
         box.prop(props, "useParentAngle")
 

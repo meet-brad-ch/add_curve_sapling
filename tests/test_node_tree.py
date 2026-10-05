@@ -569,3 +569,36 @@ class StaticBake(unittest.TestCase):
         bake = helpers.module("build.bake").BarkBake(None, bpy.context)
         with self.assertRaisesRegex(RuntimeError, "needs the joints"):
             bake.bake(None, None, None, None, object())
+
+
+class HelixWind(unittest.TestCase):
+    """The node wind turns a helix's FREE handles with their joint: Set Position alone moves them by their point's
+    offset without turning them, which bends the bark at every point."""
+
+    @staticmethod
+    def offsets(attributes, free):
+        """Each FREE point's right handle minus the point."""
+        count = len(attributes["position"].data)
+        co, right = np.zeros(count * 3), np.zeros(count * 3)
+        attributes["position"].data.foreach_get("vector", co)
+        attributes["handle_right"].data.foreach_get("vector", right)
+        return (right - co).reshape(-1, 3)[free]
+
+    def test_free_handles_turn_with_their_joint(self):
+        settings = tree_settings(
+            windAnim=True, fastPreview=True, helix=(False, True, False, False), curveV=(20.0, 40.0, 75.0, 0.0)
+        )
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        source = helpers.tree_curves().data
+        types = np.zeros(len(source.attributes["position"].data), dtype=np.int8)
+        source.attributes["handle_type_right"].data.foreach_get("value", types)
+        free = types == helpers.module("model.curve_data").HandleType.FREE
+        self.assertGreater(free.sum(), 10)
+        rest = self.offsets(source.attributes, free)
+        bpy.context.scene.frame_set(17)
+        root = bpy.data.objects["tree"].evaluated_get(bpy.context.evaluated_depsgraph_get())
+        geometry = root.evaluated_geometry()  # held: the curves are freed with it
+        moved = self.offsets(geometry.curves.attributes, free)
+        np.testing.assert_allclose(np.linalg.norm(moved, axis=1), np.linalg.norm(rest, axis=1), rtol=1e-4)
+        cosine = (moved * rest).sum(axis=1) / (np.linalg.norm(moved, axis=1) * np.linalg.norm(rest, axis=1))
+        self.assertLess(cosine.min(), np.cos(np.radians(0.1)), "the handles turned")

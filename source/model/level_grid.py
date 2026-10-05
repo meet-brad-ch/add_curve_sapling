@@ -85,6 +85,14 @@ class SplitBatch:
     radius_second: np.ndarray
 
 
+@dataclass(slots=True)
+class FreeHandles:
+    """The handles of a level whose points all have FREE handles (a helix level): left and right, (S, K + 1, 3)."""
+
+    left: np.ndarray
+    right: np.ndarray
+
+
 class LevelGrid:
     """A level's stems and their points while they grow.
 
@@ -117,6 +125,7 @@ class LevelGrid:
         self.h1[:, 0] = self.h2[:, 0] = HandleType.VECTOR
         self.dir0 = np.asarray(dir0, dtype=np.float64)
         self.next_spline = next_spline  # the tree's spline index the next split gets
+        self.free: FreeHandles | None = None  # set by a helix level: its points keep these handles
 
     @property
     def rows(self) -> int:
@@ -154,6 +163,8 @@ class LevelGrid:
         self.h1 = self.h1[rows].copy()
         self.h2 = self.h2[rows].copy()
         self.dir0 = self.dir0[rows].copy()
+        if self.free is not None:
+            self.free = FreeHandles(self.free.left[rows].copy(), self.free.right[rows].copy())
 
     def direction(self, step: int) -> np.ndarray:
         """Unit direction of every row's last segment at `step` (its start direction at step 0)."""
@@ -227,6 +238,10 @@ class LevelGrid:
         right = np.zeros_like(co)
         h1 = self.h1[valid]
         h2 = self.h2[valid]
+        if self.free is not None:
+            left = self.free.left[valid].astype(np.float32)
+            right = self.free.right[valid].astype(np.float32)
+            h1[:] = h2[:] = HandleType.FREE
         # a removed stem's point keeps FREE handles: set before the recalculation, which skips FREE sides
         at = start[:-1][stems.removed]
         h1[at] = h2[at] = HandleType.FREE

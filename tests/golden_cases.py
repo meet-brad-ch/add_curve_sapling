@@ -48,6 +48,16 @@ CASES: list[tuple[str, str, dict[str, Any]]] = [(f"preset_{name}", name, {}) for
     ("trunks_3", "quaking_aspen", {"levels": 2, "showLeaves": False, "trunks": 3}),
     ("branch_bend", "quaking_aspen", {"levels": 2, "showLeaves": False, "bendV": (0.0, 60.0, 0.0, 0.0)}),
     ("branch_bend_prune", "callistemon", {"prune": True, "bendV": (20.0, 50.0, 0.0, 0.0)}),
+    (
+        "helix",
+        "quaking_aspen",
+        {"levels": 3, "showLeaves": True, "helix": (False, True, False, False), "curveV": (20.0, 40.0, 75.0, 0.0)},
+    ),
+    (
+        "helix_trunk_prune",
+        "callistemon",
+        {"prune": True, "helix": (True, False, False, False), "curveV": (30.0, 50.0, 75.0, 0.0)},
+    ),
     ("rings", "quaking_aspen", {"levels": 2, "showLeaves": False, "nrings": 5}),
     ("rmode_original", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "original"}),
     ("rmode_random", "quaking_aspen", {"levels": 2, "showLeaves": False, "rMode": "random"}),

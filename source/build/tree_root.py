@@ -122,7 +122,7 @@ class TreeSweepNodes:
     """
 
     GROUP = "Sapling Tree"
-    VERSION = 4
+    VERSION = 5
     INPUTS = [
         SocketSpec("Curves", "NodeSocketObject"),
         SocketSpec("Bevel Depth", "NodeSocketFloat"),
@@ -162,7 +162,30 @@ class TreeSweepNodes:
         the wind curves: the joint's own pose turns about its head, so the head itself stays where the joints above
         it put it, and the points up to the next joint turn with it, as the rig's bones turn the bark."""
         transform = m.sample(wind, m.attr("fk_incl", "FLOAT4X4"), m.attr(NodeWind.JOINT, "INT"))
-        return m.set_position(curves, m.transform_point(m.position(), transform))
+        moved = m.set_position(curves, m.transform_point(m.position(), transform))
+        # Set Position moves FREE handles by their point's offset but does not turn them (measured in 5.2.2); a
+        # helix's FREE handles turn with their joint, from their positions at rest (Auto handles follow the points)
+        for side in ("LEFT", "RIGHT"):
+            moved = TreeSweepNodes._turned_free_handles(m, curves, moved, side, transform)
+        return moved
+
+    @staticmethod
+    def _turned_free_handles(
+        m: NodeMath, rest: NodeSocket, moved: NodeSocket, side: str, transform: NodeSocket
+    ) -> NodeSocket:
+        """The moved curves with their FREE handles on one side ("LEFT" or "RIGHT") at the rest handle moved by
+        the transform."""
+        handles = m.nodes.new("GeometryNodeInputCurveHandlePositions").outputs[side.title()]
+        at_rest = m.sample(rest, handles, m.nodes.new("GeometryNodeInputIndex").outputs[0], "FLOAT_VECTOR")
+        free = m.nodes.new("GeometryNodeCurveHandleTypeSelection")
+        free.handle_type = "FREE"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        free.mode = {side}  # type: ignore[attr-defined]  # stub: as above
+        node = m.nodes.new("GeometryNodeSetCurveHandlePositions")
+        node.mode = side  # type: ignore[attr-defined]  # stub: as above
+        m.link(moved, node.inputs["Curve"])
+        m.link(free.outputs[0], node.inputs["Selection"])
+        m.link(m.transform_point(at_rest, transform), node.inputs["Position"])
+        return node.outputs["Curve"]
 
     @staticmethod
     def _posed(m: NodeMath, curves: NodeSocket, proxy: NodeSocket) -> NodeSocket:

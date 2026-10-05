@@ -491,3 +491,72 @@ class BendVariation(unittest.TestCase):
         unbent, bent = rotations(None), rotations(np.full(2, 0.25))
         np.testing.assert_array_equal(bent[0], unbent[0])
         self.assertGreater(np.abs(bent[1] - unbent[1]).max(), 0.1)
+
+
+class HelixStems(unittest.TestCase):
+    """A helix level grows each segment as half a turn of a helix around the stem's start direction."""
+
+    HELIX_ANGLE = 60.0
+
+    def helix(self, level, **changes):
+        """A tree whose `level` grows helixes, and that level's stems with three or more points."""
+        helix = [False] * 4
+        helix[level] = True
+        curve_v = [20.0, 50.0, 75.0, 0.0]
+        curve_v[level] = self.HELIX_ANGLE
+        model = grow(helix=helix, curveV=curve_v, **changes)
+        flat = model.curve.flatten()
+        ends = [0, *model.grown.level_ends]
+        rows = range(ends[level], ends[level + 1])
+        points = [flat.co[flat.start[i] : flat.start[i + 1]].astype(np.float64) for i in rows]
+        return model, flat, rows, [p for p in points if len(p) >= 3]
+
+    def assert_helix(self, co):
+        """Points on a helix: every second point one pitch further along the same axis, every chord as long, and
+        the radius to pitch ratio of the helix angle within the random factors."""
+        np.testing.assert_allclose(co[2:] - co[:-2], np.broadcast_to(co[2] - co[0], co[2:].shape), atol=1e-4)
+        chords = np.linalg.norm(np.diff(co, axis=0), axis=1)
+        np.testing.assert_allclose(chords, chords[0], rtol=1e-4)
+        pitch = np.linalg.norm(co[2] - co[0])
+        radius = math.sqrt(max(chords[0] ** 2 - pitch**2 / 4, 0.0)) / 2
+        nominal = 3 / (16 * math.tan(math.radians(90 - self.HELIX_ANGLE)))
+        self.assertTrue(0.8 * nominal - 1e-4 <= radius / pitch <= 1.2 * nominal + 1e-4, radius / pitch)
+
+    def test_points_lie_on_a_helix(self):
+        _, _, _, stems = self.helix(0, levels=1, curveRes=(12, 5, 3, 1))
+        self.assertEqual(len(stems), 1)
+        self.assert_helix(stems[0])
+
+    def test_helix_points_have_free_handles(self):
+        _, flat, rows, _ = self.helix(1, levels=2)
+        free = helpers.module("model.curve_data").HandleType.FREE
+        at = np.concatenate([np.arange(flat.start[i], flat.start[i + 1]) for i in rows])
+        self.assertTrue((flat.h1[at] == free).all() and (flat.h2[at] == free).all())
+        trunk = np.arange(flat.start[0] + 1, flat.start[1])
+        self.assertFalse((flat.h1[trunk] == free).any())
+
+    def test_helix_off_draws_nothing(self):
+        draw = helpers.module("model.randomness").Draw.HELIX_PITCH
+        self.assertNotIn(draw, BendVariation().draws(levels=2))
+        self.assertIn(draw, BendVariation().draws(levels=2, helix=(False, True, False, False)))
+
+    def test_helix_stems_do_not_split(self):
+        model, _, rows, stems = self.helix(1, levels=2, segSplits=(0.0, 2.0, 0.0, 0.0))
+        self.assertFalse(any(model.grown.bone_map[i].is_split for i in rows))
+        for co in stems:
+            self.assert_helix(co)
+
+    def test_a_pruned_helix_stays_a_helix(self):
+        model, _, _, stems = self.helix(1, preset="callistemon", prune=True)
+        self.assertTrue(model.params.prune and stems)
+        for co in stems:
+            self.assert_helix(co)
+
+    def test_helix_angle_of_90_degrees_is_an_error(self):
+        error = helpers.module("model.params").InvalidSettingError
+        with self.assertRaisesRegex(error, "Helix on level 2: .* It is 90 degrees"):
+            grow(levels=2, helix=(False, True, False, False), curveV=(20.0, 90.0, 0.0, 0.0))
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, helix=(False, True, False, False), curveV=(20.0, -95.0, 0.0, 0.0))
+        with self.assertRaisesRegex(RuntimeError, "Helix on level 2: .* It is 95 degrees"):
+            helpers.generate(settings)

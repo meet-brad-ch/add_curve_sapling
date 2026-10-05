@@ -25,6 +25,9 @@ class Draw:
     ROTATION = 9
     LENGTH = 10  # a split's segment length, drawn with the split's key (which holds the step and the slot)
     BEND = 11
+    HELIX_PITCH = 12
+    HELIX_RADIUS = 13
+    HELIX_SPIN = 14
     JITTER = 20
     DOWN = 21
     ROTATE = 22

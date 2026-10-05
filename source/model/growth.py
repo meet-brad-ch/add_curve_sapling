@@ -8,6 +8,7 @@ from math import pi
 import numpy as np
 
 from .geometry import Angles
+from .helix import HelixPath
 from .level_grid import LevelGrid, SplitBatch, StemRows
 from .params import TreeParams
 from .randomness import Draw, KeyedRandom, Kind
@@ -81,6 +82,9 @@ class LevelGrower:
         stems.segment_length = stems.base_length * KeyedRandom.between(
             stems.key, 0, Draw.JITTER, 1 - variation, 1 + variation
         )
+        if self.params.helix[grid.level]:
+            HelixPath(self.params).grow(grid, close_tip)
+            return
         for step in range(grid.segments):
             self._step(grid, step, close_tip)
 

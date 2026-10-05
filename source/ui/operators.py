@@ -9,6 +9,7 @@ from bpy.types import Collection, Context, Event, Operator
 
 from ..build.tree_record import TreeEdit
 from ..generator import TreeGenerator
+from ..model.params import InvalidSettingError
 from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
 from .pages import SettingsPages
@@ -91,7 +92,7 @@ class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
             return {"PASS_THROUGH"}
         try:
             return self._generate(context)
-        except SettingsError as error:
+        except (SettingsError, InvalidSettingError) as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
 

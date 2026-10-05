@@ -11,13 +11,17 @@ would read freed memory when the tree is built or edited later.
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from math import radians
+from math import degrees, pi, radians
 from typing import Any
 
 import numpy as np
 
 from .curve_data import HandleType
 from .geometry import Angles, CrownShape
+
+
+class InvalidSettingError(ValueError):
+    """A setting value the model cannot grow a tree from; the operator reports it to the user."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +57,11 @@ class PlainParams:
     def _floats(values: Iterable[float]) -> list[float]:
         """A per-level vector setting as a list of Python floats."""
         return [float(v) for v in values]
+
+    @staticmethod
+    def _bools(values: Iterable[bool]) -> list[bool]:
+        """A per-level vector setting as a list of Python bools."""
+        return [bool(v) for v in values]
 
     @staticmethod
     def _ints(values: Iterable[int]) -> list[int]:
@@ -144,8 +153,20 @@ class TreeParams(PlainParams):
         self.curve_v = Angles.to_radians(s.curveV)
         self.curve_back = Angles.to_radians(s.curveBack)
         self.bend_v = Angles.to_radians(s.bendV)
+        self.helix = self._bools(s.helix)
+        self._check_helix()
         self.attract_up = self._floats(s.attractUp)
         self.attract_out = self._floats(s.attractOut)
+
+    def _check_helix(self) -> None:
+        """A helix level takes its helix angle from Curvature Variation, which must be less than 90 degrees."""
+        for level in range(self.LEVELS):
+            angle = abs(self.curve_v[level])
+            if self.helix[level] and angle >= pi / 2:
+                raise InvalidSettingError(
+                    f"Helix on level {level + 1}: Curvature Variation sets the helix angle. It must be less than "
+                    f"90 degrees. It is {degrees(angle):g} degrees"
+                )
 
     def _pruning(self, s: Any) -> None:
         self.prune = bool(s.prune)
