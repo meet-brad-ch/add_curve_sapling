@@ -133,9 +133,11 @@ class NodeMath:
         return CurveOffset(node.outputs["Is Valid Offset"], node.outputs["Point Index"])
 
     def object_geometry(self, object_input: Any) -> NodeSocket:
-        """An object's geometry, in the space of the object the modifier runs on (Object Info, Relative)."""
+        """A part of the tree's geometry in its own space (Object Info, Original), which is the tree's space: every
+        part is a child of the tree with no transform of its own. A plain Duplicate of the tree object then draws
+        at its own place (in Relative space it drew the original's parts where the original stands)."""
         info = self.nodes.new("GeometryNodeObjectInfo")
-        info.transform_space = "RELATIVE"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        info.transform_space = "ORIGINAL"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
         self.link(object_input, info.inputs["Object"])
         return info.outputs["Geometry"]
 

@@ -9,17 +9,20 @@ from bpy.types import Context, Menu, Object, Panel, UILayout
 
 from ..build.tree_record import TreeRecord
 from ..settings import SettingsError
+from .duplicate import DuplicateTreeOperator
 from .operators import AddTreeOperator
 
 
 class TreeEditButton:
-    """The "Edit Sapling Tree" button: re-opens the Add Tree operator on a tree's settings."""
+    """The "Edit Sapling Tree" and "Duplicate Sapling Tree" buttons of a tree."""
 
     @staticmethod
     def draw(layout: UILayout, root: Object) -> None:
-        """Add the button to layout, set to replace the tree whose root is `root`."""
+        """Add the buttons to layout: Edit re-opens the Add Tree operator set to replace the tree whose root is
+        `root`; Duplicate copies the active object's tree."""
         button = layout.operator(AddTreeOperator.bl_idname, text="Edit Sapling Tree", icon="OUTLINER_OB_CURVE")
         button.replace = root.name
+        layout.operator(DuplicateTreeOperator.bl_idname, text="Duplicate Sapling Tree", icon="DUPLICATE")
 
 
 class TreePanel(Panel):

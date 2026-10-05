@@ -122,7 +122,7 @@ class TreeSweepNodes:
     """
 
     GROUP = "Sapling Tree"
-    VERSION = 5
+    VERSION = 6
     INPUTS = [
         SocketSpec("Curves", "NodeSocketObject"),
         SocketSpec("Bevel Depth", "NodeSocketFloat"),

@@ -8,6 +8,7 @@ import bpy
 from bpy.types import Operator, Panel
 
 from .presets import PresetStore
+from .ui.duplicate import DuplicateTreeOperator
 from .ui.operators import AddTreeOperator
 from .ui.panels import Menus, TreePanel
 from .ui.preset_save import SavePresetOperator
@@ -16,7 +17,12 @@ from .ui.preset_save import SavePresetOperator
 class Registration:
     """The classes and menu entries this add-on registers."""
 
-    CLASSES: list[type[Operator] | type[Panel]] = [AddTreeOperator, SavePresetOperator, TreePanel]
+    CLASSES: list[type[Operator] | type[Panel]] = [
+        AddTreeOperator,
+        DuplicateTreeOperator,
+        SavePresetOperator,
+        TreePanel,
+    ]
 
     @classmethod
     def register(cls) -> None:

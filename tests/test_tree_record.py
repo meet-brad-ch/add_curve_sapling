@@ -6,7 +6,7 @@ import unittest
 
 import bpy
 import helpers
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 
 def record():
@@ -277,3 +277,100 @@ class FailureRollback(unittest.TestCase):
         bpy.context.view_layer.update()
         self.assertIs(card.parent, holder)
         self.assertLess((card.matrix_world.to_translation() - world.to_translation()).length, 1e-6)
+
+
+class DuplicateTree(unittest.TestCase):
+    """Duplicating a tree: Blender's Duplicate copies the selected tree object only (hidden parts cannot be
+    selected); Duplicate Sapling Tree copies every part as an independent tree."""
+
+    MOVE = 5.0
+
+    @staticmethod
+    def world_box(ob):
+        """The evaluated object's world bounds, (2, 3)."""
+        evaluated = ob.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        corners = [evaluated.matrix_world @ Vector(c) for c in evaluated.bound_box]
+        return [[min(c[i] for c in corners) for i in range(3)], [max(c[i] for c in corners) for i in range(3)]]
+
+    def assert_moved(self, original, copy):
+        """The copy draws where it stands: its bounds are the original's, moved along x."""
+        copy.location.x += self.MOVE
+        bpy.context.view_layer.update()
+        before, after = self.world_box(original), self.world_box(copy)
+        for low_high in range(2):
+            self.assertAlmostEqual(after[low_high][0], before[low_high][0] + self.MOVE, places=4)
+            self.assertAlmostEqual(after[low_high][2], before[low_high][2], places=4)
+
+    @staticmethod
+    def select_only(ob):
+        for other in bpy.context.view_layer.objects:
+            other.select_set(other == ob)
+        bpy.context.view_layer.objects.active = ob
+
+    def test_plain_duplicate_draws_at_its_own_place(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=False, windAnim=True)
+        self.select_only(root)
+        self.assertEqual(bpy.ops.object.duplicate(), {"FINISHED"})
+        self.assert_moved(root, helpers.active_object())
+
+    def test_duplicate_sapling_tree_copies_every_part(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, blossomRate=0.5, windAnim=True, leafFlutter=True)
+        parts = {ob[record().ROLE]: ob for ob in record().owned(root)}
+        self.select_only(parts["leaves"])
+        self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
+        copy = helpers.active_object()
+        copies = {ob[record().ROLE]: ob for ob in record().owned(copy)}
+        self.assertEqual(sorted(copies), sorted(parts))
+        self.assertNotEqual(copy[record().ID], root[record().ID])
+        self.assertFalse(set(copies.values()) & set(parts.values()))
+        for ob in copies.values():
+            for modifier in ob.modifiers:
+                if modifier.type == "NODES":
+                    for item in modifier.node_group.interface.items_tree:
+                        if item.item_type != "SOCKET" or item.socket_type != "NodeSocketObject":
+                            continue
+                        value = getattr(modifier.properties.inputs, item.identifier).value
+                        if isinstance(value, bpy.types.Object):
+                            self.assertIn(value, copies.values(), f"{ob.name}: {item.name}")
+        self.assert_moved(root, copy)
+        self.assertEqual(edit(root, seed=7), {"FINISHED"})
+        self.assertEqual(sorted(ob[record().ROLE] for ob in record().owned(copy)), sorted(parts))
+        self.assertGreater(len(helpers.evaluated_vertices(copy.name)), 0)
+
+    def test_duplicate_sapling_tree_copies_the_rig(self):
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=True, useRig=True, windAnim=True)
+        self.select_only(root)
+        self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
+        copies = {ob[record().ROLE]: ob for ob in record().owned(helpers.active_object())}
+        for role in ("tree_joints", "leaves"):
+            (armature,) = [m.object for m in copies[role].modifiers if m.type == "ARMATURE"]
+            self.assertIs(armature, copies["treeArm"])
+
+    def test_duplicate_sapling_tree_copies_a_face_leaf_object(self):
+        helpers.reset_scene()
+        card = helpers.add_leaf_card()
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, showLeaves=True, leafShape="dFace", leafDupliObj=card.name)
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
+        leaves = bpy.data.objects["leaves"]
+        self.select_only(leaves)
+        self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
+        copy_leaves = next(ob for ob in record().owned(helpers.active_object()) if ob.instance_type == "FACES")
+        (copy_card,) = copy_leaves.children
+        self.assertIsNot(copy_card, card)
+        self.assertIs(copy_card.data, card.data)
+        self.assertIs(card.parent, leaves)
+
+    def test_invoke_copies_then_moves(self):
+        """From the UI the copy follows the mouse (Move), as Blender's Duplicate does; without a window the move
+        does not start and the copy stays where the original is."""
+        helpers.reset_scene()
+        root = add_tree(levels=2, showLeaves=False)
+        self.select_only(root)
+        self.assertEqual(bpy.ops.sapling.tree_duplicate("INVOKE_DEFAULT"), {"FINISHED"})
+        copy = helpers.active_object()
+        self.assertIsNot(copy, root)
+        self.assertEqual(copy.matrix_world, root.matrix_world)

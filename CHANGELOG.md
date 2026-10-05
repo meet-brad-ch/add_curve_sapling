@@ -4,6 +4,8 @@
 
 ### Added
 
+- *Duplicate Sapling Tree* (Sapling tab, Object menu): copy the whole tree, with its hidden parts,
+  as an independent tree. The copy then follows the mouse, as Blender's Duplicate does.
 - *Trunks* (Branch Splitting page): grow a clump of trunks from one root, as tree-gen does for bamboo.
   The further trunks stand on a disc around the first, at least 2.5 trunk radii apart, each with its own
   size, curve direction and branches. With 1 trunk, trees are unchanged.
@@ -43,6 +45,8 @@
 
 ### Fixed
 
+- A tree object copied with Blender's Duplicate drew its branches where the original stands, not
+  where the copy is. The tree's node groups now read its hidden parts in their own space.
 - A rig of 5 or more levels with a different *Joint Length* on the fourth level failed with a
   `KeyError`, or hung a stem on the wrong bone. The first bone of a stem now hangs from the nearest
   joint of its parent, as the node wind does.

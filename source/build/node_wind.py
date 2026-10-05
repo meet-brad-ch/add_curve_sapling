@@ -181,7 +181,7 @@ class FollowWindNodes:
     read from the wind curves by joint number."""
 
     GROUP = "Sapling Follow Wind"
-    VERSION = 1
+    VERSION = 2
     MODIFIER = "Sapling Follow Wind"
     JOINT = "sapling_joint"
     INPUTS = [SocketSpec("Curves", "NodeSocketObject")]

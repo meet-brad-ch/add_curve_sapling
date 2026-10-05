@@ -127,8 +127,9 @@ class TreeUi(unittest.TestCase):
         settings = helpers.stored_settings(root)
         self.assertEqual(layout.labels[0], f"Root: {root.name}")
         self.assertIn(f"Seed: {settings['seed']}", layout.labels[1])
-        (button,) = layout.buttons
-        self.assertEqual((button.idname, button.replace), ("curve.tree_add", root.name))
+        edit, duplicate = layout.buttons
+        self.assertEqual((edit.idname, edit.replace), ("curve.tree_add", root.name))
+        self.assertEqual(duplicate.idname, "sapling.tree_duplicate")
 
     def test_panel_draw_without_a_layout_fails(self):
         root = add_tree()
@@ -154,7 +155,8 @@ class TreeUi(unittest.TestCase):
 
         object_menu = RecordingLayout()
         menus.object_menu(SimpleNamespace(layout=object_menu), SimpleNamespace(active_object=root.children[0]))
-        self.assertEqual([(b.idname, b.replace) for b in object_menu.buttons], [("curve.tree_add", root.name)])
+        self.assertEqual([b.idname for b in object_menu.buttons], ["curve.tree_add", "sapling.tree_duplicate"])
+        self.assertEqual(object_menu.buttons[0].replace, root.name)
 
         not_a_tree = RecordingLayout()
         menus.object_menu(SimpleNamespace(layout=not_a_tree), SimpleNamespace(active_object=helpers.add_leaf_card()))
