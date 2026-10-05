@@ -2,6 +2,8 @@
 
 """The operator's tree properties. Their names are the operator API and the preset keys."""
 
+from dataclasses import dataclass
+
 from bpy.props import (
     BoolProperty,
     EnumProperty,
@@ -13,49 +15,70 @@ from bpy.props import (
 )
 from bpy.types import Context
 
-from ..model.branching import BranchingMode
 from ..model.geometry import CrownShape
 from ..model.leaves import LeafShape
-from ..settings import SettingsError, TreeSettings
+from ..model.params import BranchingMode
+from ..settings import TreeSettings
+
+
+@dataclass(frozen=True, slots=True)
+class EnumItem:
+    """One choice of an enum setting: the value stored, the name shown, and the tooltip."""
+
+    identifier: str
+    name: str
+    description: str
+
+    @property
+    def item(self) -> tuple[str, str, str]:
+        """The choice as Blender's EnumProperty takes it (Blender's API wants a tuple; nothing else uses it)."""
+        return (self.identifier, self.name, self.description)
+
+    @staticmethod
+    def items(choices: list["EnumItem"]) -> list[tuple[str, str, str]]:
+        """The choices as Blender's EnumProperty takes them."""
+        return [choice.item for choice in choices]
 
 
 class Choices:
     """Enum items of the tree properties."""
 
     SHAPES = [
-        ("0", "Conical", ""),
-        ("6", "Inverse Conical", ""),
-        ("1", "Spherical", ""),
-        ("2", "Hemispherical", ""),
-        ("3", "Cylindrical", ""),
-        ("4", "Tapered Cylindrical", ""),
-        ("10", "Inverse Tapered Cylindrical", ""),
-        ("5", "Flame", ""),
-        ("7", "Tend Flame", ""),
-        (str(CrownShape.CUSTOM), "Custom Shape", ""),
+        EnumItem("0", "Conical", ""),
+        EnumItem("6", "Inverse Conical", ""),
+        EnumItem("1", "Spherical", ""),
+        EnumItem("2", "Hemispherical", ""),
+        EnumItem("3", "Cylindrical", ""),
+        EnumItem("4", "Tapered Cylindrical", ""),
+        EnumItem("10", "Inverse Tapered Cylindrical", ""),
+        EnumItem("5", "Flame", ""),
+        EnumItem("7", "Tend Flame", ""),
+        EnumItem(str(CrownShape.CUSTOM), "Custom Shape", ""),
     ]
-    SECONDARY_SHAPES = [item for item in SHAPES if item[0] != str(CrownShape.CUSTOM)]
-    HANDLES = [("0", "Auto", "Smooth automatic handles"), ("1", "Vector", "Straight segments")]
+    SECONDARY_SHAPES = [choice for choice in SHAPES if choice.identifier != str(CrownShape.CUSTOM)]
+    HANDLES = [EnumItem("0", "Auto", "Smooth automatic handles"), EnumItem("1", "Vector", "Straight segments")]
     BRANCH_MODES = [
-        (BranchingMode.ORIGINAL, "Original", "Rotate around each branch"),
-        (BranchingMode.ROTATE, "Rotate", "Spread the branches evenly, pointing outward from the center of the tree"),
-        (BranchingMode.RANDOM, "Random", "Choose a random point"),
+        EnumItem(BranchingMode.ORIGINAL, "Original", "Rotate around each branch"),
+        EnumItem(
+            BranchingMode.ROTATE, "Rotate", "Spread the branches evenly, pointing outward from the center of the tree"
+        ),
+        EnumItem(BranchingMode.RANDOM, "Random", "Choose a random point"),
     ]
     LEAF_SHAPES = [
-        (LeafShape.HEX, "Hexagonal", "Hexagonal leaf mesh"),
-        (LeafShape.RECT, "Rectangular", "Rectangular leaf mesh, for image textures"),
-        (LeafShape.INSTANCE_FACES, "Instance Faces", "Instance the leaf object on one face per leaf"),
-        (LeafShape.INSTANCE_POINTS, "Instance Points", "Instance the leaf object on one point per leaf"),
+        EnumItem(LeafShape.HEX, "Hexagonal", "Hexagonal leaf mesh"),
+        EnumItem(LeafShape.RECT, "Rectangular", "Rectangular leaf mesh, for image textures"),
+        EnumItem(LeafShape.INSTANCE_FACES, "Instance Faces", "Instance the leaf object on one face per leaf"),
+        EnumItem(LeafShape.INSTANCE_POINTS, "Instance Points", "Instance the leaf object on one point per leaf"),
     ]
     PAGES = [
-        ("0", "Geometry", "Tree shape, scale, curve settings and presets"),
-        ("1", "Branch Radius", "Radius and taper of the branches"),
-        ("2", "Branch Splitting", "Levels, splits and branch counts"),
-        ("3", "Branch Growth", "Length, angles and curvature"),
-        ("4", "Pruning", "Pruning envelope"),
-        ("5", "Leaves", "Leaf shape and placement"),
-        ("6", "Armature", "Armature rig and baked mesh"),
-        ("7", "Animation", "Wind animation"),
+        EnumItem("0", "Geometry", "Tree shape, scale, curve settings and presets"),
+        EnumItem("1", "Branch Radius", "Radius and taper of the branches"),
+        EnumItem("2", "Branch Splitting", "Levels, splits and branch counts"),
+        EnumItem("3", "Branch Growth", "Length, angles and curvature"),
+        EnumItem("4", "Pruning", "Pruning envelope"),
+        EnumItem("5", "Leaves", "Leaf shape and placement"),
+        EnumItem("6", "Armature", "Armature rig and baked mesh"),
+        EnumItem("7", "Animation", "Wind animation"),
     ]
 
 
@@ -67,7 +90,7 @@ class TreeProperties:
     """
 
     # Refers to an object in the scene: stored with a tree, never in presets.
-    SCENE_BOUND = ("leafDupliObj",)
+    SCENE_BOUND = ["leafDupliObj"]
     # UI state: never part of presets or stored tree settings.
     UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "limitImport", "overwrite"})
 
@@ -85,7 +108,7 @@ class TreeProperties:
 
     do_update: BoolProperty(name="Do Update", default=True, options={"HIDDEN", "SKIP_SAVE"})
     chooseSet: EnumProperty(
-        name="Settings", description="Choose the settings to modify", items=Choices.PAGES, default="0",
+        name="Settings", description="Choose the settings to modify", items=EnumItem.items(Choices.PAGES), default="0",
         update=no_update_tree,
     )  # fmt: skip
 
@@ -99,16 +122,16 @@ class TreeProperties:
         name="Curve Resolution", description="The resolution along the curves", min=1, default=4, update=update_tree
     )
     handleType: EnumProperty(
-        name="Handle Type", description="The type of handles used in the spline", items=Choices.HANDLES,
+        name="Handle Type", description="The type of handles used in the spline", items=EnumItem.items(Choices.HANDLES),
         default="0", update=update_tree,
     )  # fmt: skip
     shape: EnumProperty(
-        name="Shape", description="The overall shape of the tree (Shape)", items=Choices.SHAPES, default="7",
-        update=update_tree,
+        name="Shape", description="The overall shape of the tree (Shape)", items=EnumItem.items(Choices.SHAPES),
+        default="7", update=update_tree,
     )  # fmt: skip
     shapeS: EnumProperty(
-        name="Secondary Branches Shape", description="The shape of secondary splits", items=Choices.SECONDARY_SHAPES,
-        default="4", update=update_tree,
+        name="Secondary Branches Shape", description="The shape of secondary splits",
+        items=EnumItem.items(Choices.SECONDARY_SHAPES), default="4", update=update_tree,
     )  # fmt: skip
     customShape: FloatVectorProperty(
         name="Custom Shape", description="Branch length of the custom shape at (Base, Middle, Middle Position, Top)",
@@ -232,7 +255,7 @@ class TreeProperties:
         size=4, update=update_tree,
     )  # fmt: skip
     rMode: EnumProperty(
-        name="Branching Mode", description="Branching and rotation mode", items=Choices.BRANCH_MODES,
+        name="Branching Mode", description="Branching and rotation mode", items=EnumItem.items(Choices.BRANCH_MODES),
         default=BranchingMode.ROTATE, update=update_tree,
     )  # fmt: skip
     curveRes: IntVectorProperty(
@@ -322,8 +345,8 @@ class TreeProperties:
     # Leaves
     showLeaves: BoolProperty(name="Show Leaves", description="Show the leaves", default=False, update=update_tree)
     leafShape: EnumProperty(
-        name="Leaf Shape", description="The shape of the leaves", items=Choices.LEAF_SHAPES, default=LeafShape.HEX,
-        update=update_leaves,
+        name="Leaf Shape", description="The shape of the leaves", items=EnumItem.items(Choices.LEAF_SHAPES),
+        default=LeafShape.HEX, update=update_leaves,
     )  # fmt: skip
     leafDupliObj: StringProperty(
         name="Leaf Object", description="Object instanced as the leaf (Instance Faces and Instance Points)",
@@ -337,7 +360,7 @@ class TreeProperties:
     )  # fmt: skip
     leafDist: EnumProperty(
         name="Leaf Distribution", description="How the leaves are spread along the branches",
-        items=Choices.SECONDARY_SHAPES, default="6", update=update_tree,
+        items=EnumItem.items(Choices.SECONDARY_SHAPES), default="6", update=update_tree,
     )  # fmt: skip
     leafDownAngle: FloatProperty(
         name="Leaf Down Angle", description="The angle between a new leaf and the branch it grew from", default=45,
@@ -510,15 +533,13 @@ class OldSettingNames:
     def forward_old_names(self) -> None:
         """Move values a script gave under old ids to the new ids; SettingsError when both disagree."""
         props = self.properties  # type: ignore[attr-defined]  # mixed into an Operator
-        given = {name: getattr(self, name) for name in ("armAnim", "useArm", "useRig") if props.is_property_set(name)}
-        still = TreeSettings.old_wind_without_rig(given)
-        for old, new in TreeSettings.RENAMED.items():
-            if not props.is_property_set(old):
-                continue
-            value = TreeSettings.plain(getattr(self, old))
-            if props.is_property_set(new) and TreeSettings.plain(getattr(self, new)) != value:
-                raise SettingsError(f"Both {old} (the old name of {new}) and {new} are given, with different values")
-            setattr(self, new, value)
-            props.property_unset(old)  # the redo panel then works on the new id only
-        if still:
-            self.windAnim = False
+        old = [name for name in TreeSettings.RENAMED if props.is_property_set(name)]
+        if not old:
+            return
+        names = [*TreeSettings.RENAMED, *TreeSettings.RENAMED.values()]
+        given = TreeSettings({n: TreeSettings.plain(getattr(self, n)) for n in names if props.is_property_set(n)})
+        given.rename_keys()  # the same rules as for presets and stored trees
+        for name in old:
+            props.property_unset(name)  # the redo panel then works on the new id only
+        for name, value in given.values.items():
+            setattr(self, name, value)

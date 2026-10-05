@@ -8,9 +8,10 @@ from bpy.types import BoolAttribute, Mesh, NodeTree, Object, QuaternionAttribute
 from mathutils import Vector
 
 from ..model.leaves import LeafSet, LeafShape
-from ..model.params import TreeParams
 from ..settings import SettingsError
+from .build_params import BuildParams
 from .node_groups import SharedNodeGroup
+from .node_math import NodeMath, SocketSpec
 from .objects import ObjectFactory
 from .tree_record import TreeRecord
 
@@ -21,7 +22,7 @@ class LeafObjectBuilder:
     ROLE = "leaves"
     UV_LAYER = "leafUV"
 
-    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
+    def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
@@ -31,7 +32,6 @@ class LeafObjectBuilder:
         Face instancing parents the leaf object to the leaves; point instancing stores each leaf's rotation
         (the node modifier comes in finish()); hex and rect leaves get UVs.
         """
-        p = self.params
         mesh = bpy.data.meshes.new(self.ROLE)
         ob = self.objects.new(self.ROLE, mesh, parent=tree)
         self._fill(mesh, leaves)
@@ -40,12 +40,13 @@ class LeafObjectBuilder:
             ob.instance_type = "FACES"
             ob.use_instance_faces_scale = True
             ob.instance_faces_scale = LeafShape.FACE_INSTANCE_SCALE
-            self._attach_instance_object(ob)
+            # the user's object becomes a child of the leaves; a failed build puts it back (ObjectFactory.discard)
+            self.objects.adopt(self.instance_object(self.params), ob)
         elif leaves.shape == LeafShape.INSTANCE_POINTS:
             self._store_rotations(mesh, leaves)
 
-        if leaves.shape in (LeafShape.HEX, LeafShape.RECT):
-            self._add_uvs(mesh, leaves.shape, p.leaf_scale_x)
+        if leaves.shape in LeafShape.MESH:
+            self._add_uvs(mesh, leaves.shape, self.params.tree.leaf_scale_x)
         return ob
 
     @staticmethod
@@ -72,7 +73,7 @@ class LeafObjectBuilder:
             LeafInstancerNodes.add_modifier(leaves_ob, self.instance_object(self.params))
 
     @staticmethod
-    def instance_object(params: TreeParams) -> Object:
+    def instance_object(params: BuildParams) -> Object:
         """The object instanced as the leaf; raises SettingsError when instanced leaves have none."""
         name = params.leaf_instance_name
         instance = bpy.data.objects.get(name)
@@ -86,9 +87,6 @@ class LeafObjectBuilder:
             raise SettingsError(f"Leaf Object '{name}' is part of a Sapling tree. Choose your own leaf object")
         return instance
 
-    def _attach_instance_object(self, leaves_ob: Object) -> None:
-        self.instance_object(self.params).parent = leaves_ob
-
     @staticmethod
     def _store_rotations(mesh: Mesh, leaves: LeafSet) -> None:
         """Per leaf, the rotation Blender's vertex instancing used to derive from the vertex normal.
@@ -98,7 +96,7 @@ class LeafObjectBuilder:
         rotations: list[float] = []
         for normal in leaves.normals.tolist():
             q = Vector(normal).to_track_quat("Y", "Z")
-            rotations.extend((q.w, q.x, q.y, q.z))
+            rotations.extend([q.w, q.x, q.y, q.z])
         attribute: QuaternionAttribute = mesh.attributes.new(LeafInstancerNodes.ROTATION, "QUATERNION", "POINT")  # type: ignore[assignment]  # stub: new() returns the base class
         attribute.data.foreach_set("value", rotations)
 
@@ -123,6 +121,7 @@ class LeafInstancerNodes:
     VERSION = 1
     ROTATION = "leaf_rotation"
     OBJECT_INPUT = "Leaf Object"
+    INPUTS = [SocketSpec(OBJECT_INPUT, "NodeSocketObject")]
 
     @classmethod
     def add_modifier(cls, leaves_ob: Object, instance: Object) -> None:
@@ -134,28 +133,14 @@ class LeafInstancerNodes:
     @classmethod
     def _build(cls, group: NodeTree) -> None:
         """Fill the empty group: Group Input -> Instance on Points (Object Info, rotation attribute) -> Output."""
-        # stub: the interface is optional, and socket_type is typed as 'DEFAULT' only (it takes socket idnames)
-        group.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
-        group.interface.new_socket(cls.OBJECT_INPUT, in_out="INPUT", socket_type="NodeSocketObject")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
-        group.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type is typed as 'DEFAULT' only
-
-        nodes = group.nodes
-        links = group.links
-        inputs = nodes.new("NodeGroupInput")
-        output = nodes.new("NodeGroupOutput")
-        info = nodes.new("GeometryNodeObjectInfo")
+        m = NodeMath(group)
+        inputs = m.interface(group, cls.INPUTS)
+        info = m.nodes.new("GeometryNodeObjectInfo")
         info.transform_space = "ORIGINAL"  # type: ignore[attr-defined]  # the leaf object's own geometry, around its origin
         info.inputs["As Instance"].default_value = True  # type: ignore[attr-defined]  # stub: NodeSocket base class
-        rotation = nodes.new("GeometryNodeInputNamedAttribute")
-        rotation.data_type = "QUATERNION"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
-        rotation.inputs["Name"].default_value = cls.ROTATION  # type: ignore[attr-defined]  # stub: NodeSocket base class
-        instancer = nodes.new("GeometryNodeInstanceOnPoints")
-
-        links.new(inputs.outputs["Geometry"], instancer.inputs["Points"])
-        links.new(inputs.outputs[cls.OBJECT_INPUT], info.inputs["Object"])
-        links.new(info.outputs["Geometry"], instancer.inputs["Instance"])
-        links.new(rotation.outputs["Attribute"], instancer.inputs["Rotation"])
-        links.new(instancer.outputs["Instances"], output.inputs["Geometry"])
-        for x, node in enumerate((inputs, info, instancer, output)):
-            node.location = (x * 220, 0)
-        rotation.location = (220, -200)
+        instancer = m.nodes.new("GeometryNodeInstanceOnPoints")
+        m.link(inputs["Geometry"], instancer.inputs["Points"])
+        m.link(inputs[cls.OBJECT_INPUT], info.inputs["Object"])
+        m.link(info.outputs["Geometry"], instancer.inputs["Instance"])
+        m.link(m.attr(cls.ROTATION, "QUATERNION"), instancer.inputs["Rotation"])
+        m.link(instancer.outputs["Instances"], m.nodes.new("NodeGroupOutput").inputs["Geometry"])

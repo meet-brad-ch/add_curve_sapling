@@ -1,17 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Which objects make up a generated tree, its settings, and where it sits in the scene."""
+"""Which objects make up a generated tree, its settings, where it sits in the scene, and editing it in place."""
 
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, Self
+from typing import Any
 
 import bpy
-from bpy.types import Object, ViewLayer
+from bpy.types import Collection, Object, ViewLayer
 from mathutils import Matrix
 
 from ..settings import SettingsError, TreeSettings
-from .objects import ObjectFactory
+from .objects import ObjectFactory, ParentLink, TreeParts
 
 
 class TreeRecordError(SettingsError):
@@ -30,11 +31,8 @@ class TreeRecord:
     SETTINGS = "sapling_settings"
 
     @classmethod
-    def tag(cls, result: Any, settings: TreeSettings) -> None:
-        """Mark a new tree's objects with a fresh id and their roles, and store the settings on its root.
-
-        `result` is the generator's TreeResult (build/ must not import it): anything with roles and root.
-        """
+    def tag(cls, result: TreeParts, settings: TreeSettings) -> None:
+        """Mark a new tree's objects with a fresh id and their roles, and store the settings on its root."""
         tree_id = uuid.uuid4().hex
         for role, ob in result.roles.items():
             ob[cls.ID] = tree_id
@@ -89,34 +87,7 @@ class TreeRecord:
         return ob
 
 
-@dataclass
-class ParentLink:
-    """How an object hangs from its parent (all parent types, not only OBJECT)."""
-
-    parent: Object | None
-    parent_type: Literal["OBJECT", "ARMATURE", "LATTICE", "VERTEX", "VERTEX_3", "BONE"]
-    parent_bone: str
-    parent_vertices: tuple
-
-    @classmethod
-    def of(cls, ob: Object) -> Self:
-        """The current parent link of ob."""
-        return cls(ob.parent, ob.parent_type, ob.parent_bone, tuple(ob.parent_vertices))  # type: ignore[arg-type]  # stub: bpy_prop_array is iterable
-
-    def attach(self, ob: Object, parent: Object | None = None) -> None:
-        """Parent ob the same way, to `parent` if given (the new tree's object), else to the recorded parent.
-
-        Only sets the parenting; the caller restores the world matrix.
-        """
-        ob.parent = parent if parent is not None else self.parent
-        ob.parent_type = self.parent_type
-        if self.parent_type == "BONE":
-            ob.parent_bone = self.parent_bone
-        if self.parent_type in {"VERTEX", "VERTEX_3"}:
-            ob.parent_vertices = self.parent_vertices  # type: ignore[assignment]  # stub: takes a sequence
-
-
-@dataclass
+@dataclass(frozen=True, slots=True)
 class AttachedObject:
     """A user's object parented to part of a tree (e.g. the leaf instance object)."""
 
@@ -136,7 +107,7 @@ class TreePlacement:
         self.basis = root.matrix_basis.copy()
         self.link = ParentLink.of(root)
         self.parent_inverse = root.matrix_parent_inverse.copy()
-        self.collections = list(root.users_collection)
+        self.collections: list[Collection] = list(root.users_collection)
         if not self.collections:
             raise TreeRecordError(f"'{root.name}' is in no collection")
         tree_id = root[TreeRecord.ID]
@@ -153,11 +124,11 @@ class TreePlacement:
             item.ob.parent = None
             item.ob.matrix_world = item.matrix
 
-    def apply(self, result: Any, view_layer: ViewLayer) -> list[str]:
+    def apply(self, result: TreeParts, view_layer: ViewLayer) -> list[str]:
         """Put the new tree where the old one was; re-attach the user's objects by role.
 
         Returns the names of objects whose part of the tree no longer exists (they stay unparented).
-        Updates the view layer. `result` is the generator's TreeResult (build/ must not import it).
+        Updates the view layer.
         """
         root = result.root
         self.link.attach(root)
@@ -172,3 +143,44 @@ class TreePlacement:
             item.link.attach(item.ob, result.roles[item.role])
             item.ob.matrix_world = item.matrix
         return unattached
+
+
+@dataclass(frozen=True, slots=True)
+class StoredSettings:
+    """The settings a tree was made with, completed with the defaults of the settings it does not have."""
+
+    settings: TreeSettings
+    missing: list[str]
+
+
+class TreeEdit:
+    """Editing a tree in place: its stored settings, and putting the new tree where the old one was."""
+
+    def __init__(self, name: str, view_layer: ViewLayer) -> None:
+        ob = bpy.data.objects.get(name)
+        if ob is None:
+            raise TreeRecordError(f"No object named '{name}'")
+        self.root: Object = TreeRecord.root_of(ob)
+        TreeRecord.claim(self.root)
+        view_layer.update()  # current world matrices of the tree and the user's objects
+        self.placement: TreePlacement = TreePlacement(self.root, TreeRecord.owned(self.root))
+
+    @property
+    def collections(self) -> list[Collection]:
+        """The collections the tree is in (the new tree goes into the same ones)."""
+        return self.placement.collections
+
+    def stored(self, defaults: Mapping[str, Any]) -> StoredSettings:
+        """The settings stored on the tree under their current ids, completed from `defaults` (a tree made before a
+        setting existed gets that setting's default, as an older preset does)."""
+        settings = TreeRecord.settings(self.root).rename_keys()
+        missing = settings.missing(defaults)
+        return StoredSettings(settings.complete(defaults), missing)
+
+    def replace(self, result: TreeParts, view_layer: ViewLayer) -> list[str]:
+        """The old tree goes and the new one takes its place and names; returns the names of the user's objects
+        whose part of the tree no longer exists."""
+        self.placement.detach()
+        TreeRecord.remove(self.root)
+        result.objects.take_base_names()
+        return self.placement.apply(result, view_layer)

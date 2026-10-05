@@ -2,15 +2,31 @@
 
 """Default materials: bark, and leaves rendered as Thin Wall (Blender 5.2) so light shines through."""
 
-from typing import Any
+from dataclasses import dataclass
 
 import bpy
-from bpy.types import Material, Node
+from bpy.types import Material, Mesh, Node
 
 from ..model.leaves import LeafShape
-from ..model.params import TreeParams
+from .build_params import BuildParams
 from .leaf_object import LeafObjectBuilder
+from .objects import TreeParts
 from .tree_root import TreeRootBuilder
+
+
+@dataclass(frozen=True, slots=True)
+class Color:
+    """An RGBA colour, each component 0..1."""
+
+    red: float
+    green: float
+    blue: float
+    alpha: float
+
+    @property
+    def rgba(self) -> list[float]:
+        """The components as Blender's colour properties take them."""
+        return [self.red, self.green, self.blue, self.alpha]
 
 
 class MaterialLibrary:
@@ -18,8 +34,8 @@ class MaterialLibrary:
 
     LEAF = "Sapling Leaf"
     BARK = "Sapling Bark"
-    LEAF_COLOR = (0.1, 0.35, 0.05, 1.0)
-    BARK_COLOR = (0.2, 0.13, 0.08, 1.0)
+    LEAF_COLOR = Color(0.1, 0.35, 0.05, 1.0)
+    BARK_COLOR = Color(0.2, 0.13, 0.08, 1.0)
 
     @classmethod
     def leaf(cls) -> Material:
@@ -49,11 +65,11 @@ class MaterialLibrary:
         return material
 
     @classmethod
-    def _new(cls, name: str, color: tuple[float, float, float, float], roughness: float) -> Material:
+    def _new(cls, name: str, color: Color, roughness: float) -> Material:
         material = bpy.data.materials.new(name)
-        material.diffuse_color = color  # type: ignore[assignment]  # viewport color
+        material.diffuse_color = color.rgba  # type: ignore[assignment]  # viewport color
         bsdf = cls._bsdf(material)
-        bsdf.inputs["Base Color"].default_value = color  # type: ignore[attr-defined]  # stub: NodeSocket base class
+        bsdf.inputs["Base Color"].default_value = color.rgba  # type: ignore[attr-defined]  # stub: NodeSocket base class
         bsdf.inputs["Roughness"].default_value = roughness  # type: ignore[attr-defined]  # stub: NodeSocket base class
         return material
 
@@ -66,14 +82,12 @@ class MaterialLibrary:
         return next(n for n in material.node_tree.nodes if n.type == "OUTPUT_MATERIAL")  # type: ignore[union-attr]  # new materials have a node tree
 
     @classmethod
-    def assign(cls, result: Any, params: TreeParams) -> None:
+    def assign(cls, result: TreeParts, params: BuildParams) -> None:
         """Bark on the branches (the root's sweep; a baked mesh keeps it); the leaf material on mesh leaves (not
-        instanced).
-
-        `result` is the generator's TreeResult (build/ must not import it): anything with role(name).
-        """
+        instanced)."""
         bark = cls.bark()
-        TreeRootBuilder.set_material(result.role(TreeRootBuilder.ROLE), bark)
+        TreeRootBuilder.set_material(result.root, bark)
         leaves = result.role(LeafObjectBuilder.ROLE)
-        if params.leaf_material and leaves is not None and params.leaf_shape in LeafShape.MESH:
-            leaves.data.materials.append(cls.leaf())
+        if params.leaf_material and leaves is not None and params.tree.leaf_shape in LeafShape.MESH:
+            mesh: Mesh = leaves.data  # type: ignore[assignment]  # mesh leaves are a mesh object
+            mesh.materials.append(cls.leaf())

@@ -44,8 +44,10 @@ class LeafMaterial(unittest.TestCase):
         self.assertEqual(evaluated_materials("tree"), ["Sapling Bark"])
 
     def test_instanced_leaves_keep_their_object_material(self):
-        self.generate(leafShape="dFace")
-        self.assertEqual(len(bpy.data.objects["leaves"].data.materials), 0)
+        for shape in ("dFace", "dVert"):  # the fixed bug: the leaf material went onto Instance Points leaves
+            with self.subTest(shape=shape):
+                self.generate(leafShape=shape)
+                self.assertEqual(len(bpy.data.objects["leaves"].data.materials), 0)
 
     def test_existing_material_is_reused_not_reset(self):
         self.generate()

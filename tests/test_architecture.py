@@ -3,16 +3,27 @@
 """The package's structure rules, checked on the source (no Blender state involved)."""
 
 import ast
+import tomllib
 import unittest
 from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parent.parent / "source"
+ROOT = Path(__file__).resolve().parent.parent
+SOURCE = ROOT / "source"
 LAYERS = {
     # package: project packages/modules it must not import
     "model": {"build", "ui", "generator", "presets", "settings"},
     "build": {"ui", "generator", "presets"},
 }
 BLENDER_ENTRY_POINTS = {"register", "unregister"}
+# Modules that exist only inside Blender: the model must run without them
+BLENDER_MODULES = {"bpy", "mathutils", "bpy_extras", "bmesh", "gpu", "blf", "aud", "bl_math", "idprop"}
+# Where a tuple is Blender's own API: an EnumProperty takes its items as (identifier, name, description) tuples
+TUPLE_BOUNDARIES = {
+    ("ui/properties.py", "item"),
+    ("ui/properties.py", "items"),
+    ("ui/operators.py", "items"),
+    ("ui/operators.py", "_items"),
+}
 
 
 def modules():
@@ -42,8 +53,9 @@ class Architecture(unittest.TestCase):
                 with self.subTest(module=str(path.relative_to(SOURCE))):
                     self.assertNotIn(target[0] if target else "", forbidden, f"imports {'.'.join(target)}")
 
-    def test_model_does_not_use_blender_data(self):
-        """The model grows the tree in memory; only build/ writes Blender data (bpy), in bulk."""
+    def test_model_does_not_use_blender_modules(self):
+        """The model grows the tree in memory, without Blender (bpy, mathutils, ...); only build/ writes Blender data,
+        in bulk."""
         for path in (SOURCE / "model").rglob("*.py"):
             for node in ast.walk(parse(path)):
                 names = []
@@ -53,7 +65,57 @@ class Architecture(unittest.TestCase):
                     names = [node.module or ""]
                 for name in names:
                     with self.subTest(module=str(path.relative_to(SOURCE)), name=name):
-                        self.assertNotEqual(name.split(".")[0], "bpy")
+                        self.assertNotIn(name.split(".")[0], BLENDER_MODULES)
+
+    def test_no_positional_records(self):
+        """Every record is a named class: no tuple in an annotation, and no function returns several values as a
+        tuple (only Blender's enum items are tuples, where its API takes them)."""
+        for path in modules():
+            relative = path.relative_to(SOURCE).as_posix()
+            for node in ast.walk(parse(path)):
+                if (relative, self.defined_name(node)) in TUPLE_BOUNDARIES:
+                    continue
+                with self.subTest(module=relative, line=getattr(node, "lineno", 0)):
+                    self.assertFalse(self.is_tuple_annotation(node), ast.unparse(node)[:80])
+                    if isinstance(node, ast.FunctionDef):
+                        returns = [n for n in ast.walk(node) if isinstance(n, ast.Return)]
+                        self.assertFalse(any(isinstance(r.value, ast.Tuple) for r in returns), node.name)
+
+    @staticmethod
+    def defined_name(node):
+        """The name a function or an annotated assignment defines ("" for other nodes)."""
+        if isinstance(node, ast.FunctionDef):
+            return node.name
+        if isinstance(node, ast.AnnAssign):
+            target = node.target
+            return target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
+        return ""
+
+    @staticmethod
+    def is_tuple_annotation(node):
+        """An annotation (argument, return or variable) that names `tuple`."""
+        annotations = []
+        if isinstance(node, ast.FunctionDef):
+            annotations = [node.returns, *(arg.annotation for arg in node.args.args)]
+        elif isinstance(node, ast.AnnAssign):
+            annotations = [node.annotation]
+        return any(
+            isinstance(part, ast.Name) and part.id == "tuple"
+            for annotation in annotations
+            if annotation is not None
+            for part in ast.walk(annotation)
+        )
+
+    def test_every_test_module_is_in_the_mypy_override(self):
+        """mypy's per-module patterns cannot match test_*: every test and in-Blender tool is listed by hand."""
+        config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+        listed = set()
+        for override in config["tool"]["mypy"]["overrides"]:
+            if "union-attr" in override.get("disable_error_code", []):
+                listed |= set(override["module"])
+        expected = {p.stem for p in (ROOT / "tests").glob("*.py")}
+        expected |= {p.stem for p in (ROOT / "tools").glob("*_in_blender.py")}
+        self.assertEqual(sorted(expected - listed), [], "add them to the override in pyproject.toml")
 
     def test_project_imports_are_classes(self):
         for path in modules():

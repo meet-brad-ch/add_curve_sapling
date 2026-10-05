@@ -11,7 +11,6 @@ import json
 import random
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import helpers
@@ -37,10 +36,10 @@ BOX_TOLERANCE = 0.10
 def stats(preset, changes):
     settings = helpers.resolve_preset(f"{preset}.py")
     settings.update(changes)
-    params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
-    curve = helpers.module("model.curve_data").CurveData()
-    grown = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, params.scale)
-    flat = curve.flatten()
+    model = helpers.grow_model(settings)
+    params = model.params
+    grown = model.grown
+    flat = model.curve.flatten()
     starts = [0, *grown.level_ends]
     out: dict[str, Any] = {"levels": []}
     for level in range(len(grown.level_ends)):
@@ -63,7 +62,7 @@ class ModelStatistics(unittest.TestCase):
     def test_cases(self):
         recorded = json.loads(STATS.read_text(encoding="utf-8")) if STATS.exists() else {}
         current = {name: stats(*case) for name, case in CASES.items()}
-        if helpers.RECORD_GOLDEN:
+        if helpers.Golden.record:
             STATS.write_text(json.dumps(current, indent=1, sort_keys=True) + "\n", encoding="utf-8")
             self.fail("model statistics recorded: review the diff, then run without --record-golden")
         for name, now in current.items():

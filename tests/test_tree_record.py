@@ -13,10 +13,6 @@ def record():
     return helpers.module("build.tree_record").TreeRecord
 
 
-def counts():
-    return {name: len(getattr(bpy.data, name)) for name in ("objects", "curves", "meshes", "armatures", "actions")}
-
-
 def add_tree(**overrides):
     settings = helpers.resolve_preset("quaking_aspen.py")
     settings.update(overrides)
@@ -159,7 +155,7 @@ class Placement(unittest.TestCase):
 class FailureSafety(unittest.TestCase):
     """A generation that fails part-way leaves nothing behind, and a failed edit keeps the old tree."""
 
-    def fail_during_skin_mesh(self):
+    def fail_during_the_bake(self):
         builder = helpers.module("build.bake").BarkBake
         original = builder.bake
 
@@ -171,19 +167,19 @@ class FailureSafety(unittest.TestCase):
 
     def test_failed_add_leaves_nothing(self):
         helpers.reset_scene()
-        before = counts()
-        self.fail_during_skin_mesh()
+        before = helpers.counts()
+        self.fail_during_the_bake()
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, useRig=True, makeMesh=True, prune=True)
         with self.assertRaisesRegex(RuntimeError, "injected failure"):
             bpy.ops.curve.tree_add(**settings, do_update=True)
-        self.assertEqual(counts(), before)
+        self.assertEqual(helpers.counts(), before)
 
     def test_failed_edit_keeps_the_old_tree(self):
         helpers.reset_scene()
         root = add_tree(showLeaves=True)
         before = helpers.fingerprint()
-        self.fail_during_skin_mesh()
+        self.fail_during_the_bake()
         with self.assertRaisesRegex(RuntimeError, "injected failure"):
             edit(root, makeMesh=True)
         self.assertEqual(helpers.fingerprint(), before)
@@ -204,3 +200,80 @@ class OlderTrees(unittest.TestCase):
 
         self.assertEqual(bpy.ops.curve.tree_add(replace=root.name, do_update=True), {"FINISHED"})
         self.assertEqual(helpers.stored_settings(helpers.active_object())["rootFlare"], default)
+
+
+class EditReports(unittest.TestCase):
+    """Edit Sapling Tree tells the user what it could not keep: objects whose part of the tree is gone, and
+    settings an older tree did not store."""
+
+    def test_unparented_objects_are_named(self):
+        helpers.reset_scene()
+        root = add_tree(showLeaves=True)
+        marker = bpy.data.objects.new("marker", None)
+        bpy.context.scene.collection.objects.link(marker)
+        marker.parent = bpy.data.objects["leaves"]
+        with helpers.console_output() as console:
+            self.assertEqual(edit(root, showLeaves=False), {"FINISHED"})
+        self.assertIn("Left unparented (their part of the tree is gone): marker", "\n".join(console.lines("Warning")))
+
+    def test_settings_an_older_tree_lacks_are_reported_and_listed(self):
+        import json
+
+        helpers.reset_scene()
+        root = add_tree()
+        stored = json.loads(root[record().SETTINGS])
+        stored["settings"].pop("rootFlare")
+        root[record().SETTINGS] = json.dumps(stored)
+        edit_class = helpers.module("build.tree_record").TreeEdit
+        found = edit_class(root.name, bpy.context.view_layer).stored(helpers.operator_defaults())
+        self.assertEqual(found.missing, ["rootFlare"])
+        self.assertIn("rootFlare", found.settings.values)
+        with helpers.console_output() as console:
+            self.assertEqual(bpy.ops.curve.tree_add(replace=root.name, do_update=True), {"FINISHED"})
+        warnings = console.lines("Warning")
+        self.assertEqual(len(warnings), 1, console.text)
+        self.assertIn("does not have 1 settings: rootFlare", warnings[0])
+
+
+class FailureRollback(unittest.TestCase):
+    """A generation that fails after its objects exist removes them, and puts the user's leaf object back."""
+
+    def test_failed_tag_leaves_nothing(self):
+        helpers.reset_scene()
+        before = helpers.counts()
+        tree_record = record()
+        original = tree_record.__dict__["tag"]
+
+        def failing(*args):
+            raise RuntimeError("injected failure")
+
+        tree_record.tag = classmethod(failing)
+        self.addCleanup(setattr, tree_record, "tag", original)
+        with self.assertRaisesRegex(RuntimeError, "injected failure"):
+            bpy.ops.curve.tree_add(**helpers.resolve_preset("quaking_aspen.py"), do_update=True)
+        self.assertEqual(helpers.counts(), before)
+
+    def test_failed_add_restores_the_leaf_object(self):
+        helpers.reset_scene()
+        holder = bpy.data.objects.new("holder", None)
+        bpy.context.scene.collection.objects.link(holder)
+        holder.location = (1, 2, 3)
+        card = helpers.add_leaf_card()
+        card.parent = holder
+        bpy.context.view_layer.update()
+        world = card.matrix_world.copy()
+        builder = helpers.module("build.bake").BarkBake
+        original = builder.bake
+
+        def failing(*args, **kwargs):
+            raise RuntimeError("injected failure")
+
+        builder.bake = failing
+        self.addCleanup(setattr, builder, "bake", original)
+        settings = helpers.resolve_preset("callistemon.py")
+        settings.update(showLeaves=True, leafShape="dFace", makeMesh=True)
+        with self.assertRaisesRegex(RuntimeError, "injected failure"):
+            bpy.ops.curve.tree_add(**settings, leafDupliObj=card.name, do_update=True)
+        bpy.context.view_layer.update()
+        self.assertIs(card.parent, holder)
+        self.assertLess((card.matrix_world.to_translation() - world.to_translation()).length, 1e-6)

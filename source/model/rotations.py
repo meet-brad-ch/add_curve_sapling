@@ -3,14 +3,34 @@
 """Rotations for many points at once: (N, 3, 3) matrices with mathutils' conventions.
 
 A row's matrix R rotates a vector as `v.rotate(R)` does: v' = R @ v. Composing turns in the order they are
-applied, `Rotation.compose(a, b)` @ v == v.rotate(a); v.rotate(b). Angles are radians, maths in float64 (the
-per-item model used float32 mathutils; the rows agree to about 1e-6). The ports of Blender's own routines
+applied, `Rotation.compose(a, b)` @ v == v.rotate(a); v.rotate(b). Angles are radians, maths in float64; Blender's
+float32 routines are ported where their rounding decides a branch. The ports of Blender's own routines
 (vec_to_quat, quat_to_mat3, mat3_normalized_to_eul2, compatible_eul) follow math_rotation_c.cc line by line.
 """
 
+from dataclasses import dataclass
 from math import pi
 
 import numpy as np
+
+from .geometry import Angles
+
+
+@dataclass(frozen=True, slots=True)
+class FirstTurn:
+    """The rotation that brings the z axis onto a direction: its axis, and the cosine of its angle times the
+    direction's length."""
+
+    axis: np.ndarray
+    cosine: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class EulerSolutions:
+    """The two XYZ Euler solutions of a rotation matrix (mat3_normalized_to_eul2)."""
+
+    first: np.ndarray
+    second: np.ndarray
 
 
 class Rotation:
@@ -25,11 +45,11 @@ class Rotation:
         one = np.ones_like(c)
         zero = np.zeros_like(c)
         if axis == "X":
-            rows = ((one, zero, zero), (zero, c, -s), (zero, s, c))
+            rows = [[one, zero, zero], [zero, c, -s], [zero, s, c]]
         elif axis == "Y":
-            rows = ((c, zero, s), (zero, one, zero), (-s, zero, c))
+            rows = [[c, zero, s], [zero, one, zero], [-s, zero, c]]
         elif axis == "Z":
-            rows = ((c, -s, zero), (s, c, zero), (zero, zero, one))
+            rows = [[c, -s, zero], [s, c, zero], [zero, zero, one]]
         else:
             raise ValueError(f"rotation axis must be X, Y or Z, not {axis!r}")
         return np.stack([np.stack(row, axis=-1) for row in rows], axis=-2)
@@ -170,31 +190,26 @@ class Quaternions:
 
 
 class TrackFrame:
-    """Blender's Vector.to_track_quat: the rotation that points one of an object's axes along a direction with
-    another axis up, for many directions at once (a port of vec_to_quat: the degenerate directions and the
-    half-angle twist included)."""
+    """Blender's Vector.to_track_quat("Z", "Y"): the rotation that points the z axis along a direction with the y
+    axis up, for many directions at once (a port of vec_to_quat: the degenerate directions and the half-angle
+    twist included). The model tracks z with y up everywhere."""
 
     EPS = 1e-4
-    AXES = {"X": 0, "Y": 1, "Z": 2}
 
     @classmethod
-    def quaternions(cls, directions: np.ndarray, track: str = "Z", up: str = "Y") -> np.ndarray:
-        """(N, 4) quaternions (w, x, y, z) of to_track_quat(track, up) for each row of `directions`."""
-        axis = cls.AXES[track]
-        upflag = cls.AXES[up]
-        if axis == upflag:
-            raise ValueError("the track axis and the up axis must differ")
+    def quaternions(cls, directions: np.ndarray) -> np.ndarray:
+        """(N, 4) quaternions (w, x, y, z) of to_track_quat("Z", "Y") for each row of `directions`."""
         # Blender's vectors are float32: the length of a direction a hair's breadth off a pole rounds to 1 there,
         # which decides between the regular and the degenerate branch below
         d = np.asarray(directions, dtype=np.float32).reshape(-1, 3)
         length = np.sqrt(d[:, 0] * d[:, 0] + d[:, 1] * d[:, 1] + d[:, 2] * d[:, 2])
         safe_length = np.where(length == 0.0, np.float32(1.0), length)
         tvec = d  # mathutils passes the positive axes as vec_to_quat's codes 3..5, which keep the vector's sign
-        nor, co = cls._first_turn(tvec, axis)
-        angle = np.arccos(np.clip(co / safe_length, -1.0, 1.0))
-        q = cls._axis_angle(Rotation.unit(nor.astype(np.float64)), angle.astype(np.float64))
+        turn = cls._first_turn(tvec)
+        angle = np.arccos(np.clip(turn.cosine / safe_length, -1.0, 1.0))
+        q = cls._axis_angle(Rotation.unit(turn.axis.astype(np.float64)), angle.astype(np.float64))
         fp = Quaternions.to_matrices(q)[:, :, 2]  # the image of the z axis
-        twist = cls._twist(fp, axis, upflag)
+        twist = cls._twist(fp)
         q2 = np.concatenate(
             [
                 np.cos(twist)[:, None],
@@ -203,39 +218,26 @@ class TrackFrame:
             axis=1,
         )
         q = Quaternions.multiply(q2, q)
-        q[length == 0.0] = (1.0, 0.0, 0.0, 0.0)
+        q[length == 0.0] = [1.0, 0.0, 0.0, 0.0]
         return q
 
     @classmethod
-    def matrices(cls, directions: np.ndarray, track: str = "Z", up: str = "Y") -> np.ndarray:
-        """(N, 3, 3) matrices of to_track_quat(track, up), the columns being the rotated x, y and z axes."""
-        return Quaternions.to_matrices(cls.quaternions(directions, track, up))
+    def matrices(cls, directions: np.ndarray) -> np.ndarray:
+        """(N, 3, 3) matrices of to_track_quat("Z", "Y"), the columns being the rotated x, y and z axes."""
+        return Quaternions.to_matrices(cls.quaternions(directions))
 
     @classmethod
-    def _first_turn(cls, tvec: np.ndarray, axis: int) -> tuple[np.ndarray, np.ndarray]:
-        """(the axis of the rotation onto the tracked axis, the cosine of its angle times the length)."""
+    def _first_turn(cls, tvec: np.ndarray) -> FirstTurn:
+        """The rotation onto the z axis: its axis, and the cosine of its angle times the length."""
         x, y, z = tvec[:, 0], tvec[:, 1], tvec[:, 2]
-        zero = np.zeros_like(x)
-        if axis == 0:
-            nor = np.stack([zero, -z, y], axis=1)
-            nor[np.abs(y) + np.abs(z) < cls.EPS, 1] = 1.0
-            return nor, x
-        if axis == 1:
-            nor = np.stack([z, zero, -x], axis=1)
-            nor[np.abs(x) + np.abs(z) < cls.EPS, 2] = 1.0
-            return nor, y
-        nor = np.stack([-y, x, zero], axis=1)
+        nor = np.stack([-y, x, np.zeros_like(x)], axis=1)
         nor[np.abs(x) + np.abs(y) < cls.EPS, 0] = 1.0
-        return nor, z
+        return FirstTurn(nor, z)
 
     @staticmethod
-    def _twist(fp: np.ndarray, axis: int, upflag: int) -> np.ndarray:
-        """The half angle of the twist about the tracked axis that puts the up axis up."""
-        if axis == 0:
-            return 0.5 * np.arctan2(fp[:, 2], fp[:, 1]) if upflag == 1 else -0.5 * np.arctan2(fp[:, 1], fp[:, 2])
-        if axis == 1:
-            return -0.5 * np.arctan2(fp[:, 2], fp[:, 0]) if upflag == 0 else 0.5 * np.arctan2(fp[:, 0], fp[:, 2])
-        return 0.5 * np.arctan2(-fp[:, 1], -fp[:, 0]) if upflag == 0 else -0.5 * np.arctan2(-fp[:, 0], -fp[:, 1])
+    def _twist(fp: np.ndarray) -> np.ndarray:
+        """The half angle of the twist about the tracked z axis that puts the y axis up."""
+        return -0.5 * np.arctan2(-fp[:, 0], -fp[:, 1])
 
     @staticmethod
     def _axis_angle(axes: np.ndarray, angle: np.ndarray) -> np.ndarray:
@@ -275,9 +277,9 @@ class EulerXYZ:
         Where the middle angle is exactly +-pi the two solutions coincide as rotations; Blender's sign of that
         angle depends on float rounding, so compare rebuilt matrices (EulerXYZ.matrices), not raw angles.
         """
-        first, second = cls._two_solutions(matrices)
-        first = cls._wrap(first, reference)
-        second = cls._wrap(second, reference)
+        solutions = cls._two_solutions(matrices)
+        first = cls._wrap(solutions.first, reference)
+        second = cls._wrap(solutions.second, reference)
         prefer_second = np.abs(first - reference).sum(axis=1) > np.abs(second - reference).sum(axis=1)
         return np.where(prefer_second[:, None], second, first)
 
@@ -287,7 +289,7 @@ class EulerXYZ:
         return Rotation.about(eulers[:, 2], "Z") @ Rotation.about(eulers[:, 1], "Y") @ Rotation.about(eulers[:, 0], "X")
 
     @classmethod
-    def _two_solutions(cls, r: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _two_solutions(cls, r: np.ndarray) -> EulerSolutions:
         """mat3_normalized_to_eul2 for XYZ; Blender's mat[c][r] is r[:, r, c]."""
         cy = np.hypot(r[:, 0, 0], r[:, 1, 0])
         regular = cy > cls.GIMBAL
@@ -299,13 +301,13 @@ class EulerXYZ:
             1,
         )
         gimbal = np.stack([np.arctan2(-r[:, 1, 2], r[:, 1, 1]), np.arctan2(-r[:, 2, 0], cy), np.zeros(len(r))], 1)
-        return np.where(regular[:, None], first, gimbal), np.where(regular[:, None], second, gimbal)
+        return EulerSolutions(np.where(regular[:, None], first, gimbal), np.where(regular[:, None], second, gimbal))
 
     @staticmethod
     def _wrap(eul: np.ndarray, old: np.ndarray) -> np.ndarray:
         """compatible_eul: wrap by 2 pi towards the old angles, then flip one axis that turned more than pi."""
         eul = eul.copy()
-        tau = 2 * pi
+        tau = Angles.TAU
         deul = eul - old
         high = deul > pi
         eul[high] -= np.floor(deul[high] / tau + 0.5) * tau
@@ -314,15 +316,15 @@ class EulerXYZ:
         deul = eul - old
         size = np.abs(deul)
         for i in range(3):
-            j, k = (i + 1) % 3, (i + 2) % 3
+            j = (i + 1) % 3
+            k = (i + 2) % 3
             flip = (size[:, i] > pi) & (size[:, j] < pi / 2) & (size[:, k] < pi / 2)
             eul[flip, i] -= np.where(deul[flip, i] > 0, tau, -tau)
         return eul
 
 
 class AttractUp:
-    """Bending growth directions up (attractUp > 0) or down, as growth.py's _attract_up with geometry.py's
-    curve_up, for many directions at once."""
+    """Vertical Attraction: bending growth directions up (attractUp > 0) or down, for many directions at once."""
 
     @staticmethod
     def apply(vectors: np.ndarray, attract_up: float, segments: int) -> np.ndarray:
@@ -340,7 +342,7 @@ class AttractUp:
 
 
 class BezierBatch:
-    """Points and tangents of many cubic Bezier segments at once (geometry.py's BezierSegment)."""
+    """Points and tangents of many cubic Bezier segments at once."""
 
     @staticmethod
     def points(p1: np.ndarray, h1: np.ndarray, h2: np.ndarray, p2: np.ndarray, t: np.ndarray) -> np.ndarray:

@@ -4,10 +4,10 @@
 
 The live sweep is evaluated once at rest and copied into a plain mesh that replaces the root's empty mesh and its
 "Sapling Tree" modifier: the tree exports as it is (with the rig, as a skinned mesh), at the price of fixed Bevel
-inputs and a heavier playback (every vertex is deformed). Each vertex knows its joint through the joint number
-written on the curve points as a float (Resample Curve interpolates it inside a segment, and the floor gives the
-joint the segment starts with) and so gets the bone's vertex group, or the joint number for the Follow Wind
-modifier.
+inputs and a heavier playback (every vertex is deformed). With a rig or the node wind, each vertex knows its joint
+through the joint number written on the curve points as a float (Resample Curve interpolates it inside a segment,
+and the floor gives the joint the segment starts with) and so gets the bone's vertex group, or the joint number
+for the Follow Wind modifier.
 """
 
 from typing import Any
@@ -16,11 +16,12 @@ import bpy
 import numpy as np
 from bpy.types import Context, Object
 
-from ..model.params import TreeParams
+from ..model.joints import Joints
 from .armature import ArmatureBuilder
+from .build_params import BuildParams
 from .joint_proxy import JointProxy
 from .node_groups import SharedNodeGroup
-from .node_wind import NodeWind, WindJoints
+from .node_wind import NodeWind
 from .objects import VertexGroupWriter
 from .tree_root import TreeRootBuilder
 
@@ -32,17 +33,34 @@ class BarkBake:
     # Resample Curve gives a vertex inside a segment the fraction of the way to the next joint: round down to its own
     ROUNDING = 1e-3
 
-    def __init__(self, params: TreeParams, context: Context) -> None:
+    def __init__(self, params: BuildParams, context: Context) -> None:
         self.params = params
         self.context = context
 
     def bake(
-        self, root: Object, curves_ob: Object, joints: WindJoints, armature_ob: Object | None, wind_ob: Object | None
+        self,
+        root: Object,
+        curves_ob: Object,
+        joints: Joints | None,
+        armature_ob: Object | None,
+        wind_ob: Object | None,
     ) -> None:
         """Replace the root's live sweep by the baked mesh; with `armature_ob` weighted to its bones, with the node
-        wind's curves `wind_ob` following them."""
-        p = self.params
-        ordinals = joints.ordinals(joints.point_joints())
+        wind's curves `wind_ob` following them (both need the `joints`)."""
+        if joints is None and (armature_ob is not None or wind_ob is not None):
+            raise RuntimeError("a baked mesh bound to the rig or the wind needs the joints")
+        if joints is None:
+            self._replace(root, self._realized(root))
+        else:
+            self._bind(root, curves_ob, joints, armature_ob, wind_ob)
+        if self.params.preview_armature:
+            root.display_type = "BOUNDS"  # a baked tree has no curves to show instead
+
+    def _bind(
+        self, root: Object, curves_ob: Object, joints: Joints, armature_ob: Object | None, wind_ob: Object | None
+    ) -> None:
+        """The baked mesh with every vertex bound to its joint: a bone's vertex group, or the joint number."""
+        ordinals = joints.point_ordinals()
         attribute: Any = curves_ob.data.attributes.new(self.ORDINAL, "FLOAT", "POINT")  # type: ignore[union-attr]  # a Curves object; Any: the data type depends on the kind
         attribute.data.foreach_set("value", ordinals.astype(np.float32))
         mesh = self._realized(root)
@@ -53,24 +71,27 @@ class BarkBake:
             # the curve points' joint numbers, rounded inside the segments by the resample: the float ordinal above
             # gives every vertex its joint; the Follow Wind modifier gets its own, exact numbers below
             mesh.attributes.remove(mesh.attributes[NodeWind.JOINT])
+        self._replace(root, mesh)
+        if armature_ob is not None:
+            VertexGroupWriter.assign(root, JointProxy.groups_of(vertex_ordinals, joints))
+            modifier = ArmatureBuilder.deform(root, armature_ob)
+            modifier.show_viewport = not self.params.preview_armature
+        elif wind_ob is not None:
+            NodeWind.follow(root, wind_ob, vertex_ordinals.astype(np.int32))
+
+    @staticmethod
+    def _replace(root: Object, mesh: bpy.types.Mesh) -> None:
+        """The baked mesh becomes the root's data; the empty mesh and the sweep modifier go."""
         old = root.data
         root.data = mesh
         bpy.data.meshes.remove(old)  # type: ignore[arg-type]  # the root's data is a mesh
         mesh.name = TreeRootBuilder.ROLE
         root.modifiers.remove(root.modifiers[TreeRootBuilder.MODIFIER])
-        if armature_ob is not None:
-            VertexGroupWriter.assign(root, JointProxy.groups_of(vertex_ordinals, joints))
-            modifier = ArmatureBuilder.deform(root, armature_ob, by_envelopes=False)
-            modifier.show_viewport = not p.preview_armature
-        elif wind_ob is not None:
-            NodeWind.follow(root, wind_ob, vertex_ordinals.astype(np.int32))
-        if p.preview_armature:
-            root.display_type = "BOUNDS"  # a baked tree has no curves to show instead
 
     def _realized(self, root: Object) -> bpy.types.Mesh:
         """The sweep at rest (no wind, no rig pose, no preview) as a new mesh with the sweep's attributes."""
         modifier = root.modifiers[TreeRootBuilder.MODIFIER]
-        for name in ("Wind", "Rig", "Fast Preview"):
+        for name in ["Wind", "Rig", "Fast Preview"]:
             SharedNodeGroup.set_input(modifier, name, False)  # type: ignore[arg-type]  # the root's modifier runs nodes
         depsgraph = self.context.evaluated_depsgraph_get()
         mesh = bpy.data.meshes.new_from_object(root.evaluated_get(depsgraph))
@@ -87,6 +108,6 @@ class BarkBake:
         ordinals = np.floor(values + cls.ROUNDING).astype(np.int64)
         if ordinals.min() < 0 or ordinals.max() >= joint_count:
             raise RuntimeError(
-                f"baked joint numbers {ordinals.min()}..{ordinals.max()} outside the {joint_count} joints"
+                f"Baked joint numbers {ordinals.min()}..{ordinals.max()} are outside the {joint_count} joints"
             )
         return ordinals

@@ -1,135 +1,181 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Generation parameters derived from the operator settings: angles in radians, shapes as numbers."""
+"""Generation parameters derived from the operator settings: angles in radians, shapes as numbers, plain values.
 
+Three read-only objects, each copied once from the settings (any object with the operator's property names as
+attributes, in practice the operator): TreeParams (how the tree grows), WindParams (the joints the rig and the
+node wind share, and the wind), and build/'s BuildParams (what Blender makes of the tree). Every value is a plain
+Python number, string or tuple: the operator's property arrays die with the operator, and a model that kept them
+would read freed memory when the tree is built or edited later.
+"""
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from math import radians
-from typing import Any, Literal
+from typing import Any
 
 import numpy as np
 
-from .geometry import Angles, Bezier, CrownShape
+from .curve_data import HandleType
+from .geometry import Angles, CrownShape
 
 
-class TreeParams:
-    """Everything the generator reads, derived once from the settings.
+@dataclass(frozen=True, slots=True)
+class Flutter:
+    """The leaves' flutter settings: how strong, how fast, and how different the leaves' noise offsets are."""
 
-    `settings` is any object with the operator's property names as attributes (in practice the
-    operator); vector values are indexed per level (at most 4 entries).
+    strength: float
+    speed: float
+    randomness: float
+
+
+class BranchingMode:
+    """How branches are placed around their parent (the Branching Mode setting)."""
+
+    ORIGINAL = "original"  # rotate around each branch
+    ROTATE = "rotate"  # spread evenly to point outward from the tree's center
+    RANDOM = "random"  # a random point at each height
+    ALL = [ORIGINAL, ROTATE, RANDOM]
+
+
+class PlainParams:
+    """Settings copied into plain values; read-only once _freeze() has run (at the end of __init__)."""
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if getattr(self, "_frozen", False):
+            raise AttributeError(f"{type(self).__name__} is read-only; cannot set {name}")
+        super().__setattr__(name, value)
+
+    def _freeze(self) -> None:
+        self._frozen = True
+
+    @staticmethod
+    def _floats(values: Iterable[float]) -> list[float]:
+        """A per-level vector setting as a list of Python floats."""
+        return [float(v) for v in values]
+
+    @staticmethod
+    def _ints(values: Iterable[int]) -> list[int]:
+        """A per-level vector setting as a list of Python ints."""
+        return [int(v) for v in values]
+
+    @staticmethod
+    def _choice[T](table: Mapping[str, T], value: str, name: str) -> T:
+        """The value an enum setting stands for; raises ValueError for one that is not a choice."""
+        if value not in table:
+            raise ValueError(f"{name} {value!r} is not one of {sorted(table)}")
+        return table[value]
+
+
+class TreeParams(PlainParams):
+    """Everything the model reads to grow the tree, derived once from the settings.
+
+    Vector values are indexed per level (LEVELS entries; deeper levels reuse the last one, see level_index()).
     """
+
+    LEVELS = 4
+    HANDLE_TYPES = {"0": HandleType.AUTO, "1": HandleType.VECTOR}
 
     def __init__(self, settings: Any) -> None:
         s = settings
-        self.seed = s.seed
-        self.levels = s.levels
-        self.length = s.length
-        self.length_v = s.lengthV
-        self.taper_crown = s.taperCrown
-        self.branches = s.branches
-        self.curve_res = s.curveRes
+        self.seed = int(s.seed)
+        self.levels = int(s.levels)
+        self._shape(s)
+        self._branching(s)
+        self._growth(s)
+        self._pruning(s)
+        self._leaves(s)
+        self.handles: int = self._choice(self.HANDLE_TYPES, str(s.handleType), "Handle Type")
+        # Joint Length: stem segments per joint, per level (the model names the bones the splines hang from)
+        self.bone_step = self._ints(s.jointStep)
+        # The envelope's base cannot be above the bare trunk
+        self.prune_base_clamped = min(self.prune_base, self.base_size)
+        if s.autoTaper:
+            self.taper = CrownShape.auto_taper(
+                self.length, self._floats(s.taper), self.shape, self.shape_s, self.levels, self.custom_shape
+            )
+        else:
+            self.taper = self._floats(s.taper)
+        self._freeze()
+
+    def _shape(self, s: Any) -> None:
+        self.scale = float(s.scale)
+        self.scale_v = float(s.scaleV)
+        self.shape = int(s.shape)
+        self.shape_s = int(s.shapeS)
+        self.custom_shape = self._floats(s.customShape)
+        self.branch_dist = float(s.branchDist)
+        self.rings = int(s.nrings)
+        self.base_size = float(s.baseSize)
+        self.base_size_s = float(s.baseSize_s)
+        self.ratio = float(s.ratio)
+        self.min_radius = float(s.minRadius)
+        self.close_tip = bool(s.closeTip)
+        self.root_flare = float(s.rootFlare)
+        self.radius_tweak = self._floats(s.radiusTweak)
+        self.ratio_power = float(s.ratioPower)
+        self.scale0 = float(s.scale0)
+        self.scale_v0 = float(s.scaleV0)
+
+    def _branching(self, s: Any) -> None:
+        self.branches = self._ints(s.branches)
+        self.trunks = int(s.trunks)
+        self.base_splits = int(s.baseSplits)
+        self.seg_splits = self._floats(s.segSplits)
+        self.split_by_len = bool(s.splitByLen)
+        self.rotate_mode: str = self._choice({mode: mode for mode in BranchingMode.ALL}, str(s.rMode), "Branching Mode")
+        self.split_angle = Angles.to_radians(s.splitAngle)
+        self.split_angle_v = Angles.to_radians(s.splitAngleV)
+        self.split_height = float(s.splitHeight)
+        self.split_bias = float(s.splitBias)
+        self.rotate = Angles.to_radians(s.rotate)
+        self.rotate_v = Angles.to_radians(s.rotateV)
+        self.down_angle = Angles.to_radians(s.downAngle)
+        self.down_angle_v = Angles.to_radians(s.downAngleV)
+        self.use_old_down_angle = bool(s.useOldDownAngle)
+        self.use_parent_angle = bool(s.useParentAngle)
+
+    def _growth(self, s: Any) -> None:
+        self.length = self._floats(s.length)
+        self.length_v = self._floats(s.lengthV)
+        self.taper_crown = float(s.taperCrown)
+        self.curve_res = self._ints(s.curveRes)
         self.curve = Angles.to_radians(s.curve)
         self.curve_v = Angles.to_radians(s.curveV)
         self.curve_back = Angles.to_radians(s.curveBack)
-        self.base_splits = s.baseSplits
-        self.trunks = s.trunks
-        self.seg_splits = s.segSplits
-        self.split_by_len = s.splitByLen
-        self.rotate_mode = s.rMode
-        self.split_angle = Angles.to_radians(s.splitAngle)
-        self.split_angle_v = Angles.to_radians(s.splitAngleV)
-        self.scale = s.scale
-        self.scale_v = s.scaleV
-        self.attract_up = s.attractUp
-        self.attract_out = s.attractOut
-        self.shape = int(s.shape)
-        self.shape_s = int(s.shapeS)
-        self.custom_shape = s.customShape
-        self.branch_dist = s.branchDist
-        self.rings = s.nrings
-        self.base_size = s.baseSize
-        self.base_size_s = s.baseSize_s
-        self.split_height = s.splitHeight
-        self.split_bias = s.splitBias
-        self.ratio = s.ratio
-        self.min_radius = s.minRadius
-        self.close_tip = s.closeTip
-        self.root_flare = s.rootFlare
-        self.radius_tweak = s.radiusTweak
-        self.ratio_power = s.ratioPower
-        self.down_angle = Angles.to_radians(s.downAngle)
-        self.down_angle_v = Angles.to_radians(s.downAngleV)
-        self.rotate = Angles.to_radians(s.rotate)
-        self.rotate_v = Angles.to_radians(s.rotateV)
-        self.scale0 = s.scale0
-        self.scale_v0 = s.scaleV0
-        self.use_old_down_angle = s.useOldDownAngle
-        self.use_parent_angle = s.useParentAngle
+        self.attract_up = self._floats(s.attractUp)
+        self.attract_out = self._floats(s.attractOut)
 
-        self.prune = s.prune
-        self.prune_width = s.pruneWidth
-        self.prune_base = s.pruneBase
-        self.prune_width_peak = s.pruneWidthPeak
-        self.prune_power_low = s.prunePowerLow
-        self.prune_power_high = s.prunePowerHigh
-        self.prune_ratio = s.pruneRatio
+    def _pruning(self, s: Any) -> None:
+        self.prune = bool(s.prune)
+        self.prune_width = float(s.pruneWidth)
+        self.prune_base = float(s.pruneBase)
+        self.prune_width_peak = float(s.pruneWidthPeak)
+        self.prune_power_low = float(s.prunePowerLow)
+        self.prune_power_high = float(s.prunePowerHigh)
+        self.prune_ratio = float(s.pruneRatio)
 
-        # Leaves: a negative count grows palmate leaves from the stem tips
-        self.leaves = s.leaves if s.showLeaves else 0
+    def _leaves(self, s: Any) -> None:
+        # a negative count grows palmate leaves from the stem tips
+        self.leaves = int(s.leaves) if s.showLeaves else 0
         self.leaf_down_angle = radians(s.leafDownAngle)
         self.leaf_down_angle_v = radians(s.leafDownAngleV)
         self.leaf_rotate = radians(s.leafRotate)
         self.leaf_rotate_v = radians(s.leafRotateV)
-        self.leaf_scale = s.leafScale
-        self.leaf_scale_x = s.leafScaleX
-        self.leaf_scale_t = s.leafScaleT
-        self.leaf_scale_v = s.leafScaleV
-        self.leaf_shape = s.leafShape
-        self.leaf_instance_name = s.leafDupliObj
-        self.leaf_bend = s.bend
-        self.leaf_angle = s.leafangle
-        self.horizontal_leaves = s.horzLeaves
+        self.leaf_scale = float(s.leafScale)
+        self.leaf_scale_x = float(s.leafScaleX)
+        self.leaf_scale_t = float(s.leafScaleT)
+        self.leaf_scale_v = float(s.leafScaleV)
+        self.leaf_shape = str(s.leafShape)
+        self.leaf_bend = float(s.bend)
+        self.leaf_angle = float(s.leafangle)
+        self.horizontal_leaves = bool(s.horzLeaves)
         self.leaf_dist = int(s.leafDist)
-        self.leaf_material = s.leafMaterial
 
-        self.bevel_depth = 1.0 if s.bevel else 0.0
-        self.bevel_res = s.bevelRes
-        self.res_u = s.resU
-        self.handles: Literal["AUTO", "VECTOR"] = Bezier.AUTO if s.handleType == "0" else Bezier.VECTOR
-
-        self.use_armature = s.useRig
-        self.preview_armature = s.fastPreview
-        self.armature_animation = s.windAnim
-        self.leaf_animation = s.leafFlutter
-        self.frame_rate = s.animationSpeed
-        self.loop_frames = s.loopFrames
-        self.wind = s.windStrength
-        self.gust = s.gustStrength
-        self.gust_f = s.gustFrequency
-        self.leaf_wind = (s.flutterStrength, s.flutterSpeed, s.flutterRandomness)
-        self.make_mesh = s.makeMesh
-        # Joint Levels and Joint Length thin the rig and the node wind's joints: a stem above the levels follows
-        # the nearest joint below it. Plain values: read after the operator too.
-        self.armature_levels = s.jointLevels
-        self.bone_step = tuple(int(step) for step in s.jointStep)
-        # Index of the last level with its own bones; -1 when every level has them (Joint Levels 0)
-        self.bone_levels = min(self.armature_levels, self.levels) - 1
-        leaf_level = self.levels - 1 if self.bone_levels == -1 else self.bone_levels
-        self.leaf_bone_step = self.bone_step[min(leaf_level, 3)]
-
-        # The envelope's base cannot be above the bare trunk
-        self.prune_base_clamped = min(self.prune_base, self.base_size)
-
-        if s.autoTaper:
-            self.taper = CrownShape.auto_taper(
-                self.length, s.taper, self.shape, self.shape_s, self.levels, self.custom_shape
-            )
-        else:
-            self.taper = s.taper
-        self._frozen = True
-
-    def __setattr__(self, name: str, value: object) -> None:
-        if getattr(self, "_frozen", False):  # set at the end of __init__
-            raise AttributeError(f"TreeParams are read-only; cannot set {name}")
-        super().__setattr__(name, value)
+    @classmethod
+    def level_index(cls, depth: int) -> int:
+        """The parameter level of a stem at `depth` below the trunk: deeper levels reuse the last one."""
+        return min(depth, cls.LEVELS - 1)
 
     def length_product(self, level: int, start: float) -> float:
         """`start` times the relative lengths of levels 0..level."""
@@ -144,3 +190,20 @@ class TreeParams:
     def envelopes(self, ratio: np.ndarray) -> np.ndarray:
         """envelope() for an array of height ratios."""
         return CrownShape.envelopes(ratio, self.prune_width_peak, self.prune_power_high, self.prune_power_low)
+
+
+class WindParams(PlainParams):
+    """The joints (what the rig's bones and the node wind's joints are) and the wind's strength and timing."""
+
+    def __init__(self, settings: Any, tree: TreeParams) -> None:
+        s = settings
+        self.bone_step = tree.bone_step
+        # Joint Levels: index of the last level with joints of its own; -1 when every level has them (0)
+        self.bone_levels = min(int(s.jointLevels), tree.levels) - 1
+        self.wind = float(s.windStrength)
+        self.gust = float(s.gustStrength)
+        self.gust_f = float(s.gustFrequency)
+        self.animation_speed = float(s.animationSpeed)
+        self.loop_frames = int(s.loopFrames)
+        self.flutter = Flutter(float(s.flutterStrength), float(s.flutterSpeed), float(s.flutterRandomness))
+        self._freeze()

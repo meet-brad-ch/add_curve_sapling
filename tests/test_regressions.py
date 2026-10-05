@@ -2,19 +2,16 @@
 
 """One test per fixed bug. Each one failed before its fix."""
 
+import random
 import re
 import unittest
 from collections import defaultdict
+from types import SimpleNamespace
 
 import bpy
 import helpers
+import numpy as np
 from mathutils import Vector
-
-BONE_NAME = re.compile(r"bone(\d{3})\.(\d{3})$")
-
-
-def armature():
-    return next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
 
 
 class WindAnimation(unittest.TestCase):
@@ -31,14 +28,14 @@ class WindAnimation(unittest.TestCase):
     def test_generates(self):
         self.assertEqual(self.result, {"FINISHED"})
         # fcurve_ensure_for_datablock assigns the action slot itself; a big rig's actions sit in NLA strips
-        animation = armature().animation_data
+        animation = helpers.armature().animation_data
         strips = [strip for track in animation.nla_tracks for strip in track.strips]
         slots = [animation.action_slot] if animation.action else [strip.action_slot for strip in strips]
         self.assertTrue(slots)
         self.assertTrue(all(slot is not None for slot in slots))
 
     def test_branch_bones_move(self):
-        arm = armature()
+        arm = helpers.armature()
         scene = bpy.context.scene
         poses = {}
         for frame in (1, 17):
@@ -49,7 +46,7 @@ class WindAnimation(unittest.TestCase):
 
     def test_each_bone_owns_its_x_and_z_sway(self):
         channels = defaultdict(set)
-        for fc in helpers.fcurves_of(armature()):
+        for fc in helpers.fcurves_of(helpers.armature()):
             match = re.match(r'pose\.bones\["(.+)"\]\.rotation_euler', fc.data_path)
             self.assertIsNotNone(match, fc.data_path)
             assert match is not None
@@ -57,7 +54,7 @@ class WindAnimation(unittest.TestCase):
             channels[bone].add(fc.array_index)
             # ungrouped: a grouped F-curve costs Blender about 4 times as much to create on big trees
             self.assertIsNone(fc.group, fc.data_path)
-        names = [b.name for b in armature().data.bones]
+        names = [b.name for b in helpers.armature().data.bones]
         self.assertTrue(names)
         for name in names:
             self.assertEqual(channels[name], {0, 2}, name)
@@ -70,6 +67,12 @@ class PruningInterpolation(unittest.TestCase):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(prune=True, branchDist=9.6)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        # every spline is finite, and the branches crowd towards the top of the trunk (Branch Distribution > 1)
+        splines = helpers.spline_points()
+        self.assertTrue(all(np.isfinite(co).all() for points in splines for co, _radius in points))
+        trunk_top = max(co[2] for co, _radius in splines[0])
+        starts = [points[0][0][2] for points in splines[1:] if len(points) > 1]
+        self.assertGreater(float(np.median(starts)), 0.5 * trunk_top)
 
 
 class PrunedArmature(unittest.TestCase):
@@ -78,13 +81,12 @@ class PrunedArmature(unittest.TestCase):
     def assert_bones_on_their_splines(self):
         splines = helpers.spline_points()
         checked = 0
-        for bone in armature().data.bones:
-            match = BONE_NAME.match(bone.name)
-            if not match:
+        for bone in helpers.armature().data.bones:
+            index = helpers.bone_index(bone.name)
+            if index is None:
                 continue
-            spline, point = (int(g) for g in match.groups())
-            self.assertLess(spline, len(splines), bone.name)
-            co = Vector(splines[spline][point][0])
+            self.assertLess(index.spline, len(splines), bone.name)
+            co = Vector(splines[index.spline][index.point][0])
             self.assertLess((bone.head_local - co).length, 1e-4, bone.name)
             checked += 1
         self.assertGreater(checked, 0)
@@ -148,8 +150,8 @@ class DeepTrees(unittest.TestCase):
 
 
 class BoneStep(unittest.TestCase):
-    """With Bone Step > 1 a bone spans several points: its tail radius came from the point after its
-    head instead of the point at its tail, and only one of the two trunk base bones was held still."""
+    """With Bone Step > 1 a bone spans several points: its tail came from the point after its head instead of
+    the point Joint Length segments on, and only one of the two trunk base bones was held still."""
 
     result: set[str]
 
@@ -159,25 +161,25 @@ class BoneStep(unittest.TestCase):
         settings.update(useRig=True, windAnim=True, jointStep=(2, 2, 1, 1))
         cls.result = helpers.generate(settings)
 
-    def test_tail_radius_from_tail_point(self):
+    def test_tail_at_the_point_joint_length_after_the_head(self):
         self.assertEqual(self.result, {"FINISHED"})
         splines = helpers.spline_points()
         checked = 0
-        for bone in armature().data.bones:
-            match = BONE_NAME.match(bone.name)
-            if not match:
+        for bone in helpers.armature().data.bones:
+            index = helpers.bone_index(bone.name)
+            if index is None:
                 continue
-            points = splines[int(match.group(1))]
-            _co, radius = next(p for p in points if (Vector(p[0]) - bone.tail_local).length < 1e-5)
-            self.assertAlmostEqual(bone.tail_radius, radius, places=5, msg=bone.name)
+            points = splines[index.spline]
+            tail = min(index.point + 2, len(points) - 1)  # Joint Length 2 on the first two levels
+            self.assertLess((Vector(points[tail][0]) - bone.tail_local).length, 1e-5, bone.name)
             checked += 1
         self.assertGreater(checked, 10)
 
     def test_trunk_base_bones_do_not_sway(self):
-        base = sorted(b.name for b in armature().data.bones if b.name.startswith("bone000."))[:2]
+        base = sorted(b.name for b in helpers.armature().data.bones if b.name.startswith("bone000."))[:2]
         self.assertEqual(len(base), 2)
         matched = 0
-        for fc in helpers.fcurves_of(armature()):
+        for fc in helpers.fcurves_of(helpers.armature()):
             if any(f'"{name}"' in fc.data_path for name in base):
                 matched += 1
                 for mod in fc.modifiers:
@@ -193,19 +195,15 @@ class LargeRigWind(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         animator = helpers.module("build.wind").WindAnimator
-        cls.chunk = animator.CHUNK
+        cls.addClassCleanup(setattr, animator, "CHUNK", animator.CHUNK)  # runs even if this method fails
         animator.CHUNK = 50  # the test tree's 308 bones take the large-rig path
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, windAnim=True)
         cls.result = helpers.generate(settings)
 
-    @classmethod
-    def tearDownClass(cls):
-        helpers.module("build.wind").WindAnimator.CHUNK = cls.chunk
-
     def test_strips_span_the_timeline(self):
         self.assertEqual(self.result, {"FINISHED"})
-        strips = [strip for track in armature().animation_data.nla_tracks for strip in track.strips]
+        strips = [strip for track in helpers.armature().animation_data.nla_tracks for strip in track.strips]
         self.assertGreater(len(strips), 1)
         for strip in strips:
             self.assertEqual((strip.frame_start, strip.action_frame_start), (0.0, 0.0), strip.name)
@@ -213,7 +211,7 @@ class LargeRigWind(unittest.TestCase):
             self.assertEqual(strip.action_frame_end, strip.frame_end, strip.name)
 
     def test_bones_follow_their_f_curves(self):
-        arm = armature()
+        arm = helpers.armature()
         curves = {(c.data_path, c.array_index): c for c in helpers.fcurves_of(arm)}
         self.assertEqual(len(curves), 2 * len(arm.data.bones))
         self.assertGreater(len(arm.data.bones), 50, "the rig takes the large-rig path")
@@ -233,9 +231,8 @@ class InstancePointLeaves(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, leafShape="dVert")
         helpers.reset_scene()
-        card = bpy.data.objects.new("leaf_card", bpy.data.meshes.new("leaf_card"))
-        bpy.context.scene.collection.objects.link(card)
-        self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True), {"FINISHED"})
+        card = helpers.add_leaf_card()
+        self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj=card.name, do_update=True), {"FINISHED"})
 
         leaves = bpy.data.objects["leaves"]
         rotations = leaves.data.attributes["leaf_rotation"].data
@@ -289,30 +286,24 @@ class ArmatureLevels(unittest.TestCase):
     with Make Mesh they hung on the parent branch's bones; above 4 levels it indexed past jointStep."""
 
     def test_all_levels_leaves_hang_on_their_own_branch(self):
-        level_ends = []
-        grower = helpers.module("model.tree").TreeGrower
-        original = grower.grow
-
-        def recording(grower_self, *args):
-            grown = original(grower_self, *args)
-            level_ends.extend(grown.level_ends)
-            return grown
-
-        grower.grow = recording
-        self.addCleanup(setattr, grower, "grow", original)
+        captured = helpers.record_growth(self)
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, useRig=True, makeMesh=True, jointLevels=0, jointStep=(1, 2, 1, 1))
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
         groups = [g.name for g in bpy.data.objects["leaves"].vertex_groups]
         self.assertTrue(groups)
-        last_level_start = level_ends[-2]
+        last_level_start = captured[-1].grown.level_ends[-2]
         for name in groups:
-            self.assertGreaterEqual(int(BONE_NAME.match(name).group(1)), last_level_start, name)
+            self.assertGreaterEqual(helpers.bone_index(name).spline, last_level_start, name)
 
     def test_more_armature_levels_than_parameter_levels(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=5, branches=(0, 6, 3, 2), jointLevels=6, showLeaves=True, useRig=True, makeMesh=True)
         self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        # Joint Levels above the tree's levels rig every level: every spline with two points or more has bones
+        rigged = {helpers.bone_index(b.name).spline for b in helpers.armature().data.bones}
+        drawn = {i for i, points in enumerate(helpers.spline_points()) if len(points) > 1}
+        self.assertEqual(rigged, drawn)
 
 
 class ScriptCalls(unittest.TestCase):
@@ -327,12 +318,6 @@ class ScriptCalls(unittest.TestCase):
 
 
 class FailFast(unittest.TestCase):
-    def test_level_beyond_grown_splines(self):
-        grown = helpers.module("model.tree").GrownTree([], [1, 5], None)
-        self.assertEqual(grown.level_of(4), 1)
-        with self.assertRaisesRegex(IndexError, "beyond the 5 grown splines"):
-            grown.level_of(5)
-
     def test_bone_geometry_must_match_the_bones(self):
         helpers.reset_scene()
         armature = bpy.data.armatures.new("probe")
@@ -342,8 +327,9 @@ class FailFast(unittest.TestCase):
         bpy.ops.object.mode_set(mode="EDIT")
         self.addCleanup(bpy.ops.object.mode_set, mode="OBJECT")
         armature.edit_bones.new("extra")  # a bone the geometry does not know
+        none = np.zeros((0, 3), np.float32)
         with self.assertRaisesRegex(RuntimeError, "1 bones for the geometry of 0"):
-            helpers.module("build.armature").BoneGeometry().write(armature)
+            helpers.module("build.armature").BoneGeometry(none, none).write(armature)
 
     def test_foreign_node_group_with_the_instancer_name(self):
         helpers.reset_scene()
@@ -361,11 +347,9 @@ class ReadOnlyParams(unittest.TestCase):
     """Generation stages share one TreeParams; none of them may change it for the others."""
 
     def test_params_are_read_only(self):
-        from types import SimpleNamespace
-
-        settings = SimpleNamespace(**helpers.operator_defaults(), leafDupliObj="")
-        params = helpers.module("model.params").TreeParams(settings)
-        self.assertEqual(params.levels, settings.levels)
+        settings = helpers.operator_defaults()
+        params = helpers.model_params(settings)
+        self.assertEqual(params.levels, settings["levels"])
         with self.assertRaisesRegex(AttributeError, "read-only; cannot set levels"):
             params.levels = 1
 
@@ -428,3 +412,125 @@ class PrunedAwayStems(unittest.TestCase):
         envelope = bpy.data.objects["envelope"]
         self.assertTrue(envelope.hide_viewport)
         self.assertTrue(envelope.hide_render)
+
+
+class FiveLevelRig(unittest.TestCase):
+    """A stem of the fifth level or deeper hung from its parent's bone rounded with the Joint Length of the level
+    above its own: with Joint Length 1, 1, 1, 2 that bone did not exist (KeyError), or it was the wrong bone."""
+
+    STEPS = (1, 1, 1, 2)
+
+    def test_first_bones_hang_from_the_parents_nearest_joint(self):
+        captured = helpers.record_growth(self)
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        # four segments on the fourth level: its children hang at odd points too, between its joints
+        settings.update(levels=5, branches=(0, 6, 3, 2), curveRes=(3, 5, 3, 4), jointLevels=0, jointStep=self.STEPS)
+        settings.update(useRig=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        grown = captured[-1].grown
+        bones = {bone.name: bone for bone in helpers.armature().data.bones}
+        bone_name = helpers.module("model.stem").BoneName
+        checked = 0
+        for curve in range(grown.level_ends[0], grown.level_ends[-1]):
+            first = bones.get(bone_name.of(curve, 0))
+            if first is None:  # a stem pruning removed has no bones
+                continue
+            link = grown.bone_map[curve]
+            parent = bone_name.spline(link.bone)
+            depth = int(np.searchsorted(grown.level_ends, parent, side="right"))
+            step = self.STEPS[min(depth, 3)]
+            expected = bone_name.of(parent, (bone_name.point(link.bone) // step) * step)
+            self.assertEqual(first.parent.name, expected, f"curve {curve}")
+            checked += 1
+        self.assertGreater(len(grown.level_ends), 4)
+        self.assertGreater(checked, 20)
+
+
+class SharedRandom(unittest.TestCase):
+    """The add-on reseeded Python's shared random module: a tree changed every other user's random numbers."""
+
+    def test_the_shared_random_state_is_untouched(self):
+        random.seed(1)
+        state = random.getstate()
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assertEqual(random.getstate(), state)
+
+
+class LastLevelBase(unittest.TestCase):
+    """The last level has no bare base (its base size is reset to 0), also with 5 levels: the check compared the
+    level clamped to 3 with levels - 1, so on deep trees the leaves started above a bare base."""
+
+    def test_leaves_start_near_the_base_of_their_stem(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=5, branches=(0, 10, 6, 4), showLeaves=True, leaves=60, baseSize=0.4, baseSize_s=1.0)
+        sprouts = helpers.grow_model(settings).grown.sprouts
+        along = sprouts.offset[~sprouts.is_end]
+        self.assertGreater(len(along), 50)
+        self.assertLess(float(along.min()), 0.2)
+
+
+class Guards(unittest.TestCase):
+    """The internal checks fail with a message naming the cause, instead of a wrong tree or a bare KeyError."""
+
+    def test_unknown_node_group_input(self):
+        helpers.reset_scene()
+        self.assertEqual(helpers.generate(helpers.resolve_preset("quaking_aspen.py")), {"FINISHED"})
+        modifier = bpy.data.objects["tree"].modifiers["Sapling Tree"]
+        with self.assertRaisesRegex(RuntimeError, "has no input called 'Bogus'"):
+            helpers.module("build.node_groups").SharedNodeGroup.set_input(modifier, "Bogus", 1)
+
+    def test_following_twice_is_an_error(self):
+        helpers.reset_scene()
+        mesh = bpy.data.meshes.new("probe")
+        mesh.vertices.add(1)
+        ob = bpy.data.objects.new("probe", mesh)
+        mesh.attributes.new("sapling_joint", "INT", "POINT")
+        with self.assertRaisesRegex(RuntimeError, "already has a 'sapling_joint' attribute"):
+            helpers.module("build.node_wind").NodeWind.follow(ob, ob, np.zeros(1, np.int32))
+
+    def test_sway_for_other_bones(self):
+        sway = SimpleNamespace(wind1=np.zeros(2))
+        animator = helpers.module("build.wind").WindAnimator(None)
+        with self.assertRaisesRegex(RuntimeError, "1 bones for the sway of 2 joints"):
+            animator.add_joints(["bone000.000"], sway)
+
+    def test_unknown_leaf_shape(self):
+        with self.assertRaisesRegex(ValueError, "unknown leaf shape star"):
+            helpers.module("model.leaves").LeafShape.verts_per_leaf("star")
+
+    def test_original_branching_does_not_pick(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(rMode="original")
+        pick = helpers.module("model.branching").TrunkPick(helpers.model_params(settings), np.zeros(1, np.uint64))
+        sprouts = SimpleNamespace(is_end=np.zeros(1, bool), family=np.zeros(1, np.int64), offset=np.full(1, 0.5))
+        with self.assertRaisesRegex(ValueError, "does not choose"):
+            pick.choose(sprouts, 0.0, np.zeros((1, 3)))
+
+    def test_curve_attribute_of_another_kind(self):
+        data = bpy.data.hair_curves.new("probe")
+        self.addCleanup(bpy.data.hair_curves.remove, data)
+        data.attributes.new("probe", "FLOAT", "POINT")
+        with self.assertRaisesRegex(RuntimeError, "attribute probe is FLOAT on POINT, not INT on POINT"):
+            helpers.module("build.tree_root").CurveSource._attribute(data, "probe", "INT", "POINT")
+
+    def test_object_factory_rules(self):
+        factory = helpers.module("build.objects").ObjectFactory
+        with self.assertRaisesRegex(ValueError, "at least one collection"):
+            factory([])
+        helpers.reset_scene()
+        objects = factory([bpy.context.scene.collection])
+        self.addCleanup(objects.discard)
+        objects.new("probe", None)
+        with self.assertRaisesRegex(ValueError, "already has a 'probe' object"):
+            objects.new("probe", None)
+
+    def test_baked_joint_numbers_out_of_range(self):
+        mesh = bpy.data.meshes.new("probe")
+        self.addCleanup(bpy.data.meshes.remove, mesh)
+        mesh.vertices.add(2)
+        attribute = mesh.attributes.new("sapling_ordinal", "FLOAT", "POINT")
+        attribute.data.foreach_set("value", [0.0, 5.0])
+        with self.assertRaisesRegex(RuntimeError, "Baked joint numbers 0..5 are outside the 2 joints"):
+            helpers.module("build.bake").BarkBake._vertex_ordinals(mesh, 2)

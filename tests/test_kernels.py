@@ -4,7 +4,7 @@
 
 import random
 import unittest
-from math import acos, atan2, pi
+from math import acos, atan2, cos, pi, sin
 
 import helpers
 import numpy as np
@@ -133,43 +133,20 @@ class TrackFrames(unittest.TestCase):
 
     def test_z_up_y(self):
         d = self.directions()
-        ours = rotations().TrackFrame.matrices(d, "Z", "Y")
+        ours = rotations().TrackFrame.matrices(d)
         for v, matrix in zip(d, ours, strict=True):
             expected = np.array(Vector(v).normalized().to_track_quat("Z", "Y").to_matrix())
             np.testing.assert_allclose(matrix, expected, atol=1e-5, err_msg=str(v))
 
-    def test_y_up_z(self):
-        # a direction a hair off the up axis Z has no determined twist when Y tracks it: Blender's own answer is
-        # float32 noise there (its x column varies by 1e-4 between neighbouring directions), so those two
-        # near-pole specials are left out; the exact axes have a determined branch and are kept
-        d = np.concatenate([random_directions(random.Random(8), 3000), np.array(self.SPECIAL[:6], dtype=float)])
-        ours = rotations().TrackFrame.matrices(d, "Y", "Z")
-        for v, matrix in zip(d, ours, strict=True):
-            expected = np.array(Vector(v).normalized().to_track_quat("Y", "Z").to_matrix())
-            np.testing.assert_allclose(matrix, expected, atol=1e-5, err_msg=str(v))
-
-    def test_x_tracked(self):
-        """The X track axis (not used by the model) takes the port's first branch; both up axes."""
-        d = np.concatenate([random_directions(random.Random(14), 500), np.array(self.SPECIAL[2:6], dtype=float)])
-        for up in ("Y", "Z"):
-            ours = rotations().TrackFrame.matrices(d, "X", up)
-            for v, matrix in zip(d, ours, strict=True):
-                expected = np.array(Vector(v).normalized().to_track_quat("X", up).to_matrix())
-                np.testing.assert_allclose(matrix, expected, atol=1e-5, err_msg=f"{up} {v}")
-
     def test_quaternions_match_too(self):
         d = random_directions(random.Random(9), 500)
-        ours = rotations().TrackFrame.quaternions(d, "Z", "Y")
+        ours = rotations().TrackFrame.quaternions(d)
         for v, q in zip(d, ours, strict=True):
             expected = np.array(Vector(v).to_track_quat("Z", "Y"))
             self.assertGreater(abs(float(np.dot(q, expected))), 1 - 1e-6, str(v))  # equal up to the sign
 
     def test_zero_direction_is_the_identity(self):
         np.testing.assert_array_equal(rotations().TrackFrame.matrices(np.zeros((1, 3)))[0], np.eye(3))
-
-    def test_same_axes_rejected(self):
-        with self.assertRaises(ValueError):
-            rotations().TrackFrame.matrices(np.zeros((1, 3)), "Z", "Z")
 
 
 class TrunkFrames(unittest.TestCase):
@@ -297,3 +274,100 @@ class KeyedDraws(unittest.TestCase):
         a = keyed.uniform(keyed.derive(keyed.root(1), 1, np.arange(100), 0), 0, 0)
         b = keyed.uniform(keyed.derive(keyed.root(2), 1, np.arange(100), 0), 0, 0)
         self.assertFalse(np.isclose(a, b).any())
+
+
+class SwayMatchesTheScalarFormula(unittest.TestCase):
+    """The joints' wind (one array operation) is the rig's per-bone formula computed with mathutils vectors: the
+    rig's F-curves and the node wind's attributes take the same numbers. Lengths, waves, phases and frequencies
+    are equal to the bit; the gust bends follow a bone's direction, whose last float32 bit mathutils' normalize
+    rounds differently on a few bones (Joints._directions), so they agree to two float32 units."""
+
+    CASES = [
+        {"levels": 2, "jointStep": (2, 2, 1, 1)},
+        {"levels": 3, "branches": (0, 30, 10, 0), "windStrength": 3.0, "gustStrength": 2.0, "loopFrames": 48},
+        {"levels": 3, "branches": (0, 30, 10, 0), "prune": True, "jointLevels": 2},
+    ]
+
+    @staticmethod
+    def reference(joints, model, rng):
+        """Per bone, in bone order: wind1, wind2, gust_z, gust_x, offset_x, offset_z, frequency1, frequency2."""
+        flat = joints.flat
+        p = model.params
+        rows = []
+        for c in np.flatnonzero(joints.eligible).tolist():
+            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            points = [Vector(flat.co[start + i].tolist()) for i in range(size)]
+            segments = size - 1
+            step = int(joints.step[c])
+            spline_length = segments * (points[0] - points[1]).length
+            offsets = [rng.uniform(0, 2 * pi), rng.uniform(0, 2 * pi)]
+            frequencies = model.branch_frequencies(spline_length)
+            tail = 0
+            for n in range(0, segments, step):
+                tail = min(tail + step, segments)
+                a0 = (
+                    2 * (spline_length / segments) * (1 - n / (segments + 1)) / max(float(flat.radius[start + n]), 1e-6)
+                )
+                a0 = a0 * min(step, segments)
+                a1 = (p.wind / 50) * a0
+                direction = points[tail] - points[n]
+                direction.normalize()
+                gust = (p.wind * p.gust / 50) * a0
+                sway = [a1, a1 * model.SECOND_WAVE_AMPLITUDE, -direction[0] * gust, direction[2] * gust]
+                if joints.link_spline[c] < 0 and n <= step:  # the trunk base holds still
+                    sway = [0.0, 0.0, 0.0, 0.0]
+                rows.append([*(v * (pi / 180) for v in sway), *offsets, frequencies.first, frequencies.second])
+        return np.array(rows)
+
+    def test_sway_equals_the_per_bone_formula(self):
+        wind_model = helpers.module("model.wind_model").WindModel
+        for case in self.CASES:
+            with self.subTest(case=case):
+                settings = helpers.resolve_preset("quaking_aspen.py")
+                settings.update(case)
+                model = helpers.grow_model(settings)
+                joints = helpers.joints_of(settings, model)
+                wind = wind_model(helpers.wind_params(settings, model.params), 24.0)
+                sway = joints.sway(wind, random.Random(5))
+                expected = self.reference(joints, wind, random.Random(5))
+                ours = np.stack(
+                    [
+                        sway.wind1, sway.wind2, sway.gust_z, sway.gust_x,
+                        sway.offset_x, sway.offset_z, sway.frequency1, sway.frequency2,
+                    ],
+                    axis=1,
+                )  # fmt: skip
+                self.assertGreater(len(expected), 20)
+                exact = [0, 1, 4, 5, 6, 7]
+                np.testing.assert_array_equal(ours[:, exact], expected[:, exact])
+                np.testing.assert_allclose(ours[:, 2:4], expected[:, 2:4], rtol=2.4e-7, atol=1e-12)
+
+
+class TrunkClumpMatchesMathutils(unittest.TestCase):
+    """The clump's trunk positions (float32 arrays) are the ones mathutils vectors placed, bit for bit, including
+    which candidate points are too close to an earlier trunk."""
+
+    @staticmethod
+    def reference(params, rng, tries):
+        gap = 2.5 * params.scale * params.length[0] * params.ratio * params.scale0
+        radius = max((params.trunks * params.scale * params.ratio / 2.5) ** 0.5, gap * params.trunks**0.5)
+        placed = [Vector((0.0, 0.0, 0.0))]
+        for _ in range(params.trunks - 1):
+            for _ in range(tries):
+                distance = radius * rng.random() ** 0.5
+                angle = rng.uniform(0, 2 * pi)
+                point = Vector((distance * cos(angle), distance * sin(angle), 0.0))
+                if all((point - other).length >= gap for other in placed):
+                    placed.append(point)
+                    break
+        return [[point.x, point.y, point.z] for point in placed[1:]]
+
+    def test_positions_equal_the_vector_loop(self):
+        clump = helpers.module("model.branching").TrunkClump
+        for seed in range(200):
+            settings = helpers.resolve_preset("quaking_aspen.py")
+            settings.update(trunks=2 + seed % 5, ratio=0.02 + 0.01 * (seed % 7), seed=seed)
+            params = helpers.model_params(settings)
+            ours = [position.tolist() for position in clump(params, random.Random(seed)).positions()]
+            expected = self.reference(params, random.Random(seed), clump.TRIES)
+            self.assertEqual(ours, expected, f"seed {seed}")

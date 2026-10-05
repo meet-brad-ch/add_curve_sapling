@@ -12,7 +12,7 @@ import sys
 
 from blender_env import ROOT, SOURCE, install_fresh, run, run_script, venv_python, venv_site_packages
 
-# Coverage of the add-on the test suite must reach, in percent (measured 99.2 and 96.2 on 2026-10-02)
+# Coverage of the add-on the test suite must reach, in percent (the gate prints the measured values)
 LINE_COVERAGE_MIN = 99
 BRANCH_COVERAGE_MIN = 96
 
@@ -36,8 +36,11 @@ def main() -> int:
         step("mypy", [python, "-m", "mypy"]),
     ]
     print("== extension validate", flush=True)
-    run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)])
-    print("== extension validate: ok", flush=True)
+    validate = run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)], check=False)
+    if validate.returncode != 0:
+        sys.stdout.write(validate.stdout + validate.stderr)
+    results.append(validate.returncode == 0)
+    print(f"== extension validate: {'ok' if results[-1] else 'FAILED'}", flush=True)
     if not args.fast:
         install_fresh()
         coverage = [

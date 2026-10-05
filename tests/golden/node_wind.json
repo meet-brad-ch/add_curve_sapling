@@ -14,7 +14,7 @@
     "verts": 2646
    },
    "evaluated": {
-    "co": "c3e36baf9cf9bb35",
+    "co": "8a17a0487e22873b",
     "edges": 3087,
     "faces": 882,
     "verts": 2646
@@ -45,7 +45,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "63f44ac7599b408e",
+    "co": "ce5ffb214fabb4ea",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -163,7 +163,7 @@
   "baseSize": 0.4000000059604645,
   "baseSize_s": 0.25,
   "baseSplits": 0,
-  "bend": 0,
+  "bend": 0.0,
   "bevel": true,
   "bevelRes": 0,
   "branchDist": 1.0,

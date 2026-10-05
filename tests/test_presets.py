@@ -8,9 +8,7 @@ from types import SimpleNamespace
 import bpy
 import helpers
 
-
-def store():
-    return helpers.module("presets").PresetStore.for_addon()
+store = helpers.preset_store
 
 
 class PresetApplication(unittest.TestCase):
@@ -76,7 +74,7 @@ class PresetErrors(unittest.TestCase):
 
     def test_incomplete(self):
         self.write("tiny", "{'levels': 3}")
-        self.assert_add_fails("tiny", "incomplete or malformed")
+        self.assert_add_fails("tiny", r"tiny.py: Settings do not have \['attractUp'")
 
     def test_unknown_key(self):
         values = store().load("callistemon").values
@@ -91,15 +89,114 @@ class PresetErrors(unittest.TestCase):
         self.assert_add_fails("bad name!", "Rename the file")
 
     def test_save_rejects_bad_settings(self):
-        for settings, message in (("", "Invalid settings JSON"), ("null", "not version 1 settings")):
+        for settings, message in (("", "Invalid settings JSON"), ("null", "version 1 settings object; got NoneType")):
             with self.subTest(settings=settings), self.assertRaisesRegex(RuntimeError, message):
                 bpy.ops.sapling.preset_save(name="whatever", overwrite=False, settings=settings)
 
     def test_save_through_operator_round_trips(self):
         settings = store().load("quaking_aspen")
+        saved = store().user_folder(create=True) / "saved tree.py"
+        self.addCleanup(saved.unlink, missing_ok=True)  # registered first: a failing save leaves no file behind
         self.assertEqual(
             bpy.ops.sapling.preset_save(name="saved tree", overwrite=True, settings=settings.to_json()), {"FINISHED"}
         )
-        self.addCleanup((store().user_folder(create=False) / "saved tree.py").unlink)
         normalized = helpers.module("settings").TreeSettings.from_json
         self.assertEqual(normalized(store().load("saved tree").to_json()).values, normalized(settings.to_json()).values)
+
+
+class BuiltinPresets(unittest.TestCase):
+    """Every built-in preset sets every generation setting and needs no migration: loading one fills nothing in."""
+
+    def test_complete_and_current(self):
+        import ast
+
+        defaults = helpers.operator_defaults()
+        for entry in store().entries():
+            if not entry.builtin:
+                continue
+            with self.subTest(preset=entry.name):
+                self.assertEqual(store().load(entry.name).missing(defaults), [])
+                path = store().builtin / f"{entry.name}.py"
+                body = "\n".join(
+                    line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("#")
+                )
+                values = ast.literal_eval(body.strip())
+                migrated = helpers.module("settings").TreeSettings(dict(values)).migrate().values
+                self.assertEqual(migrated, values)
+
+
+class PresetDefaults(unittest.TestCase):
+    """A preset that lacks settings loads with their defaults, and the operator says which ones."""
+
+    def test_missing_settings_are_reported(self):
+        values = store().load("callistemon").values
+        for name in ("bend", "rootFlare"):
+            values.pop(name)
+        path = store().user_folder(create=True) / "lacking.py"
+        self.addCleanup(path.unlink, missing_ok=True)
+        path.write_text(repr(values), encoding="utf-8")
+        helpers.reset_scene()
+        with helpers.console_output() as console:
+            self.assertEqual(bpy.ops.curve.tree_add(preset="lacking", do_update=True), {"FINISHED"})
+        warnings = console.lines("Warning")
+        self.assertEqual(len(warnings), 1, console.text)
+        self.assertIn("does not have 2 settings: bend, rootFlare", warnings[0])
+
+    def test_limit_import(self):
+        settings = store().load("quaking_aspen")
+        settings.values["levels"] = 4
+        settings.values["showLeaves"] = True
+        settings.limit_import()
+        self.assertEqual((settings.values["levels"], settings.values["showLeaves"]), (2, False))
+
+
+class PresetFileErrors(unittest.TestCase):
+    """Preset files with the right syntax but the wrong content cancel with a message naming the cause."""
+
+    def write(self, name, text):
+        path = store().user_folder(create=True) / f"{name}.py"
+        self.addCleanup(path.unlink, missing_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def test_short_angle_list(self):
+        self.write(
+            "short", "{'levels': 3, 'attractUp': 1, 'downAngle': [1], 'downAngleV': [1], 'rotate': [1], 'rotateV': [1]}"
+        )
+        with self.assertRaisesRegex(helpers.module("presets").PresetError, "downAngle has 1 values; 4 are needed"):
+            store().load("short")
+
+    def test_unhashable_key(self):
+        self.write("unhashable", "{[1]: 2}")
+        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Cannot read preset unhashable.py"):
+            store().load("unhashable")
+
+
+class SettingsShape(unittest.TestCase):
+    """Settings of the wrong shape are SettingsErrors naming the problem; older shapes are brought up to date."""
+
+    def settings(self):
+        return helpers.module("settings").TreeSettings
+
+    def test_not_a_dictionary(self):
+        with self.assertRaisesRegex(helpers.module("settings").SettingsError, "must be a dictionary, not list"):
+            self.settings()([1])
+
+    def test_levels_must_be_an_integer(self):
+        values = {"levels": "3", "attractUp": [0, 0, 0, 0], "leafDownAngle": 45}
+        with self.assertRaisesRegex(helpers.module("settings").SettingsError, "levels must be an integer, not str"):
+            self.settings()(values).migrate()
+
+    def test_one_vertical_attraction_for_all_levels(self):
+        values = {"levels": 3, "attractUp": 0.5, "leafDownAngle": 45}
+        self.assertEqual(self.settings()(values).migrate().values["attractUp"], [0, 0, 0.5, 0.5])
+
+    def test_preset_not_found(self):
+        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Preset 'nowhere' not found"):
+            store().load("nowhere")
+
+    def test_preset_that_is_not_utf8(self):
+        path = store().user_folder(create=True) / "latin.py"
+        self.addCleanup(path.unlink, missing_ok=True)
+        path.write_bytes("{'name': 'caf\xe9'}".encode("latin-1"))
+        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Cannot read preset latin.py"):
+            store().load("latin")

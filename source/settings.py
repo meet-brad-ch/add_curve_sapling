@@ -20,7 +20,7 @@ class TreeSettings:
     # Version of the settings stored on a generated tree (see to_json()).
     VERSION = 1
     # Keys of the oldest preset format that no longer exist.
-    OBSOLETE_KEYS = ("startCurv", "windGust", "windSpeed")
+    OBSOLETE_KEYS = ["startCurv", "windGust", "windSpeed"]
     # Presets older than the leaf angles used the last branch level's angles for the leaves.
     LEAF_ANGLE_SOURCES = {
         "leafDownAngle": "downAngle",
@@ -28,6 +28,8 @@ class TreeSettings:
         "leafRotate": "rotate",
         "leafRotateV": "rotateV",
     }
+    # Limit Import: the levels a preset loads with, and no leaves
+    LIMITED_LEVELS = 2
 
     # Setting ids renamed when the wind moved to Geometry Nodes; presets, stored trees and scripts may use the old
     # ids, which load under the new ones
@@ -57,10 +59,20 @@ class TreeSettings:
         """The named settings read from props (the operator, or anything with its property names)."""
         return cls({name: cls.plain(getattr(props, name)) for name in names})
 
+    def missing(self, defaults: Mapping[str, Any]) -> list[str]:
+        """The settings of `defaults` these settings do not have, sorted."""
+        return sorted(name for name in defaults if name not in self.values)
+
     def complete(self, defaults: Mapping[str, Any]) -> Self:
         """Fill in the settings an older preset does not have, from the defaults."""
         for name, value in defaults.items():
             self.values.setdefault(name, value)
+        return self
+
+    def limit_import(self) -> Self:
+        """Limit Import: at most LIMITED_LEVELS levels and no leaves, for a quick look at a preset."""
+        self.values["levels"] = min(self.values["levels"], self.LIMITED_LEVELS)
+        self.values["showLeaves"] = False
         return self
 
     def apply_to(self, props: Any, names: Sequence[str]) -> None:
@@ -73,14 +85,13 @@ class TreeSettings:
             setattr(props, name, self.values[name])
 
     def migrate(self) -> Self:
-        """Bring settings from presets of older add-on versions up to date.
-
-        Raises KeyError/IndexError/TypeError when the preset lacks what the migration needs.
-        """
+        """Bring settings from presets of older add-on versions up to date; raises SettingsError when the
+        settings lack what the migration needs."""
         self.rename_keys()
         v = self.values
         for key in self.OBSOLETE_KEYS:
             v.pop(key, None)  # only the oldest presets have them
+        self._check_migratable()
         # attractUp was a single value before it became per level
         if isinstance(v["attractUp"], int | float):
             v["attractUp"] = [0, 0, v["attractUp"], v["attractUp"]]
@@ -88,9 +99,26 @@ class TreeSettings:
             last = min(v["levels"], 3)
             for leaf_key, branch_key in self.LEAF_ANGLE_SOURCES.items():
                 v[leaf_key] = v[branch_key][last]
-        # Leaf Bend has no control in the panel; a preset never bends the leaves
-        v["bend"] = 0
         return self
+
+    def _check_migratable(self) -> None:
+        """What migrate() reads must be there and have the right shape."""
+        v = self.values
+        needed = ["levels", "attractUp"]
+        if "leafDownAngle" not in v:
+            needed += list(self.LEAF_ANGLE_SOURCES.values())
+        missing = [key for key in needed if key not in v]
+        if missing:
+            raise SettingsError(f"Settings do not have {missing}; this version needs them to load the settings")
+        if not isinstance(v["levels"], int):
+            raise SettingsError(f"levels must be an integer, not {type(v['levels']).__name__}")
+        if "leafDownAngle" in v:
+            return
+        last = min(v["levels"], 3)
+        for key in self.LEAF_ANGLE_SOURCES.values():
+            if not isinstance(v[key], list | tuple) or len(v[key]) <= last:
+                count = len(v[key]) if isinstance(v[key], list | tuple) else 0
+                raise SettingsError(f"{key} has {count} values; {last + 1} are needed")
 
     def rename_keys(self) -> Self:
         """Settings under their old ids (RENAMED) move to the new ids; raises SettingsError when both are given
@@ -111,7 +139,7 @@ class TreeSettings:
         return self
 
     @staticmethod
-    def old_wind_without_rig(values: dict[str, Any]) -> bool:
+    def old_wind_without_rig(values: Mapping[str, Any]) -> bool:
         """Old settings with armAnim but no armature: the old wind ran on the armature only, so they had none.
 
         windAnim without the rig now makes the node wind; these settings keep their still tree.
@@ -130,7 +158,8 @@ class TreeSettings:
         except ValueError as error:
             raise SettingsError(f"Invalid settings JSON: {error}") from error
         if not isinstance(data, dict) or data.get("version") != cls.VERSION or "settings" not in data:
-            raise SettingsError(f"Stored settings are not version {cls.VERSION} settings")
+            found = f"version {data.get('version')!r}" if isinstance(data, dict) else type(data).__name__
+            raise SettingsError(f"Settings JSON must be a version {cls.VERSION} settings object; got {found}")
         return cls(data["settings"])
 
     @classmethod

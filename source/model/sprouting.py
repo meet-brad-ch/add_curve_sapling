@@ -2,17 +2,16 @@
 
 """Where child stems and leaves sprout along the grown stems of a level."""
 
+from dataclasses import dataclass
 from math import floor
 
 import numpy as np
 
-from .branching import BranchingMode
 from .curve_data import FlatCurve
 from .level_grid import LevelGrid
-from .params import TreeParams
+from .params import BranchingMode, TreeParams
 from .randomness import Draw, KeyedRandom, Kind
 from .rotations import BezierBatch, TrackFrame
-from .stem import BoneName
 
 
 class SproutArrays:
@@ -26,7 +25,7 @@ class SproutArrays:
     row of the parent's family root in its level.
     """
 
-    FIELDS = (
+    FIELDS = [
         "co",
         "frame",
         "radius_parent",
@@ -38,7 +37,7 @@ class SproutArrays:
         "parent_key",
         "position",
         "family",
-    )
+    ]
 
     def __init__(
         self,
@@ -83,23 +82,20 @@ class SproutArrays:
 
     def take(self, order: np.ndarray) -> "SproutArrays":
         """The sprouts at `order`, in that order."""
-        return SproutArrays(
-            self.co[order],
-            self.frame[order],
-            self.radius_parent[order],
-            self.offset[order],
-            self.stem_offset[order],
-            self.length_parent[order],
-            self.parent_spline[order],
-            self.parent_point[order],
-            self.parent_key[order],
-            self.position[order],
-            self.family[order],
-        )
+        return SproutArrays(*(getattr(self, name)[order] for name in self.FIELDS))
 
-    def parent_bones(self) -> list[str]:
-        """Per sprout, the name of the parent bone it hangs from (BoneName.of the parent's spline and segment)."""
-        return [BoneName.of(s, q) for s, q in zip(self.parent_spline.tolist(), self.parent_point.tolist(), strict=True)]
+    @classmethod
+    def concatenate(cls, a: "SproutArrays", b: "SproutArrays") -> "SproutArrays":
+        """a's sprouts, then b's."""
+        return cls(*(np.concatenate([getattr(a, name), getattr(b, name)]) for name in cls.FIELDS))
+
+
+@dataclass(frozen=True, slots=True)
+class PositionCounts:
+    """How many sprout positions each root row has, and where its first one is in the positions."""
+
+    counts: np.ndarray
+    starts: np.ndarray
 
 
 class FamilyPositions:
@@ -114,18 +110,39 @@ class FamilyPositions:
         self.t = t
         self.index = index
 
-    def counts(self, rows: int) -> tuple[np.ndarray, np.ndarray]:
-        """(positions per root row, the first position of each root row)."""
+    def counts(self, rows: int) -> PositionCounts:
+        """Positions per root row, and the first position of each root row."""
         counts = np.bincount(self.root, minlength=rows)
         starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
-        return counts, starts
+        return PositionCounts(counts, starts)
+
+
+@dataclass(frozen=True, slots=True)
+class PlacedSprouts:
+    """Sprouts placed on stems: the row of each sprout's stem, and the sprouts themselves."""
+
+    rows: np.ndarray
+    sprouts: SproutArrays
+
+
+@dataclass(frozen=True, slots=True)
+class PositionsOnRows:
+    """The family positions that fall on a stem row: the row, the position's fraction of the family, its index,
+    and the stem's own span of the family (bottom..top fractions)."""
+
+    rows: np.ndarray
+    t: np.ndarray
+    index: np.ndarray
+    bottom: np.ndarray
+    top: np.ndarray
 
 
 class LevelSprouts:
     """Places the sprout points of a whole grown level for the next level."""
 
     # Branch Rings: each ring's height varies randomly within this factor range
-    RING_JITTER = (0.995, 1.005)
+    RING_JITTER_LOW = 0.995
+    RING_JITTER_HIGH = 1.005
 
     def __init__(self, params: TreeParams, root_key: np.ndarray) -> None:
         self.params = params
@@ -142,8 +159,8 @@ class LevelSprouts:
         np.maximum.at(family_max, stems.root, stems.offset_length + stem_length)
         body = self._along(grid, flat, positions, family_max, base_size)
         tips = self._tips(grid, flat)
-        rows = np.concatenate([body[0], tips[0]])
-        sprouts = self._concatenate(body[1], tips[1])
+        rows = np.concatenate([body.rows, tips.rows])
+        sprouts = SproutArrays.concatenate(body.sprouts, tips.sprouts)
         is_tip = sprouts.is_tip
         order = np.lexsort((np.where(is_tip, np.iinfo(np.int64).max, sprouts.position), is_tip, rows, stems.root[rows]))
         if not np.isfinite(sprouts.co[order]).all():
@@ -160,8 +177,8 @@ class LevelSprouts:
         points = np.bincount(stems.root, weights=sizes, minlength=grid.rows)[roots]
         members = np.bincount(stems.root, minlength=grid.rows)[roots]
         children = stems.children[roots]
-        with np.errstate(divide="ignore", invalid="ignore"):
-            count = np.round(children / (points - members) * grid.segments).astype(np.int64)
+        # every kept stem has two or more points, so a family has at least as many segments as members
+        count = np.round(children / (points - members) * grid.segments).astype(np.int64)
         count = np.where(children > 0, count, 1)  # no children: one position at the tip, which never sprouts
         total = int(count.sum())
         root = np.repeat(roots, count)
@@ -218,62 +235,70 @@ class LevelSprouts:
         if rings <= 0:
             return positions
         keys = KeyedRandom.derive(self.root_key, Kind.RING, root, np.arange(max(len(positions) - 1, 0)))
-        jitter = KeyedRandom.between(keys, 0, Draw.RING, *self.RING_JITTER)
+        jitter = KeyedRandom.between(keys, 0, Draw.RING, self.RING_JITTER_LOW, self.RING_JITTER_HIGH)
         snapped = [(floor(t * rings) / rings) * j for t, j in zip(positions[:-1], jitter.tolist(), strict=True)]
         snapped.append(1.0)
         return [t for t in snapped if t > base_size]
 
     def _along(
         self, grid: LevelGrid, flat: FlatCurve, positions: FamilyPositions, family_max: np.ndarray, base_size: float
-    ) -> tuple[np.ndarray, SproutArrays]:
-        """(row, sprout) for every position that falls on a stem of its family."""
+    ) -> PlacedSprouts:
+        """The sprouts of every position that falls on a stem of its family."""
         stems = grid.stems
         sizes = flat.sizes
-        counts, starts = positions.counts(grid.rows)
-        per_row = np.where(stems.removed, 0, counts[stems.root])
-        rows = np.repeat(np.arange(grid.rows), per_row)
-        slot = np.arange(len(rows)) - np.repeat(np.cumsum(per_row) - per_row, per_row)
-        at = starts[stems.root[rows]] + slot
-        t = positions.t[at]
-        index = positions.index[at]
-        scale = family_max[stems.root[rows]]
-        bottom = stems.offset_length[rows] / scale
-        top = bottom + stems.segment_length[rows] * (sizes[rows] - 1) / scale
-        keep = (t >= bottom) & (t <= top) & (t < 1.0)
-        rows, slot, t, index, bottom, top = rows[keep], slot[keep], t[keep], index[keep], bottom[keep], top[keep]
-        scaled = (t - bottom) / (top - bottom)
-        offset = ((t - base_size) / (top - base_size)) * (1 - base_size) + base_size
+        on = self._positions_on_rows(grid, flat, positions, family_max)
+        rows = on.rows
+        scaled = (on.t - on.bottom) / (on.top - on.bottom)
+        offset = ((on.t - base_size) / (on.top - base_size)) * (1 - base_size) + base_size
         segments = sizes[rows] - 1
         length = segments * scaled
         segment = np.minimum(np.floor(length).astype(np.int64), segments - 1)  # scaled can round to exactly 1.0
         local_t = length - segment
         first = flat.start[rows] + segment
         co = flat.co.astype(np.float64)
-        p1, h1, h2, p2 = (
-            co[first],
-            flat.right.astype(np.float64)[first],
-            flat.left.astype(np.float64)[first + 1],
-            co[first + 1],
-        )
+        p1 = co[first]
+        h1 = flat.right.astype(np.float64)[first]
+        h2 = flat.left.astype(np.float64)[first + 1]
+        p2 = co[first + 1]
         radius = (1 - local_t) * flat.radius[first] + local_t * flat.radius[first + 1]
         sprouts = SproutArrays(
             BezierBatch.points(p1, h1, h2, p2, local_t),
             TrackFrame.matrices(BezierBatch.tangents(p1, h1, h2, p2, local_t)),
             np.stack([stems.radius_start[rows], radius], axis=1),
             offset,
-            t,
+            on.t,
             grid.segments * stems.segment_length[rows],
             stems.spline[rows],
             segment,
             stems.key[rows],
-            index,
+            on.index,
             stems.root[rows],
         )
-        return rows, sprouts
+        return PlacedSprouts(rows, sprouts)
 
     @staticmethod
-    def _tips(grid: LevelGrid, flat: FlatCurve) -> tuple[np.ndarray, SproutArrays]:
-        """(row, sprout) at the tip of every stem."""
+    def _positions_on_rows(
+        grid: LevelGrid, flat: FlatCurve, positions: FamilyPositions, family_max: np.ndarray
+    ) -> PositionsOnRows:
+        """Every family position paired with the stem row of its family it falls on (not past the tip)."""
+        stems = grid.stems
+        sizes = flat.sizes
+        counts = positions.counts(grid.rows)
+        per_row = np.where(stems.removed, 0, counts.counts[stems.root])
+        rows = np.repeat(np.arange(grid.rows), per_row)
+        slot = np.arange(len(rows)) - np.repeat(np.cumsum(per_row) - per_row, per_row)
+        at = counts.starts[stems.root[rows]] + slot
+        t = positions.t[at]
+        index = positions.index[at]
+        scale = family_max[stems.root[rows]]
+        bottom = stems.offset_length[rows] / scale
+        top = bottom + stems.segment_length[rows] * (sizes[rows] - 1) / scale
+        keep = (t >= bottom) & (t <= top) & (t < 1.0)
+        return PositionsOnRows(rows[keep], t[keep], index[keep], bottom[keep], top[keep])
+
+    @staticmethod
+    def _tips(grid: LevelGrid, flat: FlatCurve) -> PlacedSprouts:
+        """The sprout at the tip of every stem."""
         stems = grid.stems
         rows = np.flatnonzero(~stems.removed)  # a removed stem has no tip to sprout from
         last = (flat.start[1:] - 1)[rows]
@@ -292,8 +317,4 @@ class LevelSprouts:
             np.full(len(rows), -1, dtype=np.int64),
             stems.root[rows],
         )
-        return rows, sprouts
-
-    @staticmethod
-    def _concatenate(a: SproutArrays, b: SproutArrays) -> SproutArrays:
-        return SproutArrays(*(np.concatenate([getattr(a, name), getattr(b, name)]) for name in SproutArrays.FIELDS))
+        return PlacedSprouts(rows, sprouts)

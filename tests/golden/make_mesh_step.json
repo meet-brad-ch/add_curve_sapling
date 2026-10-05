@@ -22,13 +22,13 @@
    "animation": {
     "fcurves": 188,
     "groups": "3f8b0861d7b4844d",
-    "modifiers": "db00dd084533dafe",
+    "modifiers": "8d4fd9630ffd93ff",
     "paths": "af5731c732157b84"
    },
    "data": {
     "bones": 94,
     "connect": "33b611ac292c556c",
-    "geometry": "1837720f9e04e417",
+    "geometry": "5b8ad38968ccce82",
     "names": "18b4df009ddca913",
     "parents": "89ed2e3f4bef8c46"
    },
@@ -118,7 +118,7 @@
   "baseSize": 0.4000000059604645,
   "baseSize_s": 0.25,
   "baseSplits": 0,
-  "bend": 0,
+  "bend": 0.0,
   "bevel": true,
   "bevelRes": 0,
   "branchDist": 1.0,

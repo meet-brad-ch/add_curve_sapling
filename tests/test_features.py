@@ -3,19 +3,12 @@
 """Generator features: several trunks (for tree-gen's species), leaf flutter with Geometry Nodes, ..."""
 
 import itertools
-import os
-import sys
-import tempfile
 import unittest
 
 import bpy
 import helpers
 import numpy as np
 from mathutils import Vector
-
-
-def armature():
-    return next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
 
 
 def root_of(bone):
@@ -37,7 +30,7 @@ class SeveralTrunks(unittest.TestCase):
         cls.result = helpers.generate(settings)
 
     def roots(self):
-        return [b for b in armature().data.bones if b.parent is None]
+        return [b for b in helpers.armature().data.bones if b.parent is None]
 
     def test_trunks_stand_on_the_ground_apart(self):
         self.assertEqual(self.result, {"FINISHED"})
@@ -52,7 +45,7 @@ class SeveralTrunks(unittest.TestCase):
         roots = self.roots()
         self.assertEqual(len(roots), self.TRUNKS)
         branches_per_root = {root.name: 0 for root in roots}
-        for bone in armature().data.bones:
+        for bone in helpers.armature().data.bones:
             if bone.parent is not None and not bone.use_connect:  # the first bone of a branch
                 branches_per_root[root_of(bone).name] += 1
         self.assertTrue(all(count >= 10 for count in branches_per_root.values()), branches_per_root)
@@ -61,7 +54,7 @@ class SeveralTrunks(unittest.TestCase):
         base = {b.name for root in self.roots() for b in (root, *root.children) if b.use_connect or b.parent is None}
         base = {name for name in base if name.endswith((".000", ".001"))}
         self.assertGreaterEqual(len(base), self.TRUNKS)
-        for fc in helpers.fcurves_of(armature()):
+        for fc in helpers.fcurves_of(helpers.armature()):
             if any(f'"{name}"' in fc.data_path for name in base):
                 for mod in fc.modifiers:
                     self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
@@ -83,17 +76,18 @@ class TrunkPlacementFailure(unittest.TestCase):
 
 
 def leaf_positions(frame, armature_on=True):
-    """The leaves' evaluated vertex positions at a frame (optionally without the Armature modifier)."""
+    """The leaves' evaluated vertex positions at a frame (optionally without the Armature modifier, which is
+    shown again after)."""
     leaves = bpy.data.objects["leaves"]
-    for modifier in leaves.modifiers:
-        if modifier.type == "ARMATURE":
-            modifier.show_viewport = armature_on
-    bpy.context.scene.frame_set(frame)
-    evaluated = leaves.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    mesh = evaluated.to_mesh()
-    positions = [v.co.copy() for v in mesh.vertices]
-    evaluated.to_mesh_clear()
-    return positions
+    armatures = [modifier for modifier in leaves.modifiers if modifier.type == "ARMATURE"]
+    shown = [modifier.show_viewport for modifier in armatures]
+    for modifier in armatures:
+        modifier.show_viewport = armature_on
+    try:
+        return [Vector(co) for co in helpers.evaluated_vertices("leaves", frame).tolist()]
+    finally:
+        for modifier, was_shown in zip(armatures, shown, strict=True):
+            modifier.show_viewport = was_shown
 
 
 class LeafFlutter(unittest.TestCase):
@@ -113,7 +107,7 @@ class LeafFlutter(unittest.TestCase):
 
     def test_no_bone_or_group_per_leaf(self):
         self.assertEqual(self.result, {"FINISHED"})
-        self.assertFalse([b.name for b in armature().data.bones if b.name.startswith("leaf")])
+        self.assertFalse([b.name for b in helpers.armature().data.bones if b.name.startswith("leaf")])
         groups = [g.name for g in bpy.data.objects["leaves"].vertex_groups]
         self.assertTrue(groups)
         self.assertTrue(all(name.startswith("bone") for name in groups), groups[:5])
@@ -162,32 +156,11 @@ class LeafFlutterOptions(unittest.TestCase):
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["ARMATURE"])
 
 
-def bark_vertices(frame):
-    """The evaluated bark's vertex positions at a frame, as an (n, 3) array."""
-    bpy.context.scene.frame_set(frame)
-    mesh = bpy.data.objects["tree"].evaluated_get(bpy.context.evaluated_depsgraph_get()).data
-    out = np.empty(len(mesh.vertices) * 3, np.float32)
-    mesh.vertices.foreach_get("co", out)
-    return out.reshape(-1, 3)
-
-
-def grown_tree(settings):
-    """Generate a tree and return (result, params, curve, grown) as the generator grew it."""
-    captured = []
-    grower = helpers.module("model.tree").TreeGrower
-    original = grower.grow
-
-    def recording(grower_self, curve, scale):
-        grown = original(grower_self, curve, scale)
-        captured.append((grower_self.params, curve, grown))
-        return grown
-
-    grower.grow = recording
-    try:
-        result = helpers.generate(settings)
-    finally:
-        grower.grow = original
-    return (result, *captured[-1])
+def generated_model(test, settings):
+    """Generate a tree (the result must be FINISHED) and return the model the generator grew for it."""
+    captured = helpers.record_growth(test)
+    test.assertEqual(helpers.generate(settings), {"FINISHED"})
+    return captured[-1]
 
 
 class RigLevels(unittest.TestCase):
@@ -197,39 +170,36 @@ class RigLevels(unittest.TestCase):
     def test_joint_levels_rig_the_trunk_only(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=3, showLeaves=True, useRig=True, jointLevels=1)
-        result, params, curve, grown = grown_tree(settings)
-        self.assertEqual(result, {"FINISHED"})
+        model = generated_model(self, settings)
         bone_name = helpers.module("model.stem").BoneName
-        splines = {bone_name.spline(b.name) for b in armature().data.bones}
+        splines = {bone_name.spline(b.name) for b in helpers.armature().data.bones}
         self.assertTrue(splines)
-        self.assertLess(max(splines), grown.level_ends[0], "a branch got bones of its own")
-        self.assertEqual(len(armature().data.bones), self.rig_bones(params, curve, grown))
+        self.assertLess(max(splines), model.grown.level_ends[0], "a branch got bones of its own")
+        self.assertEqual(len(helpers.armature().data.bones), self.rig_bones(settings, model))
 
-    def rig_bones(self, params, curve, grown):
-        joints = helpers.module("build.node_wind").WindJoints(params, curve, grown)
-        return helpers.module("build.armature").RigSize.bones(joints)
+    @staticmethod
+    def rig_bones(settings, model):
+        return helpers.module("build.armature").RigSize.bones(helpers.joints_of(settings, model))
 
     def test_joint_length_thins_the_rig(self):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, useRig=True, jointLevels=2, jointStep=(2, 3, 1, 1))
-        result, params, curve, grown = grown_tree(settings)
-        self.assertEqual(result, {"FINISHED"})
+        model = generated_model(self, settings)
         bone_name = helpers.module("model.stem").BoneName
-        for bone in armature().data.bones:
-            step = 2 if bone_name.spline(bone.name) < grown.level_ends[0] else 3
+        for bone in helpers.armature().data.bones:
+            step = 2 if bone_name.spline(bone.name) < model.grown.level_ends[0] else 3
             self.assertEqual(bone_name.point(bone.name) % step, 0, bone.name)
-        self.assertEqual(len(armature().data.bones), self.rig_bones(params, curve, grown))
+        self.assertEqual(len(helpers.armature().data.bones), self.rig_bones(settings, model))
 
     def test_bark_above_the_joint_levels_follows_the_bones(self):
         """Joint Levels 1 with wind: the bark of the branches (no bones of their own) sways with the trunk's bones."""
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=3, branches=(0, 20, 5, 0), useRig=True, windAnim=True, jointLevels=1)
-        result, _, curve, grown = grown_tree(settings)
-        self.assertEqual(result, {"FINISHED"})
-        moved = np.linalg.norm(bark_vertices(17) - bark_vertices(1), axis=1)
+        model = generated_model(self, settings)
+        moved = np.linalg.norm(helpers.evaluated_vertices("tree", 17) - helpers.evaluated_vertices("tree", 1), axis=1)
         self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
-        bones = {b.name for b in armature().data.bones}
-        self.assertTrue(all(int(name[4:7]) < grown.level_ends[0] for name in bones), "only the trunk has bones")
+        splines = {helpers.bone_index(b.name).spline for b in helpers.armature().data.bones}
+        self.assertTrue(all(spline < model.grown.level_ends[0] for spline in splines), "only the trunk has bones")
 
 
 class RigSizeLimits(unittest.TestCase):
@@ -256,31 +226,20 @@ class RigSizeLimits(unittest.TestCase):
 
     def test_seconds_follow_the_measured_square_law(self):
         rig_size = self.rig_size()
-        bones, seconds = rig_size.MEASURED
-        self.assertAlmostEqual(rig_size.seconds(bones), seconds)
-        self.assertAlmostEqual(rig_size.seconds(bones // 2), seconds / 4)
+        measured = rig_size.MEASURED
+        self.assertAlmostEqual(rig_size.seconds(measured.bones), measured.seconds)
+        self.assertAlmostEqual(rig_size.seconds(measured.bones // 2), measured.seconds / 4)
 
     def test_big_rig_warns_but_builds(self):
         self.limit("WARN_BONES", 10)
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, useRig=True)
-        # without a window, Blender prints an operator's reports to the console (file descriptor 1)
-        with tempfile.TemporaryFile(mode="w+") as console:
-            saved = os.dup(1)
-            sys.stdout.flush()
-            os.dup2(console.fileno(), 1)
-            try:
-                result = helpers.generate(settings)
-            finally:
-                sys.stdout.flush()
-                os.dup2(saved, 1)
-                os.close(saved)
-            console.seek(0)
-            printed = console.read()
+        with helpers.console_output() as console:
+            result = helpers.generate(settings)
         self.assertEqual(result, {"FINISHED"})
-        warnings = [line for line in printed.splitlines() if "Warning" in line]
-        self.assertEqual(len(warnings), 1, printed)
-        self.assertIn(f"{len(armature().data.bones):,} bones", warnings[0])
+        warnings = console.lines("Warning")
+        self.assertEqual(len(warnings), 1, console.text)
+        self.assertIn(f"{len(helpers.armature().data.bones):,} bones", warnings[0])
         self.assertIn("Joint Levels", warnings[0])
 
     def test_too_big_rig_fails_before_building_anything(self):

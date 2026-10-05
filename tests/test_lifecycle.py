@@ -7,12 +7,6 @@ import unittest
 import bpy
 import helpers
 
-DATA = ("objects", "curves", "hair_curves", "meshes", "armatures", "actions")
-
-
-def counts():
-    return {name: len(getattr(bpy.data, name)) for name in DATA}
-
 
 def full_tree_settings(rig=True):
     """Everything on, with the armature rig or with the node wind."""
@@ -26,11 +20,11 @@ class DataLifecycle(unittest.TestCase):
         for rig in (True, False):
             with self.subTest(rig=rig):
                 helpers.reset_scene()
-                empty = counts()
+                empty = helpers.counts()
                 self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(rig), do_update=True), {"FINISHED"})
                 root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
                 helpers.module("build.tree_record").TreeRecord.remove(root)
-                self.assertEqual(counts(), empty)
+                self.assertEqual(helpers.counts(), empty)
 
     def test_regenerate_leaves_no_orphans(self):
         for rig in (True, False):
@@ -40,18 +34,15 @@ class DataLifecycle(unittest.TestCase):
     def regenerate_three_times(self, settings):
         helpers.reset_scene()
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        after_first = counts()
-        materials = len(bpy.data.materials)
-        node_groups = len(bpy.data.node_groups)
+        kinds = [*helpers.DATA, "materials", "node_groups"]  # materials and node groups are shared, made once
+        after_first = helpers.counts(kinds)
         root = helpers.active_object()
         stored = helpers.stored_settings(root)
         for _ in range(3):
             result = bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **stored, do_update=True)
             self.assertEqual(result, {"FINISHED"})
             root = helpers.active_object()
-        self.assertEqual(counts(), after_first)
-        self.assertEqual(len(bpy.data.materials), materials)
-        self.assertEqual(len(bpy.data.node_groups), node_groups)
+        self.assertEqual(helpers.counts(kinds), after_first)
 
 
 class Registration(unittest.TestCase):
@@ -67,3 +58,24 @@ class Registration(unittest.TestCase):
         self.assertEqual(self.menu_entries(), enabled - 1)
         bpy.ops.preferences.addon_enable(module=helpers.MODULE)
         self.assertEqual(self.menu_entries(), enabled)
+
+
+class FailedRegistration(unittest.TestCase):
+    """A class that fails to register leaves nothing registered behind it."""
+
+    def test_failed_register_leaves_nothing(self):
+        self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
+        bpy.ops.preferences.addon_disable(module=helpers.MODULE)
+        original = bpy.utils.register_class
+
+        def failing(klass):
+            if klass.__name__ == "SavePresetOperator":
+                raise RuntimeError("injected failure")
+            original(klass)
+
+        bpy.utils.register_class = failing
+        self.addCleanup(setattr, bpy.utils, "register_class", original)
+        with self.assertRaises(RuntimeError):
+            bpy.ops.preferences.addon_enable(module=helpers.MODULE)
+        self.assertIsNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
+        bpy.utils.register_class = original

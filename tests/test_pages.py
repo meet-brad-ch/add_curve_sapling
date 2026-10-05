@@ -131,6 +131,16 @@ class TreeUi(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "without a layout"):
             self.panels().TreePanel.draw(SimpleNamespace(layout=None), SimpleNamespace(active_object=root))
 
+    def test_panel_shows_a_broken_record(self):
+        """A draw method cannot report: a record that cannot be read shows its reason, and no Edit button."""
+        root = add_tree()
+        root[helpers.module("build.tree_record").TreeRecord.SETTINGS] = "{"
+        layout = RecordingLayout()
+        self.panels().TreePanel.draw(SimpleNamespace(layout=layout), SimpleNamespace(active_object=root))
+        self.assertEqual(layout.labels[0], f"Root: {root.name}")
+        self.assertIn("Invalid settings JSON", layout.labels[1])
+        self.assertEqual(layout.buttons, [])
+
     def test_menu_entries(self):
         root = add_tree()
         menus = self.panels().Menus

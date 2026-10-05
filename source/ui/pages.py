@@ -18,9 +18,9 @@ class SettingsPages:
     """Draws the page chosen with the operator's `chooseSet` property."""
 
     # One method per entry of Choices.PAGES, in the same order
-    ORDER = (
+    ORDER = [
         "geometry", "branch_radius", "branch_splitting", "branch_growth", "pruning", "leaves", "armature", "animation",
-    )  # fmt: skip
+    ]  # fmt: skip
 
     @classmethod
     def draw(cls, props: Any, layout: UILayout) -> None:

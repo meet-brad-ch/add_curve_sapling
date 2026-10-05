@@ -8,6 +8,7 @@ import bpy
 from bpy.types import Context, Menu, Object, Panel, UILayout
 
 from ..build.tree_record import TreeRecord
+from ..settings import SettingsError
 from .operators import AddTreeOperator
 
 
@@ -41,9 +42,13 @@ class TreePanel(Panel):
         if layout is None:
             raise RuntimeError("Panel.draw without a layout")
         root = TreeRecord.root_of(context.active_object)  # type: ignore[arg-type]  # poll: the active object is a tree
-        settings = TreeRecord.settings(root).values
         col = layout.column()
         col.label(text=f"Root: {root.name}")
+        try:
+            settings = TreeRecord.settings(root).values
+        except SettingsError as error:  # a draw method cannot report: the panel shows the problem instead
+            col.label(text=str(error), icon="ERROR")
+            return
         col.label(text=f"Levels: {settings['levels']}   Seed: {settings['seed']}")
         TreeEditButton.draw(col, root)
 

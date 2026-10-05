@@ -4,6 +4,7 @@
 
 import random
 from collections.abc import Sequence
+from dataclasses import dataclass
 from math import copysign
 from typing import Any
 
@@ -11,18 +12,23 @@ from bpy.types import Collection, Context, Object
 
 from .build.armature import ArmatureBuilder, RigSize
 from .build.bake import BarkBake
+from .build.build_params import BuildParams
 from .build.envelope import EnvelopeBuilder
 from .build.joint_proxy import JointProxy
 from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
-from .build.node_wind import NodeWind, WindJoints
+from .build.node_wind import NodeWind
 from .build.objects import ObjectFactory
+from .build.tree_record import TreeRecord
 from .build.tree_root import CurveSource, TreeRootBuilder
 from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
+from .model.joints import Joints, TreeWind
 from .model.leaves import LeafGenerator, LeafSet, LeafShape
-from .model.params import TreeParams
-from .model.tree import TreeGrower
+from .model.params import TreeParams, WindParams
+from .model.tree import GrownTree, TreeGrower
+from .model.wind_model import WindModel
+from .settings import TreeSettings
 
 
 class TreeResult:
@@ -34,19 +40,31 @@ class TreeResult:
         self.roles = objects.roles
 
     @property
-    def tree(self) -> Object:
-        """The tree object (the root)."""
-        return self.roles[TreeRootBuilder.ROLE]
-
-    @property
     def root(self) -> Object:
         """The tree: every other part hangs from it, the rig too (so a click on the branches selects the whole
         tree)."""
-        return self.tree
+        return self.roles[TreeRootBuilder.ROLE]
 
     def role(self, name: str) -> Object | None:
         """The object with this role, or None when this tree has none (e.g. no leaves)."""
         return self.roles.get(name)
+
+
+@dataclass(frozen=True, slots=True)
+class GrownLeaves:
+    """The generated leaves and their object."""
+
+    leaves: LeafSet
+    ob: Object
+
+
+@dataclass(frozen=True, slots=True)
+class Movers:
+    """What moves the bark: the rig (its armature and the joint proxy the bones deform) or the wind curves."""
+
+    armature_ob: Object | None
+    joints_ob: Object | None
+    wind_ob: Object | None
 
 
 class TreeGenerator:
@@ -54,28 +72,34 @@ class TreeGenerator:
 
     def __init__(self, settings: Any, context: Context, collections: Sequence[Collection]) -> None:
         self.params = TreeParams(settings)
+        self.wind_params = WindParams(settings, self.params)
+        self.build_params = BuildParams(settings, self.params, self.wind_params)
         self.context = context
         self.collections = collections
         self.warnings: list[str] = []  # for the operator to report (the tree is still built)
 
-    def generate(self) -> TreeResult:
-        """Build the tree; if anything fails, remove what was created and re-raise."""
+    def generate(self, stored: TreeSettings) -> TreeResult:
+        """Build the tree and store `stored` (the settings it was made with) on it; if anything fails, remove
+        what was created and re-raise."""
         p = self.params
         if p.leaves and p.leaf_shape in LeafShape.INSTANCED:
-            LeafObjectBuilder.instance_object(p)  # fail before anything is created
+            LeafObjectBuilder.instance_object(self.build_params)  # fail before anything is created
         objects = ObjectFactory(self.collections)
         try:
             self._build(objects)
+            result = TreeResult(objects)
+            TreeRecord.tag(result, stored)
         except BaseException:
             objects.discard()
             raise
-        return TreeResult(objects)
+        return result
 
     def _build(self, objects: ObjectFactory) -> None:
         p = self.params
+        b = self.build_params
         # One random stream for the whole tree: the same seed gives the same tree
         rng = random.Random(p.seed)
-        root_builder = TreeRootBuilder(p, objects)
+        root_builder = TreeRootBuilder(b, objects)
         root = root_builder.build()
         scale = p.scale + rng.uniform(-p.scale_v, p.scale_v)
         scale += copysign(1e-6, scale)  # never exactly zero
@@ -85,61 +109,77 @@ class TreeGenerator:
         # The model grows in memory (every write O(1)); the curves are then written to Blender in bulk
         grown_curve = CurveData()
         grown = TreeGrower(p, rng).grow(grown_curve, scale)
-        rig = p.use_armature
-        rig_joints = None
-        if rig:
-            rig_joints = WindJoints(p, grown_curve, grown)
-            warning = RigSize.check(RigSize.bones(rig_joints))
+        joints = self._joints(grown_curve, grown)
+        curves_ob = CurveSource(b, objects).build(grown_curve, root)
+        leaves = self._leaves(rng, grown, root, objects)
+        movers = self._movers(root, curves_ob, joints, rng, leaves, objects)
+        preview = b.preview_armature and not b.use_armature
+        root_builder.sweep(root, curves_ob, movers.wind_ob, preview, movers.joints_ob)
+
+        MaterialLibrary.assign(TreeResult(objects), b)  # before a bake: the baked mesh keeps the sweep's material
+        if b.make_mesh:
+            BarkBake(b, self.context).bake(root, curves_ob, joints, movers.armature_ob, movers.wind_ob)
+        if leaves is not None:
+            LeafObjectBuilder(b, objects).finish(leaves.ob, leaves.leaves)
+
+    def _joints(self, curve: CurveData, grown: GrownTree) -> Joints | None:
+        """The joints the rig or the node wind needs (none for a still tree without a rig); a big rig warns."""
+        b = self.build_params
+        if not (b.use_armature or b.armature_animation):
+            return None
+        joints = Joints(self.wind_params, curve, grown)
+        if b.use_armature:
+            warning = RigSize.check(RigSize.bones(joints))
             if warning:
                 self.warnings.append(warning)
-        curves_ob = CurveSource(p, objects).build(grown_curve, root)
+        return joints
 
-        leaf_set = leaves_ob = None
-        leaf_builder = LeafObjectBuilder(p, objects)
-        if p.leaves:
-            leaf_set = LeafGenerator(p, rng).generate(grown.sprouts)
-            leaves_ob = leaf_builder.build(leaf_set, root)
+    def _leaves(self, rng: random.Random, grown: GrownTree, root: Object, objects: ObjectFactory) -> GrownLeaves | None:
+        """The leaves and their object (None without leaves); the leaves draw from the rng after the tree."""
+        if not self.params.leaves:
+            return None
+        leaves = LeafGenerator(self.params, rng).generate(grown.sprouts)
+        return GrownLeaves(leaves, LeafObjectBuilder(self.build_params, objects).build(leaves, root))
 
-        armature_ob = joints_ob = wind_ob = None
-        joints = None
-        if rig_joints is not None:
-            joints_ob = JointProxy(p, objects).build(root, grown_curve, rig_joints)
-            armature_ob = ArmatureBuilder(p, rng, objects, self.context).build(
-                root, joints_ob, grown_curve, grown, leaf_set, leaves_ob
-            )
-        elif p.armature_animation:
-            joints = WindJoints(p, grown_curve, grown)
-            wind_ob = self._node_wind(root, curves_ob, joints, objects, rng, leaf_set, leaves_ob)
-        root_builder.sweep(root, curves_ob, wind_ob, preview=p.preview_armature and not rig, joints_ob=joints_ob)
-
-        MaterialLibrary.assign(TreeResult(objects), p)  # before a bake: the baked mesh keeps the sweep's material
-        if p.make_mesh:
-            bake_joints = rig_joints or joints or WindJoints(p, grown_curve, grown)
-            BarkBake(p, self.context).bake(root, curves_ob, bake_joints, armature_ob, wind_ob)
-
-        if leaves_ob:
-            leaf_builder.finish(leaves_ob, leaf_set)  # type: ignore[arg-type]  # leaves_ob implies leaf_set
-
-    def _node_wind(
+    def _movers(
         self,
         root: Object,
         curves_ob: Object,
-        joints: WindJoints,
-        objects: ObjectFactory,
+        joints: Joints | None,
         rng: random.Random,
-        leaf_set: LeafSet | None,
-        leaves_ob: Object | None,
-    ) -> Object:
-        """Wind without the rig: the wind curves under the root, then the leaves' flutter and their following,
-        drawing from the rng in the rig's order (joint phases, then two offsets per leaf); returns the wind curves."""
-        p = self.params
+        leaves: GrownLeaves | None,
+        objects: ObjectFactory,
+    ) -> Movers:
+        """The rig (bones through the joint proxy) or the wind curves, with the leaves following them.
+
+        The rng is drawn in the rig's order: the joints' phases (two per curve with joints), then two flutter
+        offsets per leaf.
+        """
+        b = self.build_params
+        if joints is None:
+            return Movers(None, None, None)
+        if b.use_armature:
+            wind = self._wind(joints, rng) if b.armature_animation else None
+            leaf_set = leaves.leaves if leaves is not None else None
+            leaves_ob = leaves.ob if leaves is not None else None
+            joints_ob = JointProxy(objects).build(root, joints)
+            builder = ArmatureBuilder(b, rng, objects, self.context)
+            return Movers(builder.build(root, joints_ob, joints, wind, leaf_set, leaves_ob), joints_ob, None)
+        wind = self._wind(joints, rng)  # without the rig, the joints are there for the wind
+        wind_ob = NodeWind(b, objects).build(root, curves_ob, joints, wind)
+        if leaves is not None:
+            if b.leaf_animation:
+                offsets = LeafFlutter.offsets(leaves.leaves, self.wind_params.flutter.randomness, rng)
+                LeafFlutter.add(leaves.ob, leaves.leaves, offsets, wind.model)
+            NodeWind.follow(leaves.ob, wind_ob, joints.leaf_joints(leaves.leaves))
+        return Movers(None, None, wind_ob)
+
+    def _wind(self, joints: Joints, rng: random.Random) -> TreeWind:
+        """The wind's numbers and every joint's sway (drawing two phases per curve with joints)."""
+        model = WindModel(self.wind_params, self._fps())
+        return TreeWind(model, joints.sway(model, rng))
+
+    def _fps(self) -> float:
+        """The scene's frame rate, which the wind's timing is relative to."""
         scene = self.context.scene
-        fps = scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene
-        node_wind = NodeWind(p, rng, fps, objects)
-        wind_ob = node_wind.build(root, curves_ob, joints)
-        if leaves_ob is not None and leaf_set is not None:
-            if p.leaf_animation:
-                offsets = LeafFlutter.offsets(leaf_set, p.leaf_wind[2], rng)
-                LeafFlutter.add(leaves_ob, leaf_set, offsets, node_wind.model)
-            NodeWind.follow(leaves_ob, wind_ob, joints.leaf_joints(leaf_set))
-        return wind_ob
+        return scene.render.fps / scene.render.fps_base  # type: ignore[union-attr]  # an operator context has a scene

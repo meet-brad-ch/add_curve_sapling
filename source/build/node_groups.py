@@ -45,6 +45,8 @@ class SharedNodeGroup:
     def set_input(modifier: NodesModifier, name: str, value: object) -> None:
         """Set the modifier's value for the group input called `name`."""
         group = modifier.node_group
-        socket = next(i for i in group.interface.items_tree if getattr(i, "name", "") == name)  # type: ignore[union-attr]  # a modifier made by add_modifier has a group with an interface
+        socket = next((i for i in group.interface.items_tree if getattr(i, "name", "") == name), None)  # type: ignore[union-attr]  # a modifier made by add_modifier has a group with an interface
+        if socket is None:
+            raise RuntimeError(f"the node group '{group.name}' has no input called '{name}'")  # type: ignore[union-attr]  # as above
         # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
         getattr(modifier.properties.inputs, socket.identifier).value = value  # type: ignore[union-attr]  # stub: optional properties; socket items

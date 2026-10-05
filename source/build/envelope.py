@@ -2,11 +2,12 @@
 
 """The pruning envelope shown with the tree."""
 
+from typing import Final
+
 import bpy
 from bpy.types import Object
 from mathutils import Vector
 
-from ..model.geometry import Bezier
 from ..model.params import TreeParams
 from .objects import ObjectFactory
 
@@ -20,6 +21,8 @@ class EnvelopeBuilder:
 
     ROLE = "envelope"
     POINTS = 128
+    SPLINE: Final = "BEZIER"
+    HANDLE: Final = "VECTOR"
 
     def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
         self.params = params
@@ -33,16 +36,16 @@ class EnvelopeBuilder:
         envelope = self.objects.new(self.ROLE, curve, parent=tree)
         envelope.hide_viewport = True
         envelope.hide_render = True
-        for axis in (0, 1):
-            spline = curve.splines.new(Bezier.SPLINE)
-            point = spline.bezier_points[-1]
-            point.co = Vector((0, 0, scale))
-            (point.handle_right_type, point.handle_left_type) = (Bezier.VECTOR, Bezier.VECTOR)
+        for axis in [0, 1]:
+            spline = curve.splines.new(self.SPLINE)
+            spline.bezier_points.add(self.POINTS)
+            points = spline.bezier_points
+            points[0].co = Vector((0, 0, scale))
             for c in range(self.POINTS):
-                spline.bezier_points.add(1)
-                point = spline.bezier_points[-1]
                 ratio = (c + 1) / self.POINTS
                 z = scale - scale * (1 - prune_base) * ratio
                 width = scale * p.prune_width * p.envelope(ratio)
-                point.co = Vector((width, 0, z) if axis == 0 else (0, width, z))
-                (point.handle_right_type, point.handle_left_type) = (Bezier.VECTOR, Bezier.VECTOR)
+                points[c + 1].co = Vector((width, 0, z) if axis == 0 else (0, width, z))
+            for point in points:
+                point.handle_right_type = self.HANDLE
+                point.handle_left_type = self.HANDLE

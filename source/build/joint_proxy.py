@@ -11,11 +11,8 @@ import bpy
 import numpy as np
 from bpy.types import Object
 
-from ..model.curve_data import CurveData
-from ..model.params import TreeParams
-from ..model.stem import BoneName
-from .node_wind import WindJoints
-from .objects import ObjectFactory, VertexGroupWriter
+from ..model.joints import Joints
+from .objects import ObjectFactory, VertexGroup, VertexGroupWriter
 
 
 class JointProxy:
@@ -25,13 +22,12 @@ class JointProxy:
     ROLE = "tree_joints"
     PER_POINT = 3  # vertex 3i is point i, 3i + 1 its left handle, 3i + 2 its right handle
 
-    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
-        self.params = params
+    def __init__(self, objects: ObjectFactory) -> None:
         self.objects = objects
 
-    def build(self, root: Object, curve: CurveData, joints: WindJoints) -> Object:
+    def build(self, root: Object, joints: Joints) -> Object:
         """The hidden proxy under the root, with its vertex groups (the rig's Armature modifier is added by the rig)."""
-        flat = curve.flatten()
+        flat = joints.flat
         mesh = bpy.data.meshes.new(self.ROLE)
         vertices = np.stack([flat.co, flat.left, flat.right], axis=1).reshape(-1, 3).astype(np.float32)
         mesh.vertices.add(len(vertices))
@@ -45,21 +41,15 @@ class JointProxy:
         return ob
 
     @classmethod
-    def groups(cls, joints: WindJoints) -> dict[str, list[int]]:
-        """Vertex indices per bone name, in joint order: the vertices of every point following that joint."""
-        return cls.groups_of(np.repeat(joints.ordinals(joints.point_joints()), cls.PER_POINT), joints)
+    def groups(cls, joints: Joints) -> list[VertexGroup]:
+        """The vertex groups of the proxy, in joint order: the vertices of every point following that joint."""
+        return cls.groups_of(np.repeat(joints.point_ordinals(), cls.PER_POINT), joints)
 
-    @classmethod
-    def groups_of(cls, ordinals: np.ndarray, joints: WindJoints) -> dict[str, list[int]]:
-        """Vertex indices per bone name for vertices with these joint numbers (bones with no vertex left out)."""
+    @staticmethod
+    def groups_of(ordinals: np.ndarray, joints: Joints) -> list[VertexGroup]:
+        """One vertex group per joint that has vertices, in joint order, for vertices with these joint numbers."""
         order = np.argsort(ordinals, kind="stable")
         counts = np.bincount(ordinals, minlength=len(joints.joint_point))
         starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
-        names = cls.bone_names(joints)
-        return {names[i]: order[starts[i] : starts[i] + counts[i]].tolist() for i in range(len(names)) if counts[i]}
-
-    @staticmethod
-    def bone_names(joints: WindJoints) -> list[str]:
-        """The rig's bone name of every joint (ArmatureBuilder names a bone after the point it starts at)."""
-        splines, points = joints.joint_spline.tolist(), joints.joint_n.tolist()
-        return [BoneName.of(spline, point) for spline, point in zip(splines, points, strict=True)]
+        names = joints.names()
+        return [VertexGroup(names[i], order[starts[i] : starts[i] + counts[i]]) for i in range(len(names)) if counts[i]]

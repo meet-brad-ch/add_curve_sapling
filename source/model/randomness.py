@@ -12,7 +12,7 @@ import numpy as np
 
 
 class Draw:
-    """What a stem draws at a step (the draw ids; LENGTH takes one id per split slot after it)."""
+    """What a stem draws at a step (the draw ids; a split's own draws go through its own derived key)."""
 
     SPLIT = 1
     CURVE_ANGLE = 2
@@ -23,7 +23,7 @@ class Draw:
     SPREAD_ANGLE = 7
     ROTATION_START = 8
     ROTATION = 9
-    LENGTH = 10  # ... 10 + splits
+    LENGTH = 10  # a split's segment length, drawn with the split's key (which holds the step and the slot)
     JITTER = 20
     DOWN = 21
     ROTATE = 22

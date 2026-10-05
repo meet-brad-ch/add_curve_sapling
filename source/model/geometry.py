@@ -1,14 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Geometry of the Weber-Penn model: axes, angles, crown shapes and bezier segments.
+"""Geometry of the Weber-Penn model: angles, crown shapes and the pruning envelope.
 
-Expression shapes are kept exactly as in the original add-on: mathutils works in float32, so
-reordering an expression changes the generated trees.
+Expression shapes are kept as they are: the goldens hash the generated trees bit for bit, and a reordered
+expression changes the trees.
 """
 
 from collections.abc import Iterable, Sequence
-from math import pi, radians, sin
-from typing import Final
+from math import pi, radians
 
 import numpy as np
 
@@ -20,23 +19,15 @@ class Angles:
 
     @staticmethod
     def to_radians(values: Iterable[float]) -> list[float]:
-        """Per-level angles from degrees (as the settings hold them) to radians, as a new list."""
+        """Per-level angles from degrees (as the settings hold them) to radians."""
         return [radians(a) for a in values]
 
     @staticmethod
     def means(a1: np.ndarray, a2: np.ndarray, fac: float) -> np.ndarray:
-        """mean() for arrays of angles."""
+        """Per element, the angle `fac` of the way from a1 to a2, through unit vectors (so it goes the short way)."""
         x1, y1 = np.sin(a1), np.cos(a1)
         x2, y2 = np.sin(a2), np.cos(a2)
         return np.arctan2(x1 + (x2 - x1) * fac, y1 + (y2 - y1) * fac)
-
-
-class Bezier:
-    """Blender's enum values for bezier splines and their handles."""
-
-    SPLINE: Final = "BEZIER"
-    AUTO: Final = "AUTO"
-    VECTOR: Final = "VECTOR"
 
 
 class CrownShape:
@@ -56,21 +47,19 @@ class CrownShape:
     @staticmethod
     def ratio(shape: int, ratio: float, custom: Sequence[float] | None = None) -> float:
         """The shape's factor at `ratio` (0..1); CUSTOM takes its four control values in `custom`."""
-        if shape == CrownShape.CUSTOM:
-            return CrownShape._custom(ratio, custom)  # type: ignore[arg-type]  # only the main shape can be CUSTOM, and it always comes with custom
-        if shape not in CrownShape._SHAPES:
-            raise ValueError(f"unknown crown shape {shape}")
-        return CrownShape._SHAPES[shape](ratio)
+        return float(CrownShape.ratios(shape, np.array([ratio]), custom)[0])
 
     @staticmethod
     def ratios(shape: int, ratio: np.ndarray, custom: Sequence[float] | None = None) -> np.ndarray:
-        """ratio() for an array of ratios (0..1)."""
+        """The shape's factor at every ratio of an array (0..1)."""
         r = np.asarray(ratio, dtype=np.float64)
         if shape == CrownShape.CUSTOM:
-            return CrownShape._customs(r, custom)  # type: ignore[arg-type]  # as ratio(): CUSTOM always comes with custom
-        if shape not in CrownShape._ARRAY_SHAPES:
+            if custom is None:
+                raise ValueError("the Custom Shape needs its four values (Base, Middle, Middle Position, Top)")
+            return CrownShape._customs(r, custom)
+        if shape not in CrownShape._SHAPES:
             raise ValueError(f"unknown crown shape {shape}")
-        return CrownShape._ARRAY_SHAPES[shape](r)
+        return CrownShape._SHAPES[shape](r)
 
     @staticmethod
     def _flames(ratio: np.ndarray) -> np.ndarray:
@@ -82,7 +71,7 @@ class CrownShape:
 
     @staticmethod
     def _customs(ratio: np.ndarray, custom: Sequence[float]) -> np.ndarray:
-        """_custom() for arrays."""
+        """Two eased segments through (base, custom[0]), (custom[2], custom[1]) and (top, custom[3])."""
         r = 1.0 - ratio
         upper = (r - custom[2]) / (1 - custom[2])
         upper = upper * upper * (custom[3] - custom[1]) + custom[1]
@@ -103,35 +92,12 @@ class CrownShape:
     def envelopes(ratio: np.ndarray, peak: float, power_high: float, power_low: float) -> np.ndarray:
         """envelope() for an array of ratios."""
         r = np.asarray(ratio, dtype=np.float64)
-        with np.errstate(invalid="ignore", divide="ignore"):
+        with np.errstate(invalid="ignore", divide="ignore"):  # the masked-out branches may divide by zero
             rising = (np.clip(r, 0.0, None) / (1 - peak)) ** power_high
             falling = (np.clip(1 - r, 0.0, None) / peak) ** power_low
         return np.where((r < 1 - peak) & (r > 0.0), rising, np.where((r >= 1 - peak) & (r < 1.0), falling, 0.0))
 
-    @staticmethod
-    def _flame(ratio: float) -> float:
-        if ratio <= 0.7:
-            return 0.05 + 0.95 * ratio / 0.7
-        return 0.05 + 0.95 * (1.0 - ratio) / 0.3
-
-    @staticmethod
-    def _tend_flame(ratio: float) -> float:
-        if ratio <= 0.7:
-            return 0.5 + 0.5 * ratio / 0.7
-        return 0.5 + 0.5 * (1.0 - ratio) / 0.3
-
     _SHAPES = {
-        CONICAL: lambda ratio: 0.05 + 0.95 * ratio,
-        SPHERICAL: lambda ratio: 0.2 + 0.8 * sin(pi * ratio),
-        HEMISPHERICAL: lambda ratio: 0.2 + 0.8 * sin(0.5 * pi * ratio),
-        CYLINDRICAL: lambda ratio: 1.0,
-        TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * ratio,
-        FLAME: _flame,
-        INVERSE_CONICAL: lambda ratio: 1.0 - 0.8 * ratio,
-        TEND_FLAME: _tend_flame,
-        INVERSE_TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * (1 - ratio),
-    }
-    _ARRAY_SHAPES = {
         CONICAL: lambda ratio: 0.05 + 0.95 * ratio,
         SPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(pi * ratio),
         HEMISPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(0.5 * pi * ratio),
@@ -142,20 +108,6 @@ class CrownShape:
         TEND_FLAME: _tend_flames,
         INVERSE_TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * (1 - ratio),
     }
-
-    @staticmethod
-    def _custom(ratio: float, custom: Sequence[float]) -> float:
-        """Two eased segments through (base, custom[0]), (custom[2], custom[1]) and (top, custom[3])."""
-        r = 1 - ratio
-        if r == 1:
-            return custom[3]
-        if r >= custom[2]:
-            pos = (r - custom[2]) / (1 - custom[2])
-            pos = pos * pos
-            return (pos * (custom[3] - custom[1])) + custom[1]
-        pos = r / custom[2]
-        pos = 1 - (1 - pos) * (1 - pos)
-        return (pos * (custom[1] - custom[0])) + custom[0]
 
     @staticmethod
     def auto_taper(

@@ -3,6 +3,7 @@
 """Growing the whole branch structure, level by level, on the tree curve."""
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from random import Random
 
 from .branching import LevelStarter
@@ -29,13 +30,6 @@ class GrownTree:
         self.level_ends = level_ends
         self.bone_map = bone_map
 
-    def level_of(self, spline_index: int) -> int:
-        """Parameter level (at most 3) of a spline."""
-        for level, end in enumerate(self.level_ends):
-            if spline_index < end:
-                return min(level, 3)
-        raise IndexError(f"spline {spline_index} is beyond the {self.level_ends[-1]} grown splines")
-
 
 class GrownLevels:
     """What the grown levels leave behind for the tree: their flat splines, bone links and level ends."""
@@ -52,6 +46,14 @@ class GrownLevels:
         self.ends.append((self.ends[-1] if self.ends else 0) + grid.rows)
 
 
+@dataclass(frozen=True, slots=True)
+class LevelResult:
+    """A finished level: its grown grid, and the sprout points for the next level."""
+
+    grid: LevelGrid
+    sprouts: SproutArrays
+
+
 class TreeGrower:
     """Grows the trunk and all branch levels into a curve, every level as one LevelGrid: all stems of the level
     advance in one operation, and with pruning the search for their lengths runs for all of them at once."""
@@ -59,6 +61,9 @@ class TreeGrower:
     def __init__(self, params: TreeParams, rng: Random) -> None:
         self.params = params
         self.rng = rng
+        self.grower = LevelGrower(params, 0.0)
+        self.pruning: LevelPruning | None = None
+        self.planner = LevelSprouts(params, KeyedRandom.root(params.seed))
 
     def grow(self, curve: CurveData, scale: float) -> GrownTree:
         """Fill `curve` with the tree's splines.
@@ -67,42 +72,33 @@ class TreeGrower:
         """
         p = self.params
         if p.levels < 1:
-            raise ValueError("a tree needs at least one level")
+            raise ValueError("a tree needs at least one level (Levels)")
         root_key = KeyedRandom.root(p.seed)
         starter = LevelStarter(p, self.rng, root_key)
-        grower = LevelGrower(p, scale)
-        pruning = LevelPruning(p, scale) if p.prune else None
-        planner = LevelSprouts(p, root_key)
+        self.grower = LevelGrower(p, scale)
+        self.pruning = LevelPruning(p, scale) if p.prune else None
         levels = GrownLevels()
         base_size = p.base_size if p.levels > 1 else 0.0
-        grid = starter.trunks(scale)
-        grid, sprouts = self._finish_level(grid, 0, base_size, p.levels == 1, (grower, pruning, planner), levels)
+        result = self._finish_level(starter.trunks(scale), 0, base_size, p.levels == 1, levels)
         for depth in range(1, p.levels):
-            # Per-level parameters only exist for 4 levels; deeper levels reuse the last one
-            level = min(3, depth)
+            # Per-level parameters only exist for LEVELS levels; deeper levels reuse the last one
+            level = TreeParams.level_index(depth)
             last_level = depth == p.levels - 1
-            grid = starter.children(sprouts, level, depth, base_size, scale, levels.ends[-1], grid)
+            grid = starter.children(result.sprouts, level, depth, base_size, scale, levels.ends[-1], result.grid)
             base_size = 0.0 if last_level else base_size * p.base_size_s
-            grid, sprouts = self._finish_level(grid, level, base_size, last_level, (grower, pruning, planner), levels)
+            result = self._finish_level(grid, level, base_size, last_level, levels)
         curve.load(FlatCurve.concatenate(levels.chunks))
-        return GrownTree(sprouts, levels.ends, BoneMap.from_links(levels.links))
+        return GrownTree(result.sprouts, levels.ends, BoneMap(levels.links))
 
     def _finish_level(
-        self,
-        grid: LevelGrid,
-        level: int,
-        base_size: float,
-        last_level: bool,
-        tools: tuple[LevelGrower, LevelPruning | None, LevelSprouts],
-        levels: GrownLevels,
-    ) -> tuple[LevelGrid, SproutArrays]:
+        self, grid: LevelGrid, level: int, base_size: float, last_level: bool, levels: GrownLevels
+    ) -> LevelResult:
         """Grow a started level (pruned when pruning is on) and plan the next level's sprouts."""
-        grower, pruning, planner = tools
         close_tip = last_level and self.params.close_tip
-        if pruning is None:
-            grower.grow(grid, close_tip)
+        if self.pruning is None:
+            self.grower.grow(grid, close_tip)
         else:
-            grid = pruning.grow(grid, grower, close_tip)
+            grid = self.pruning.grow(grid, self.grower, close_tip)
         flat = grid.flatten()
         levels.add(grid, flat, self.params.bone_step)
-        return grid, planner.plan(grid, flat, level, base_size)
+        return LevelResult(grid, self.planner.plan(grid, flat, level, base_size))

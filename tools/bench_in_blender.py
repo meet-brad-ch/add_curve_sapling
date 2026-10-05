@@ -12,7 +12,9 @@ import bpy
 
 ROOT = Path(__file__).resolve().parent.parent
 GOLDEN = ROOT / "tests" / "golden"
-MODULE = "bl_ext.user_default.sapling_tree_gen"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from blender_env import MODULE  # noqa: E402  (needs the sys.path entry above)
+
 RUNS = 5
 
 

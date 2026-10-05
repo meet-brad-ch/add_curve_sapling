@@ -8,6 +8,7 @@ the extension exactly as users get it: built into a zip and installed into a use
 
 import functools
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -18,6 +19,20 @@ SOURCE = ROOT / "source"
 BUILD = ROOT / "build"
 PROFILE = BUILD / "test-profile"
 REPO = "user_default"
+
+
+def extension_id() -> str:
+    """The extension's id from the manifest (tomllib needs Python 3.11; the tools run on 3.10, and the id line is
+    plain)."""
+    manifest = (SOURCE / "blender_manifest.toml").read_text(encoding="utf-8")
+    match = re.search(r'^id = "([^"]+)"$', manifest, re.MULTILINE)
+    if match is None:
+        sys.exit("source/blender_manifest.toml has no id line")
+    return match.group(1)
+
+
+# The installed add-on's module: bl_ext.<repository>.<extension id>
+MODULE = f"bl_ext.{REPO}.{extension_id()}"
 
 REQUIRED_VERSION = "Blender 5.2"
 DEFAULT_BLENDER = Path(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")

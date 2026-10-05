@@ -19,9 +19,10 @@ import numpy as np
 from bpy.types import Curves, Material, NodeSocket, NodeTree, Object
 
 from ..model.curve_data import CurveData
-from ..model.params import TreeParams
+from .build_params import BuildParams
 from .node_groups import SharedNodeGroup
-from .node_wind import NodeMath, NodeWind
+from .node_math import NodeMath, SocketSpec
+from .node_wind import NodeWind
 from .objects import ObjectFactory
 
 
@@ -31,7 +32,7 @@ class TreeRootBuilder:
     ROLE = "tree"
     MODIFIER = "Sapling Tree"
 
-    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
+    def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
@@ -73,7 +74,7 @@ class CurveSource:
 
     ROLE = "tree_curves"
 
-    def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
+    def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
         self.params = params
         self.objects = objects
 
@@ -84,10 +85,10 @@ class CurveSource:
         data.add_curves(flat.sizes.tolist())
         data.set_types(type="BEZIER")
         data.position_data.foreach_set("vector", flat.co.ravel())
-        for name, values in (("handle_left", flat.left), ("handle_right", flat.right)):
-            self._attribute(data, name, "FLOAT_VECTOR", "POINT").data.foreach_set("vector", values.ravel())
-        for name, types in (("handle_type_left", flat.h1), ("handle_type_right", flat.h2)):
-            self._attribute(data, name, "INT8", "POINT").data.foreach_set("value", types)
+        self._attribute(data, "handle_left", "FLOAT_VECTOR", "POINT").data.foreach_set("vector", flat.left.ravel())
+        self._attribute(data, "handle_right", "FLOAT_VECTOR", "POINT").data.foreach_set("vector", flat.right.ravel())
+        self._attribute(data, "handle_type_left", "INT8", "POINT").data.foreach_set("value", flat.h1)
+        self._attribute(data, "handle_type_right", "INT8", "POINT").data.foreach_set("value", flat.h2)
         self._attribute(data, "radius", "FLOAT", "POINT").data.foreach_set("value", flat.radius)
         resolution = np.full(len(flat.sizes), self.params.res_u, np.int32)
         self._attribute(data, "resolution", "INT", "CURVE").data.foreach_set("value", resolution)
@@ -99,48 +100,51 @@ class CurveSource:
 
     @staticmethod
     def _attribute(data: Curves, name: str, kind: str, domain: str) -> Any:
-        """The attribute, made if the curves do not have it yet (typed Any: its data type depends on `kind`)."""
-        return data.attributes.get(name) or data.attributes.new(name, kind, domain)  # type: ignore[arg-type]  # kind and domain are Blender's names, given by the callers
+        """The attribute (typed Any: its data type depends on `kind`): Blender's own ones (handles, radius,
+        resolution) exist on a Bezier curve already; any other must not exist yet."""
+        existing = data.attributes.get(name)
+        if existing is not None:
+            if existing.data_type != kind or existing.domain != domain:
+                raise RuntimeError(
+                    f"attribute {name} is {existing.data_type} on {existing.domain}, not {kind} on {domain}"
+                )
+            return existing
+        return data.attributes.new(name, kind, domain)  # type: ignore[arg-type]  # kind and domain are Blender's names, given by the callers
 
 
 class TreeSweepNodes:
     """The "Sapling Tree" group: the tree's curves (moved by the node wind, or posed by the rig) swept to the bark.
 
-    As a legacy curve's bevel: a circle of 4 + 2 x Bevel Resolution points, Bevel Depth times each point's
+    As Blender's curve bevel: a circle of 4 + 2 x Bevel Resolution points, Bevel Depth times each point's
     radius; Resolution U points per segment; no bevel (depth 0) gives the curves as edges. A curve of one point
-    (a stem pruning removed) draws nothing, as a legacy curve's bevel. Fast Preview shows the curves themselves
-    in the viewport (renders keep the bark).
+    (a stem pruning removed) draws nothing. Fast Preview shows the curves themselves in the viewport (renders
+    keep the bark).
     """
 
     GROUP = "Sapling Tree"
     VERSION = 4
-    INPUTS = (
-        ("Curves", "NodeSocketObject"),
-        ("Bevel Depth", "NodeSocketFloat"),
-        ("Bevel Resolution", "NodeSocketInt"),
-        ("Resolution U", "NodeSocketInt"),
-        ("Fill Caps", "NodeSocketBool"),
-        ("Fast Preview", "NodeSocketBool"),
-        ("Wind", "NodeSocketBool"),
-        ("Material", "NodeSocketMaterial"),
-        ("Rig", "NodeSocketBool"),
-        ("Joints", "NodeSocketObject"),
-        ("Wind Joints", "NodeSocketObject"),
-    )
+    INPUTS = [
+        SocketSpec("Curves", "NodeSocketObject"),
+        SocketSpec("Bevel Depth", "NodeSocketFloat"),
+        SocketSpec("Bevel Resolution", "NodeSocketInt"),
+        SocketSpec("Resolution U", "NodeSocketInt"),
+        SocketSpec("Fill Caps", "NodeSocketBool"),
+        SocketSpec("Fast Preview", "NodeSocketBool"),
+        SocketSpec("Wind", "NodeSocketBool"),
+        SocketSpec("Material", "NodeSocketMaterial"),
+        SocketSpec("Rig", "NodeSocketBool"),
+        SocketSpec("Joints", "NodeSocketObject"),
+        SocketSpec("Wind Joints", "NodeSocketObject"),
+    ]
 
     @classmethod
     def build(cls, group: NodeTree) -> None:
         """Fill the empty group: curves, wind or rig, resolution, sweep, Fast Preview."""
-        interface = group.interface
-        interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: interface is optional; socket_type typed as 'DEFAULT' only
-        for name, kind in cls.INPUTS:
-            interface.new_socket(name, in_out="INPUT", socket_type=kind)  # type: ignore[union-attr, arg-type]  # stub: as above
-        interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")  # type: ignore[union-attr, arg-type]  # stub: as above
         m = NodeMath(group)
-        inputs = m.nodes.new("NodeGroupInput").outputs
-        source = cls._object(m, inputs["Curves"])
-        windy = cls._switch(m, inputs["Wind"], source, cls._windy(m, source, cls._object(m, inputs["Wind Joints"])))
-        curves = cls._switch(m, inputs["Rig"], windy, cls._posed(m, source, cls._object(m, inputs["Joints"])))
+        inputs = m.interface(group, cls.INPUTS)
+        source = m.object_geometry(inputs["Curves"])
+        windy = m.switch(inputs["Wind"], source, cls._windy(m, source, m.object_geometry(inputs["Wind Joints"])))
+        curves = m.switch(inputs["Rig"], windy, cls._posed(m, source, m.object_geometry(inputs["Joints"])))
         resolution = m.nodes.new("GeometryNodeSetSplineResolution")
         m.link(cls._drop_single_points(m, curves), resolution.inputs["Curve"])
         m.link(inputs["Resolution U"], resolution.inputs["Resolution"])
@@ -150,15 +154,7 @@ class TreeSweepNodes:
         preview.operation = "AND"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
         m.link(inputs["Fast Preview"], preview.inputs[0])
         m.link(viewport, preview.inputs[1])
-        m.link(cls._switch(m, preview.outputs[0], bark, curves), m.nodes.new("NodeGroupOutput").inputs["Geometry"])
-
-    @staticmethod
-    def _object(m: NodeMath, object_input: NodeSocket) -> NodeSocket:
-        """An object's geometry, in the root's space."""
-        info = m.nodes.new("GeometryNodeObjectInfo")
-        info.transform_space = "RELATIVE"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
-        m.link(object_input, info.inputs["Object"])
-        return info.outputs["Geometry"]
+        m.link(m.switch(preview.outputs[0], bark, curves), m.nodes.new("NodeGroupOutput").inputs["Geometry"])
 
     @staticmethod
     def _windy(m: NodeMath, curves: NodeSocket, wind: NodeSocket) -> NodeSocket:
@@ -168,8 +164,8 @@ class TreeSweepNodes:
         transform = m.sample(wind, m.attr("fk_incl", "FLOAT4X4"), m.attr(NodeWind.JOINT, "INT"))
         return m.set_position(curves, m.transform_point(m.position(), transform))
 
-    @classmethod
-    def _posed(cls, m: NodeMath, curves: NodeSocket, proxy: NodeSocket) -> NodeSocket:
+    @staticmethod
+    def _posed(m: NodeMath, curves: NodeSocket, proxy: NodeSocket) -> NodeSocket:
         """The curves with every point and its handles where the rig's joint proxy holds them (JointProxy: vertex
         3i is point i, 3i + 1 and 3i + 2 its left and right handles)."""
         base = m.math("MULTIPLY", m.nodes.new("GeometryNodeInputIndex").outputs[0], 3.0)
@@ -184,16 +180,20 @@ class TreeSweepNodes:
         free.mode = {"LEFT", "RIGHT"}  # type: ignore[attr-defined]  # stub: as above
         m.link(curves, free.inputs["Curve"])
         posed = m.set_position(free.outputs["Curve"], sampled(0.0))
-        for mode, offset in (("LEFT", 1.0), ("RIGHT", 2.0)):
-            handles = m.nodes.new("GeometryNodeSetCurveHandlePositions")
-            handles.mode = mode  # type: ignore[attr-defined]  # stub: new() returns the Node base class
-            m.link(posed, handles.inputs["Curve"])
-            m.link(sampled(offset), handles.inputs["Position"])
-            posed = handles.outputs["Curve"]
-        return posed
+        posed = TreeSweepNodes._handles(m, posed, "LEFT", sampled(1.0))
+        return TreeSweepNodes._handles(m, posed, "RIGHT", sampled(2.0))
 
-    @classmethod
-    def _bark(cls, m: NodeMath, inputs: Any, curves: NodeSocket) -> NodeSocket:
+    @staticmethod
+    def _handles(m: NodeMath, curves: NodeSocket, side: str, position: NodeSocket) -> NodeSocket:
+        """The curves with the handles on one side ("LEFT" or "RIGHT") at the given positions."""
+        handles = m.nodes.new("GeometryNodeSetCurveHandlePositions")
+        handles.mode = side  # type: ignore[attr-defined]  # stub: new() returns the Node base class
+        m.link(curves, handles.inputs["Curve"])
+        m.link(position, handles.inputs["Position"])
+        return handles.outputs["Curve"]
+
+    @staticmethod
+    def _bark(m: NodeMath, inputs: Any, curves: NodeSocket) -> NodeSocket:
         """The swept bark (or the curves as edges without bevel), smooth shaded."""
         resample = m.nodes.new("GeometryNodeResampleCurve")
         resample.inputs["Mode"].default_value = "Evaluated"  # type: ignore[attr-defined]  # stub: NodeSocket base class
@@ -211,7 +211,7 @@ class TreeSweepNodes:
         m.link(evaluated, lines.inputs["Curve"])
         bevelled = m.math("GREATER_THAN", inputs["Bevel Depth"], 0.0)
         smooth = m.nodes.new("GeometryNodeSetShadeSmooth")
-        m.link(cls._switch(m, bevelled, lines.outputs["Mesh"], swept.outputs["Mesh"]), smooth.inputs["Geometry"])
+        m.link(m.switch(bevelled, lines.outputs["Mesh"], swept.outputs["Mesh"]), smooth.inputs["Geometry"])
         material = m.nodes.new("GeometryNodeSetMaterial")
         m.link(smooth.outputs["Geometry"], material.inputs["Geometry"])
         m.link(inputs["Material"], material.inputs["Material"])
@@ -226,13 +226,3 @@ class TreeSweepNodes:
         m.link(curves, delete.inputs["Geometry"])
         m.link(m.math("LESS_THAN", count, 2.0), delete.inputs["Selection"])
         return delete.outputs["Geometry"]
-
-    @staticmethod
-    def _switch(m: NodeMath, condition: NodeSocket, if_false: NodeSocket, if_true: NodeSocket) -> NodeSocket:
-        """A geometry switch."""
-        node = m.nodes.new("GeometryNodeSwitch")
-        node.input_type = "GEOMETRY"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
-        m.link(condition, node.inputs["Switch"])
-        m.link(if_false, node.inputs["False"])
-        m.link(if_true, node.inputs["True"])
-        return node.outputs[0]

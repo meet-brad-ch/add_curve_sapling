@@ -4,39 +4,38 @@
 
 from typing import TYPE_CHECKING, Any, override
 
-import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
-from bpy.types import Context, Event, Object, Operator
+from bpy.types import Collection, Context, Event, Operator
 
-from ..build.tree_record import TreePlacement, TreeRecord
+from ..build.tree_record import TreeEdit
 from ..generator import TreeGenerator
 from ..presets import PresetStore
 from ..settings import SettingsError, TreeSettings
 from .pages import SettingsPages
-from .properties import OldSettingNames, TreeProperties
+from .properties import EnumItem, OldSettingNames, TreeProperties
 
 if TYPE_CHECKING:
     from bpy.stub_internal.rna_enums import OperatorReturnItems
 
 
 class PresetChoice:
-    """Enum items for the preset list; Blender needs the strings kept alive (T83360)."""
+    """Enum items for the preset list; Blender needs the strings kept alive (T83360), so the items live here."""
 
-    _items: list[tuple[str, str, str]] = []
+    _items: list[tuple[str, str, str]] = []  # Blender's enum item tuples, the boundary EnumItem.item feeds
 
     @staticmethod
     def items(props: Any, context: Context | None) -> list[tuple[str, str, str]]:
         """Built-in presets, then the user's; a user file that cannot be loaded says why in its tooltip."""
-        cls = PresetChoice
-        cls._items.clear()
+        records = []
         for entry in PresetStore.for_addon().entries():
             if entry.builtin:
-                cls._items.append((entry.name, entry.name.replace("_", " ").title(), "Built-in preset"))
+                records.append(EnumItem(entry.name, entry.name.replace("_", " ").title(), "Built-in preset"))
             elif entry.problem:
-                cls._items.append((entry.name, f"{entry.name} (cannot load)", entry.problem))
+                records.append(EnumItem(entry.name, f"{entry.name} (cannot load)", entry.problem))
             else:
-                cls._items.append((entry.name, entry.name, "Your preset"))
-        return cls._items
+                records.append(EnumItem(entry.name, entry.name, "Your preset"))
+        PresetChoice._items[:] = EnumItem.items(records)
+        return PresetChoice._items
 
 
 class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
@@ -102,61 +101,67 @@ class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
         return TreeSettings.defaults_from_rna(self.properties.bl_rna.properties, names).values
 
     def _load_preset(self) -> None:
+        """Apply the chosen preset, with the defaults for settings it does not have (reported as a warning)."""
         self.preset_pending = False
-        settings = PresetStore.for_addon().load(self.preset).complete(self.defaults())
-        settings.apply_to(self, TreeProperties.generation_names())
+        defaults = self.defaults()
+        settings = PresetStore.for_addon().load(self.preset)
+        missing = settings.missing(defaults)
+        settings.complete(defaults)
         if self.limitImport:
-            self.levels = min(self.levels, 2)
-            self.showLeaves = False
+            settings.limit_import()
+        settings.apply_to(self, TreeProperties.generation_names())
+        if missing:
+            self.report(
+                {"WARNING"},
+                f"Preset '{self.preset}' does not have {len(missing)} settings: {', '.join(missing)}. "
+                "The defaults were used. Save the preset again to store them.",
+            )
+
+    def _load_stored(self, edit: TreeEdit) -> None:
+        """Apply the settings stored on the tree being edited (first run only; a warning names the settings the
+        tree does not have)."""
+        stored = edit.stored(self.defaults())
+        stored.settings.apply_to(self, TreeProperties.stored_names())
+        self.load_stored = False
+        if stored.missing:
+            self.report(
+                {"WARNING"},
+                f"Tree '{edit.root.name}' was made by an older version and does not have {len(stored.missing)} "
+                f"settings: {', '.join(stored.missing)}. The defaults were used. The edited tree stores them.",
+            )
 
     def _generate(self, context: Context) -> "set[OperatorReturnItems]":
         self.forward_old_names()
         if self.preset_pending:
             self._load_preset()
-        placement = None
-        if self.replace:
-            old_root = self._tree_to_replace(context)
-            placement = TreePlacement(old_root, TreeRecord.owned(old_root))
-            collections = placement.collections
-        elif context.collection is None:
-            raise RuntimeError("No active collection to add the tree to")
-        else:
-            collections = [context.collection]
+        view_layer = context.view_layer
+        edit = TreeEdit(self.replace, view_layer) if self.replace else None  # type: ignore[arg-type]  # an operator context has a view layer
+        if edit is not None and self.load_stored:
+            self._load_stored(edit)
+        collections = edit.collections if edit is not None else [self._active_collection(context)]
 
         # The new tree is complete before the old one is touched: a failure leaves the old tree as it was
         settings = TreeSettings.from_properties(self, TreeProperties.stored_names())
         generator = TreeGenerator(self, context, collections)
-        result = generator.generate()
+        result = generator.generate(settings)
         for warning in generator.warnings:
             self.report({"WARNING"}, warning)
-        TreeRecord.tag(result, settings)
 
-        if placement is None:
+        if edit is None:
             result.root.location = context.scene.cursor.location  # type: ignore[union-attr]  # an operator context has a scene
         else:
-            placement.detach()
-            TreeRecord.remove(placement.root)
-            result.objects.take_base_names()
-            unattached = placement.apply(result, context.view_layer)  # type: ignore[arg-type]  # an operator context has a view layer
+            unattached = edit.replace(result, view_layer)  # type: ignore[arg-type]  # an operator context has a view layer
             if unattached:
                 self.report({"WARNING"}, f"Left unparented (their part of the tree is gone): {', '.join(unattached)}")
         for ob in context.selected_objects:  # type: ignore[union-attr]  # an operator context has selected objects
             ob.select_set(False)
         result.root.select_set(True)
-        context.view_layer.objects.active = result.root  # type: ignore[union-attr]  # an operator context has a view layer
+        view_layer.objects.active = result.root  # type: ignore[union-attr]  # an operator context has a view layer
         return {"FINISHED"}
 
-    def _tree_to_replace(self, context: Context) -> Object:
-        """The root of the tree named by `replace`, with its stored settings applied (first run only)."""
-        ob = bpy.data.objects.get(self.replace)
-        if ob is None:
-            raise SettingsError(f"No object named '{self.replace}'")
-        root = TreeRecord.root_of(ob)
-        TreeRecord.claim(root)
-        if self.load_stored:
-            # A tree made before a setting existed gets that setting's default, as an older preset does
-            stored = TreeRecord.settings(root).rename_keys().complete(self.defaults())
-            stored.apply_to(self, TreeProperties.stored_names())
-            self.load_stored = False
-        context.view_layer.update()  # current world matrices of the tree and the user's objects
-        return root
+    @staticmethod
+    def _active_collection(context: Context) -> Collection:
+        """The collection a new tree goes into; a SettingsError when the context has none."""
+        if context.collection is None:
+            raise SettingsError("No active collection to add the tree to")
+        return context.collection

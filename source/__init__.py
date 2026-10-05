@@ -16,16 +16,26 @@ from .ui.preset_save import SavePresetOperator
 class Registration:
     """The classes and menu entries this add-on registers."""
 
-    CLASSES: tuple[type[Operator] | type[Panel], ...] = (AddTreeOperator, SavePresetOperator, TreePanel)
+    CLASSES: list[type[Operator] | type[Panel]] = [AddTreeOperator, SavePresetOperator, TreePanel]
 
     @classmethod
     def register(cls) -> None:
-        """Register the classes and menu entries; raises RuntimeError when the built-in presets are missing."""
+        """Register the classes and menu entries; raises RuntimeError when the built-in presets are missing.
+
+        A class that fails to register leaves nothing behind: the classes registered before it are unregistered.
+        """
         builtin = [e.name for e in PresetStore.for_addon().entries() if e.builtin]
         if AddTreeOperator.DEFAULT_PRESET not in builtin:
             raise RuntimeError(f"Sapling built-in presets are missing ({builtin}); reinstall the extension")
-        for klass in cls.CLASSES:
-            bpy.utils.register_class(klass)
+        registered: list[type[Operator] | type[Panel]] = []
+        try:
+            for klass in cls.CLASSES:
+                bpy.utils.register_class(klass)
+                registered.append(klass)
+        except BaseException:
+            for klass in reversed(registered):
+                bpy.utils.unregister_class(klass)
+            raise
         Menus.register()
 
     @classmethod

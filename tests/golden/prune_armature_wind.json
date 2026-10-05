@@ -31,7 +31,7 @@
     "verts": 2478
    },
    "evaluated": {
-    "co": "3aa92ed27c7e7e58",
+    "co": "be9984aa3ceb5281",
     "edges": 2891,
     "faces": 826,
     "verts": 2478
@@ -66,7 +66,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "1cf52e93fcebfddd",
+    "co": "10dd31ce37506819",
     "edges": 4852,
     "faces": 2368,
     "verts": 2484
@@ -101,13 +101,13 @@
    "animation": {
     "fcurves": 296,
     "groups": "c025cb4220ba312d",
-    "modifiers": "8b3b5a518b9a8080",
+    "modifiers": "5fa6a94296bf4d3c",
     "paths": "82f13483ee8adb36"
    },
    "data": {
     "bones": 148,
     "connect": "d26b2613ec731bde",
-    "geometry": "f0ed3ac23d14ccad",
+    "geometry": "04628eb408a358eb",
     "names": "7ab396c8d0fc061e",
     "parents": "19a49f6ce3640b87"
    },
@@ -197,7 +197,7 @@
   "baseSize": 0.4000000059604645,
   "baseSize_s": 0.25,
   "baseSplits": 0,
-  "bend": 0,
+  "bend": 0.0,
   "bevel": true,
   "bevelRes": 0,
   "branchDist": 1.0,

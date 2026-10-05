@@ -2,7 +2,7 @@
 
 """Bone names and the map from splines to the bones they hang from."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 
@@ -10,27 +10,33 @@ class BoneName:
     """Branch bones are named bone<spline>.<point>: the spline and point index where they start."""
 
     PREFIX = "bone"
+    DIGITS = 3
 
     @classmethod
     def of(cls, spline_index: int, point_index: int) -> str:
         """Name of the bone that starts at point `point_index` of spline `spline_index` (bone007.012)."""
-        return cls.PREFIX + str(spline_index).rjust(3, "0") + "." + str(point_index).rjust(3, "0")
+        return cls.PREFIX + str(spline_index).rjust(cls.DIGITS, "0") + "." + str(point_index).rjust(cls.DIGITS, "0")
 
-    @staticmethod
-    def rounded(bone: str, step: int) -> str:
-        """Round the point index down to a multiple of step (armature simplification)."""
-        point = int(int(bone[-3:]) / step) * step
-        return bone[:-3] + str(point).rjust(3, "0")
+    @classmethod
+    def names(cls, splines: Sequence[int], points: Sequence[int]) -> list[str]:
+        """The bone names of (spline, point) pairs, in order."""
+        return [cls.of(spline, point) for spline, point in zip(splines, points, strict=True)]
 
-    @staticmethod
-    def spline(bone: str) -> int:
+    @classmethod
+    def rounded(cls, bone: str, step: int) -> str:
+        """Round the point index down to a multiple of step (Joint Length: one bone per step segments)."""
+        point = (cls.point(bone) // step) * step
+        return bone[: -cls.DIGITS] + str(point).rjust(cls.DIGITS, "0")
+
+    @classmethod
+    def spline(cls, bone: str) -> int:
         """Spline index of a bone name."""
-        return int(bone[4:-4])
+        return int(bone[len(cls.PREFIX) : -(cls.DIGITS + 1)])
 
-    @staticmethod
-    def point(bone: str) -> int:
+    @classmethod
+    def point(cls, bone: str) -> int:
         """Point index of a bone name."""
-        return int(bone[-3:])
+        return int(bone[-cls.DIGITS :])
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,17 +55,12 @@ class BoneLink:
 
 
 class BoneMap:
-    """One BoneLink per curve spline, in spline order."""
+    """One BoneLink per curve spline, in spline order (the first must be a trunk's)."""
 
     def __init__(self, links: list[BoneLink]) -> None:
         if not links or links[0].bone:
             raise ValueError("the first spline must be a trunk")
         self._links = list(links)
-
-    @classmethod
-    def from_links(cls, links: list[BoneLink]) -> "BoneMap":
-        """A map of the given links, in spline order (the first must be a trunk's)."""
-        return cls(links)
 
     def __len__(self) -> int:
         return len(self._links)

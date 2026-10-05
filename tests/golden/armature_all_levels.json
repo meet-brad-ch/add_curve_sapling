@@ -48,7 +48,7 @@
    "data": {
     "bones": 98,
     "connect": "b940009e37117503",
-    "geometry": "50fd430bae659c64",
+    "geometry": "970c90f6f8b14946",
     "names": "15d1b573d20f556f",
     "parents": "5c6de5c459fa0c6f"
    },
@@ -138,7 +138,7 @@
   "baseSize": 0.4000000059604645,
   "baseSize_s": 0.25,
   "baseSplits": 0,
-  "bend": 0,
+  "bend": 0.0,
   "bevel": true,
   "bevelRes": 0,
   "branchDist": 1.0,

@@ -13,8 +13,7 @@ def settings_class():
     return helpers.module("settings").TreeSettings
 
 
-def store():
-    return helpers.module("presets").PresetStore.for_addon()
+store = helpers.preset_store
 
 
 def with_old_names(values):

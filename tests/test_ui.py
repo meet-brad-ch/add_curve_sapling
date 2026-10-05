@@ -3,6 +3,7 @@
 """Operator, presets, settings pages, placement and re-editing a generated tree."""
 
 import unittest
+from types import SimpleNamespace
 
 import bpy
 import helpers
@@ -16,9 +17,9 @@ def root_of(ob):
 
 class Registration(unittest.TestCase):
     def test_reregister(self):
+        self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)  # enabled again if a step fails
         for _ in range(2):
             bpy.ops.preferences.addon_disable(module=helpers.MODULE)
-            self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
             self.assertFalse(hasattr(bpy.types, "VIEW3D_PT_sapling_tree"))
             bpy.ops.preferences.addon_enable(module=helpers.MODULE)
         self.assertIsNotNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
@@ -26,7 +27,7 @@ class Registration(unittest.TestCase):
 
 class Presets(unittest.TestCase):
     def store(self):
-        return helpers.module("presets").PresetStore.for_addon()
+        return helpers.preset_store()
 
     def test_limit_import_is_off_by_default(self):
         """With Limit Import on, presets loaded with 2 levels and no leaves, and multi-level trees looked bare."""
@@ -106,9 +107,9 @@ class ReEdit(unittest.TestCase):
         settings = helpers.resolve_preset("callistemon.py")
         settings.update(showLeaves=True, leafShape="dFace", **overrides)
         helpers.reset_scene()
-        self.instance = bpy.data.objects.new("leaf_card", bpy.data.meshes.new("leaf_card"))
-        bpy.context.scene.collection.objects.link(self.instance)
-        self.assertEqual(bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True), {"FINISHED"})
+        self.instance = helpers.add_leaf_card()
+        result = bpy.ops.curve.tree_add(**settings, leafDupliObj=self.instance.name, do_update=True)
+        self.assertEqual(result, {"FINISHED"})
         return bpy.context.active_object
 
     def assert_same_transform(self, a, b):
@@ -121,7 +122,7 @@ class ReEdit(unittest.TestCase):
         self.assertEqual((root.name, root.type), ("tree", "MESH"))
         stored = helpers.stored_settings(root)
         self.assertTrue(stored["useRig"])
-        self.assertEqual(stored["leafDupliObj"], "leaf_card")
+        self.assertEqual(stored["leafDupliObj"], helpers.LEAF_CARD)
         tree_id = root["sapling_tree"]
         tagged = sorted(ob.name for ob in bpy.data.objects if ob.get("sapling_tree") == tree_id)
         self.assertEqual(tagged, ["leaves", "tree", "treeArm", "tree_curves", "tree_joints"])
@@ -179,13 +180,13 @@ class ArmatureContext(unittest.TestCase):
         bpy.context.view_layer.objects.active = other
         modes = []
         builder = helpers.module("build.armature").ArmatureBuilder
-        original = builder._branch_bones
+        original = builder.__dict__["_branch_bones"]  # the staticmethod itself, put back as it was
 
-        def recording(builder_self, *args):
+        def recording(*args):
             modes.append(other.mode)
-            return original(builder_self, *args)
+            return original.__func__(*args)
 
-        builder._branch_bones = recording
+        builder._branch_bones = staticmethod(recording)
         self.addCleanup(setattr, builder, "_branch_bones", original)
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True)
@@ -242,3 +243,69 @@ class ArmatureDisplay(unittest.TestCase):
             mesh = leaves.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
             positions.append([v.co.copy() for v in mesh.vertices[:50]])
         self.assertTrue(any((a - b).length > 1e-6 for a, b in zip(*positions, strict=True)), "leaves do not sway")
+
+
+class RedoPanel(unittest.TestCase):
+    """In the redo panel, a change of page or other UI state keeps the tree (execute passes through); a setting
+    change regenerates it; a settings error cancels with its message. Blender sets is_repeat only for its own redo,
+    so execute runs on a stand-in operator."""
+
+    def operator(self, **values):
+        reports = []
+        stand_in = SimpleNamespace(
+            options=SimpleNamespace(is_repeat=True), report=lambda kind, text: reports.append(text), **values
+        )
+        return stand_in, reports
+
+    def execute(self, stand_in):
+        return helpers.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
+
+    def test_ui_state_passes_through(self):
+        stand_in, _reports = self.operator(do_update=False)
+        self.assertEqual(self.execute(stand_in), {"PASS_THROUGH"})
+
+    def test_a_setting_change_regenerates(self):
+        stand_in, _reports = self.operator(do_update=True, _generate=lambda context: {"FINISHED"})
+        self.assertEqual(self.execute(stand_in), {"FINISHED"})
+
+    def test_a_settings_error_cancels_with_its_message(self):
+        error = helpers.module("settings").SettingsError("Leaf Object 'x' is not an object")
+
+        def failing(context):
+            raise error
+
+        stand_in, reports = self.operator(do_update=True, _generate=failing)
+        self.assertEqual(self.execute(stand_in), {"CANCELLED"})
+        self.assertEqual(reports, [str(error)])
+
+
+class UpdateCallbacks(unittest.TestCase):
+    """A setting's update callback decides whether the next run regenerates the tree."""
+
+    def properties(self):
+        return helpers.module("ui.properties").TreeProperties
+
+    def test_a_leaf_setting_regenerates_only_with_leaves_shown(self):
+        for shown in (False, True):
+            with self.subTest(show_leaves=shown):
+                props = SimpleNamespace(showLeaves=shown, do_update=not shown)
+                self.properties().update_leaves(props, None)
+                self.assertEqual(props.do_update, shown)
+
+    def test_generation_and_ui_settings(self):
+        props = SimpleNamespace(do_update=False)
+        self.properties().update_tree(props, None)
+        self.assertTrue(props.do_update)
+        self.properties().no_update_tree(props, None)
+        self.assertFalse(props.do_update)
+
+
+class NoActiveCollection(unittest.TestCase):
+    """Without an active collection the operator cancels with a message (not a traceback), and makes nothing."""
+
+    def test_add_without_a_collection_cancels(self):
+        helpers.reset_scene()
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        with bpy.context.temp_override(collection=None), self.assertRaisesRegex(RuntimeError, "No active collection"):
+            bpy.ops.curve.tree_add(**settings, do_update=True)
+        self.assertEqual(len(bpy.data.objects), 0)

@@ -3,17 +3,27 @@
 """Shared test helpers: scene reset, tree generation through the public operator, fingerprints."""
 
 import hashlib
+import os
+import random
+import re
 import sys
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 import bpy
 import numpy as np
+from blender_env import MODULE
 from bpy_extras import anim_utils
 
-MODULE = "bl_ext.user_default.sapling_tree_gen"
-RECORD_GOLDEN = False
+
+class Golden:
+    """Whether the golden test records new golden files (tests/run.py --record-golden) instead of comparing."""
+
+    record = False
 
 
 def reset_scene() -> None:
@@ -72,10 +82,8 @@ def operator_defaults() -> dict:
 
 
 def plain(value):
-    """Convert bpy/mathutils values to JSON-friendly Python values."""
-    if isinstance(value, str | bool | int | float) or value is None:
-        return value
-    return [plain(v) for v in value]
+    """Convert bpy/mathutils values to JSON-friendly Python values (None stays None)."""
+    return None if value is None else module("settings").TreeSettings.plain(value)
 
 
 def resolve_preset(filename: str) -> dict:
@@ -114,6 +122,131 @@ def untraced() -> Iterator[None]:
             measure.start()
 
 
+DATA = ["objects", "curves", "hair_curves", "meshes", "armatures", "actions"]
+
+
+def counts(names: list[str] | None = None) -> dict[str, int]:
+    """How many data-blocks of each kind the file holds (by default the kinds a tree creates)."""
+    return {name: len(getattr(bpy.data, name)) for name in (DATA if names is None else names)}
+
+
+def armature() -> Any:
+    """The scene's armature object (the rig of the one tree)."""
+    return next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
+
+
+@dataclass(frozen=True)
+class BoneIndex:
+    """Where a branch bone starts: its spline and point."""
+
+    spline: int
+    point: int
+
+
+def bone_index(name: str) -> BoneIndex | None:
+    """The spline and point a branch bone's name gives (None for a name that is no branch bone's)."""
+    if not re.match(r"bone\d{3}\.\d{3}$", name):
+        return None
+    bone_name = module("model.stem").BoneName
+    return BoneIndex(bone_name.spline(name), bone_name.point(name))
+
+
+def preset_store() -> Any:
+    """The add-on's preset store."""
+    return module("presets").PresetStore.for_addon()
+
+
+@dataclass(frozen=True)
+class GrownModel:
+    """A tree grown in the model: its parameters, its curve and what the growth left (bone map, level ends,
+    sprouts)."""
+
+    params: Any
+    curve: Any
+    grown: Any
+
+
+def model_params(settings: dict) -> Any:
+    """The model's TreeParams of these settings (no Blender objects)."""
+    return module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
+
+
+def wind_params(settings: dict, params: Any) -> Any:
+    """The joints' and the wind's WindParams of these settings."""
+    return module("model.params").WindParams(SimpleNamespace(**settings, leafDupliObj=""), params)
+
+
+def grow_model(settings: dict) -> GrownModel:
+    """Grow a tree in the model alone (no Blender objects)."""
+    params = model_params(settings)
+    curve = module("model.curve_data").CurveData()
+    grown = module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, params.scale)
+    return GrownModel(params, curve, grown)
+
+
+def joints_of(settings: dict, model: GrownModel) -> Any:
+    """The Joints of a tree grown in the model alone."""
+    return module("model.joints").Joints(wind_params(settings, model.params), model.curve, model.grown)
+
+
+def record_growth(test: Any) -> list[GrownModel]:
+    """Record every tree the generator grows while the test runs (the record is filled as trees grow)."""
+    captured: list[GrownModel] = []
+    grower = module("model.tree").TreeGrower
+    original = grower.grow
+
+    def recording(grower_self: Any, curve: Any, scale: float) -> Any:
+        grown = original(grower_self, curve, scale)
+        captured.append(GrownModel(grower_self.params, curve, grown))
+        return grown
+
+    grower.grow = recording
+    test.addCleanup(setattr, grower, "grow", original)
+    return captured
+
+
+def evaluated_vertices(name: str, frame: int | None = None) -> np.ndarray:
+    """An object's evaluated vertex positions (at a frame), as an (n, 3) array."""
+    if frame is not None:
+        bpy.context.scene.frame_set(frame)
+    ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
+    mesh = ob.to_mesh()
+    out = np.empty(len(mesh.vertices) * 3, np.float32)
+    mesh.vertices.foreach_get("co", out)
+    ob.to_mesh_clear()
+    return out.reshape(-1, 3)
+
+
+class Console:
+    """What the console showed while it was captured (without a window, Blender prints an operator's reports
+    there: "Warning: ...", "Info: ...")."""
+
+    def __init__(self) -> None:
+        self.text = ""
+
+    def lines(self, kind: str) -> list[str]:
+        """The printed lines that contain `kind` (e.g. "Warning")."""
+        return [line for line in self.text.splitlines() if kind in line]
+
+
+@contextmanager
+def console_output() -> Iterator[Console]:
+    """Capture file descriptor 1 (Blender prints operator reports to it); the Console holds the text after."""
+    console = Console()
+    with tempfile.TemporaryFile(mode="w+") as capture:
+        saved = os.dup(1)
+        sys.stdout.flush()
+        os.dup2(capture.fileno(), 1)
+        try:
+            yield console
+        finally:
+            sys.stdout.flush()
+            os.dup2(saved, 1)
+            os.close(saved)
+            capture.seek(0)
+            console.text = capture.read()
+
+
 def generate(settings: dict) -> set:
     """Run the operator with explicit settings on an empty scene; return the result set.
 
@@ -133,14 +266,14 @@ def _hash(data: bytes) -> str:
     return hashlib.sha1(data).hexdigest()[:16]
 
 
-def _floats(collection, attr: str, width: int) -> np.ndarray:
+def floats(collection, attr: str, width: int) -> np.ndarray:
     """Exact stored values (Blender keeps float32), so any drift at all changes the hash."""
     buf = np.empty(len(collection) * width, dtype=np.float32)
     collection.foreach_get(attr, buf)
     return buf
 
 
-def _ints(collection, attr: str, width: int = 1) -> np.ndarray:
+def ints(collection, attr: str, width: int = 1) -> np.ndarray:
     buf = np.empty(len(collection) * width, dtype=np.int32)
     collection.foreach_get(attr, buf)
     return buf
@@ -153,10 +286,10 @@ def _text(items) -> str:
 def _spline_digest(spline) -> str:
     points = spline.bezier_points
     parts = [
-        _floats(points, "co", 3),
-        _floats(points, "handle_left", 3),
-        _floats(points, "handle_right", 3),
-        _floats(points, "radius", 1),
+        floats(points, "co", 3),
+        floats(points, "handle_left", 3),
+        floats(points, "handle_right", 3),
+        floats(points, "radius", 1),
     ]
     types = [f"{p.handle_left_type}/{p.handle_right_type}" for p in points]
     return _hash(b"".join(a.tobytes() for a in parts) + "|".join(types).encode())
@@ -172,21 +305,21 @@ def _curve_fp(curve) -> dict:
     }
 
 
-HANDLE_TYPE_NAMES = ("FREE", "AUTO", "VECTOR", "ALIGNED")
+HANDLE_TYPE_NAMES = ["FREE", "AUTO", "VECTOR", "ALIGNED"]
 
 
 def _curves_fp(curves) -> dict:
     """A Curves object hashed exactly as _curve_fp hashes a legacy curve: the digests match for the same points."""
     sizes = [len(c.points) for c in curves.curves]
-    co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
+    co = floats(curves.position_data, "vector", 3).reshape(-1, 3)
     attrs = curves.attributes
     if "handle_left" not in attrs:  # the wind's joint curves: poly curves, one point per joint
         return {"splines": len(sizes), "points": sum(sizes), "co": _hash(co.tobytes())}
-    left = _floats(attrs["handle_left"].data, "vector", 3).reshape(-1, 3)
-    right = _floats(attrs["handle_right"].data, "vector", 3).reshape(-1, 3)
-    radius = _floats(attrs["radius"].data, "value", 1)
-    h1 = _ints(attrs["handle_type_left"].data, "value")
-    h2 = _ints(attrs["handle_type_right"].data, "value")
+    left = floats(attrs["handle_left"].data, "vector", 3).reshape(-1, 3)
+    right = floats(attrs["handle_right"].data, "vector", 3).reshape(-1, 3)
+    radius = floats(attrs["radius"].data, "value", 1)
+    h1 = ints(attrs["handle_type_left"].data, "value")
+    h2 = ints(attrs["handle_type_right"].data, "value")
     digests = []
     start = 0
     for size in sizes:
@@ -209,11 +342,11 @@ def _evaluated_fp(ob) -> dict:
         "verts": len(mesh.vertices),
         "edges": len(mesh.edges),
         "faces": len(mesh.polygons),
-        "co": _hash(_floats(mesh.vertices, "co", 3).tobytes()),
+        "co": _hash(floats(mesh.vertices, "co", 3).tobytes()),
     }
 
 
-def _modifier_inputs(ob) -> dict:
+def modifier_inputs(ob) -> dict:
     """The input values of an object's node modifiers (objects by name)."""
     out = {}
     for modifier in ob.modifiers:
@@ -237,8 +370,8 @@ def tree_curves():
 def spline_points() -> list[list[tuple[tuple[float, ...], float]]]:
     """Per spline of the tree, its points as ((x, y, z), radius)."""
     curves = tree_curves().data
-    co = _floats(curves.position_data, "vector", 3).reshape(-1, 3)
-    radius = _floats(curves.attributes["radius"].data, "value", 1)
+    co = floats(curves.position_data, "vector", 3).reshape(-1, 3)
+    radius = floats(curves.attributes["radius"].data, "value", 1)
     out = []
     start = 0
     for c in curves.curves:
@@ -253,12 +386,12 @@ def _mesh_fp(mesh) -> dict:
         "verts": len(mesh.vertices),
         "edges": len(mesh.edges),
         "faces": len(mesh.polygons),
-        "co": _hash(_floats(mesh.vertices, "co", 3).tobytes()),
-        "topology": _hash(_ints(mesh.loops, "vertex_index").tobytes()),
+        "co": _hash(floats(mesh.vertices, "co", 3).tobytes()),
+        "topology": _hash(ints(mesh.loops, "vertex_index").tobytes()),
         "uv_layers": [layer.name for layer in mesh.uv_layers],
     }
     if mesh.uv_layers:
-        out["uv"] = _hash(_floats(mesh.uv_layers[0].data, "uv", 2).tobytes())
+        out["uv"] = _hash(floats(mesh.uv_layers[0].data, "uv", 2).tobytes())
     return out
 
 
@@ -270,10 +403,10 @@ def _armature_fp(armature) -> dict:
         "parents": _text([b.parent.name if b.parent else "" for b in bones]),
         "connect": _text([str(b.use_connect) for b in bones]),
         "geometry": _hash(
-            _floats(bones, "head_local", 3).tobytes()
-            + _floats(bones, "tail_local", 3).tobytes()
-            + _floats(bones, "head_radius", 1).tobytes()
-            + _floats(bones, "tail_radius", 1).tobytes()
+            floats(bones, "head_local", 3).tobytes()
+            + floats(bones, "tail_local", 3).tobytes()
+            + floats(bones, "head_radius", 1).tobytes()
+            + floats(bones, "tail_radius", 1).tobytes()
         ),
     }
 
@@ -343,7 +476,7 @@ def fingerprint() -> dict:
             entry["data"] = _armature_fp(ob.data)
             entry["animation"] = _animation_fp(ob)
         if any(m.type == "NODES" for m in ob.modifiers):
-            entry["node_inputs"] = _modifier_inputs(ob)
+            entry["node_inputs"] = modifier_inputs(ob)
             if ob.type == "MESH" and not ob.hide_viewport:
                 entry["evaluated"] = _evaluated_fp(ob)
         out[ob.name] = entry

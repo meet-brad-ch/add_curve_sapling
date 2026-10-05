@@ -4,11 +4,12 @@
 rig: forward kinematics in Geometry Nodes, matching the armature's wind."""
 
 import json
-import random
 import tempfile
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import bpy
 import helpers
@@ -22,16 +23,7 @@ def tree_settings(**changes):
     return settings
 
 
-def vertices(name, frame=None):
-    """An object's evaluated vertex positions (at a frame), as an (n, 3) array."""
-    if frame is not None:
-        bpy.context.scene.frame_set(frame)
-    ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
-    mesh = ob.to_mesh()
-    out = np.empty(len(mesh.vertices) * 3, np.float32)
-    mesh.vertices.foreach_get("co", out)
-    ob.to_mesh_clear()
-    return out.reshape(-1, 3)
+vertices = helpers.evaluated_vertices
 
 
 def evaluated_counts(name):
@@ -42,13 +34,19 @@ def evaluated_counts(name):
     return counts
 
 
+@dataclass(frozen=True)
+class ModelJoints:
+    """A tree grown in the model alone (no Blender objects) and its joints."""
+
+    model: Any
+    joints: Any
+
+
 def model_joints(**changes):
-    """The WindJoints of a tree grown in the model alone (no Blender objects): (params, grown, joints)."""
+    """The Joints of a tree grown in the model alone, with the tree."""
     settings = tree_settings(**changes)
-    params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
-    curve = helpers.module("model.curve_data").CurveData()
-    grown = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, params.scale)
-    return params, grown, helpers.module("build.node_wind").WindJoints(params, curve, grown)
+    model = helpers.grow_model(settings)
+    return ModelJoints(model, helpers.joints_of(settings, model))
 
 
 def grown_leaves(grown):
@@ -71,12 +69,12 @@ class LegacyBevel:
         data = bpy.data.curves.new("legacy_bevel", "CURVE")
         data.dimensions = "3D"
         attributes = curves.attributes
-        co = helpers._floats(curves.position_data, "vector", 3).reshape(-1, 3)
-        left = helpers._floats(attributes["handle_left"].data, "vector", 3).reshape(-1, 3)
-        right = helpers._floats(attributes["handle_right"].data, "vector", 3).reshape(-1, 3)
-        radius = helpers._floats(attributes["radius"].data, "value", 1)
-        h1 = helpers._ints(attributes["handle_type_left"].data, "value")
-        h2 = helpers._ints(attributes["handle_type_right"].data, "value")
+        co = helpers.floats(curves.position_data, "vector", 3).reshape(-1, 3)
+        left = helpers.floats(attributes["handle_left"].data, "vector", 3).reshape(-1, 3)
+        right = helpers.floats(attributes["handle_right"].data, "vector", 3).reshape(-1, 3)
+        radius = helpers.floats(attributes["radius"].data, "value", 1)
+        h1 = helpers.ints(attributes["handle_type_left"].data, "value")
+        h2 = helpers.ints(attributes["handle_type_right"].data, "value")
         start = 0
         for c in curves.curves:
             size = len(c.points)
@@ -193,13 +191,19 @@ class RigSweep(unittest.TestCase):
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
         self.assertEqual({g.name for g in proxy.vertex_groups}, bones)
         self.assertTrue(all(len(v.groups) == 1 and v.groups[0].weight == 1.0 for v in proxy.data.vertices))
-        inputs = helpers._modifier_inputs(root)["Sapling Tree"]["inputs"]
+        inputs = helpers.modifier_inputs(root)["Sapling Tree"]["inputs"]
         self.assertEqual((inputs["Rig"], inputs["Wind"], inputs["Joints"]), (True, False, "tree_joints"))
 
     def test_bark_sways_with_the_bones(self):
-        moved = np.linalg.norm(vertices("tree", 17) - vertices("tree", 1), axis=1)
+        swayed = vertices("tree", 17)
+        swayed_counts = evaluated_counts("tree")
+        moved = np.linalg.norm(swayed - vertices("tree", 1), axis=1)
         self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
-        self.assertEqual(evaluated_counts("tree"), evaluated_counts("tree"))
+        self.assertEqual(evaluated_counts("tree"), swayed_counts, "the sway keeps the bark's topology")
+
+
+class RigFastPreview(unittest.TestCase):
+    """Fast Preview with the rig: the proxy's deform is off in the viewport and the tree is drawn as its bounds."""
 
     def test_fast_preview_disables_the_proxy_deform(self):
         self.assertEqual(helpers.generate(tree_settings(useRig=True, fastPreview=True)), {"FINISHED"})
@@ -209,14 +213,15 @@ class RigSweep(unittest.TestCase):
 
 
 def wind_joint_positions(frame, joints):
-    """Where the heads of these joints (numbers) are at a frame: the wind curves' evaluated transform at each."""
+    """Where the heads of these joints (numbers) are at a frame: the wind curves' evaluated transform at each (a
+    joint's own pose turns about its head, so its inclusive transform puts the head where the joints above put it)."""
     bpy.context.scene.frame_set(frame)
     wind = bpy.data.objects["tree_wind"].evaluated_get(bpy.context.evaluated_depsgraph_get()).data
     n = len(wind.position_data)
     co = np.empty(n * 3, np.float32)
     wind.position_data.foreach_get("vector", co)
     flat = np.empty(n * 16, np.float32)
-    wind.attributes["fk_total"].data.foreach_get("value", flat)
+    wind.attributes["fk_incl"].data.foreach_get("value", flat)
     matrices = flat.reshape(n, 4, 4).transpose(0, 2, 1)  # stored by columns
     heads = np.einsum("nij,nj->ni", matrices[:, :3, :3], co.reshape(-1, 3)) + matrices[:, :3, 3]
     return heads[joints]
@@ -236,11 +241,11 @@ class NodeWind(unittest.TestCase):
         self.assertEqual(self.result, {"FINISHED"})
         self.assertFalse([ob for ob in bpy.data.objects if ob.type == "ARMATURE"])
         self.assertEqual([m.name for m in helpers.tree_curves().modifiers], [])
-        inputs = helpers._modifier_inputs(bpy.data.objects["tree"])["Sapling Tree"]["inputs"]
+        inputs = helpers.modifier_inputs(bpy.data.objects["tree"])["Sapling Tree"]["inputs"]
         self.assertEqual((inputs["Wind"], inputs["Wind Joints"], inputs["Rig"]), (True, "tree_wind", False))
 
     def test_wind_curves_hold_one_point_per_joint(self):
-        _, _, joints = model_joints(windAnim=True, loopFrames=48)
+        joints = model_joints(windAnim=True, loopFrames=48).joints
         wind = bpy.data.objects["tree_wind"]
         root = bpy.data.objects["tree"]
         self.assertEqual((wind.type, wind.parent, wind.hide_viewport, wind.hide_render), ("CURVES", root, True, True))
@@ -428,7 +433,7 @@ class NodeWindJoints(unittest.TestCase):
 
     def test_every_point_follows_the_last_joint_head_before_it(self):
         """Joint Length 2: points 0 and 1 follow the joint at 0, points 2 and 3 the one at 2, the last the last."""
-        _, _, joints = model_joints(levels=2, makeMesh=True, jointLevels=0, jointStep=(2, 2, 1, 1))
+        joints = model_joints(levels=2, makeMesh=True, jointLevels=0, jointStep=(2, 2, 1, 1)).joints
         point_joints = joints.point_joints()
         self.assertEqual(len(point_joints), int(joints.flat.start[-1]))
         checked = 0
@@ -441,12 +446,14 @@ class NodeWindJoints(unittest.TestCase):
                 self.assertEqual(point_joints[start + n], min(start + (n // 2) * 2, last_head), f"curve {c} point {n}")
                 checked += 1
         self.assertGreater(checked, 100)
-        self.assertTrue(joints.is_joint[point_joints[joints.sizes[0] :]].all())
+        self.assertTrue(np.isin(point_joints[joints.sizes[0] :], joints.joint_point).all())
         ordinals = joints.ordinals(point_joints)
         np.testing.assert_array_equal(joints.joint_point[ordinals], point_joints)
 
     def test_points_above_the_joint_levels_follow_the_joint_their_stem_hangs_from(self):
-        _, grown, joints = model_joints(levels=3, branches=(0, 20, 5, 0), makeMesh=True, jointLevels=1)
+        found = model_joints(levels=3, branches=(0, 20, 5, 0), makeMesh=True, jointLevels=1)
+        grown = found.model.grown
+        joints = found.joints
         point_joints = joints.point_joints()
         trunk_points = int(joints.sizes[0])
         self.assertTrue((point_joints[trunk_points:] < trunk_points).all(), "every branch point follows a trunk joint")
@@ -458,12 +465,12 @@ class NodeWindJoints(unittest.TestCase):
         np.testing.assert_array_equal(joints.leaf_joints(grown_leaves(grown)), [])
 
     def test_a_point_that_is_no_joint_has_no_ordinal(self):
-        _, _, joints = model_joints(levels=2, makeMesh=True, jointStep=(2, 2, 1, 1))
+        joints = model_joints(levels=2, makeMesh=True, jointStep=(2, 2, 1, 1)).joints
         with self.assertRaisesRegex(RuntimeError, "not a joint"):
             joints.ordinals(np.array([1]))  # point 1 of the trunk is inside the first joint's span
 
     def test_a_stem_hanging_from_no_joint_is_an_error(self):
-        _, _, joints = model_joints(levels=2)
+        joints = model_joints(levels=2).joints
         joints.eligible[:] = False  # as if no curve had joints
         with self.assertRaisesRegex(RuntimeError, "without a joint below"):
             joints.nearest_joint(np.array([1]), np.array([0]))
@@ -540,3 +547,25 @@ class BakedBark(unittest.TestCase):
     def test_fast_preview_shows_the_bounds(self):
         self.assertEqual(helpers.generate(tree_settings(windAnim=True, makeMesh=True, fastPreview=True)), {"FINISHED"})
         self.assertEqual(bpy.data.objects["tree"].display_type, "BOUNDS")
+
+
+class StaticBake(unittest.TestCase):
+    """Make Mesh without a rig and without wind bakes the bark and binds it to nothing: no joints are computed."""
+
+    def test_static_bake_binds_nothing(self):
+        settings = tree_settings()
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        live = evaluated_counts("tree")
+        settings["makeMesh"] = True
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        root = bpy.data.objects["tree"]
+        self.assertEqual(list(root.modifiers), [])
+        self.assertEqual([a.name for a in root.data.attributes if a.name.startswith("sapling")], [])
+        self.assertEqual((len(root.data.vertices), len(root.data.edges), len(root.data.polygons)), live)
+        self.assertNotIn("tree_wind", bpy.data.objects)
+        self.assertNotIn("tree_joints", bpy.data.objects)
+
+    def test_a_binding_needs_the_joints(self):
+        bake = helpers.module("build.bake").BarkBake(None, bpy.context)
+        with self.assertRaisesRegex(RuntimeError, "needs the joints"):
+            bake.bake(None, None, None, None, object())

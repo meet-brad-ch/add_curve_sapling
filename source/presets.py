@@ -37,7 +37,6 @@ class PresetStore:
         {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
     )
     HEADER = "# Sapling Tree Gen preset\n"
-    READ_ERRORS = (OSError, ValueError, SyntaxError, TypeError, RecursionError)
 
     @classmethod
     def for_addon(cls) -> Self:
@@ -79,18 +78,36 @@ class PresetStore:
         if entry.problem:
             raise PresetError(f"Preset file '{name}': {entry.problem}. Rename the file")
         path = (self.builtin if entry.builtin else self.user_folder(create=False)) / (name + self.SUFFIX)
-        try:
-            text = path.read_text(encoding="utf-8")
-            body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-            values = ast.literal_eval(body.strip())
-        except self.READ_ERRORS as error:
-            raise PresetError(f"Cannot read preset {path.name}: {error}") from error
+        values = self._read(path)
         if not isinstance(values, dict):
             raise PresetError(f"Preset {path.name} is not a settings dictionary")
         try:
             return TreeSettings(values).migrate()
-        except (KeyError, IndexError, TypeError) as error:
-            raise PresetError(f"Preset {path.name} is incomplete or malformed: {error!r}") from error
+        except SettingsError as error:
+            raise PresetError(f"Preset {path.name}: {error}") from error
+
+    @staticmethod
+    def _read(path: Path) -> object:
+        """The Python literal a preset file holds (comment lines skipped); raises PresetError when it cannot be read:
+        the file (OSError), its text (ValueError: not UTF-8, or a literal Python cannot evaluate), its syntax
+        (SyntaxError), an unhashable dictionary key (TypeError)."""
+        try:
+            text = path.read_text(encoding="utf-8")
+            body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+            return ast.literal_eval(body.strip())
+        except OSError as error:
+            raise PresetStore._unreadable(path, error) from error
+        except ValueError as error:
+            raise PresetStore._unreadable(path, error) from error
+        except SyntaxError as error:
+            raise PresetStore._unreadable(path, error) from error
+        except TypeError as error:
+            raise PresetStore._unreadable(path, error) from error
+
+    @staticmethod
+    def _unreadable(path: Path, error: Exception) -> "PresetError":
+        """The error for a preset file that cannot be read."""
+        return PresetError(f"Cannot read preset {path.name}: {error}")
 
     def save(self, name: str, settings: TreeSettings, overwrite: bool) -> Path:
         """Write settings as the user preset `name` and return its file.

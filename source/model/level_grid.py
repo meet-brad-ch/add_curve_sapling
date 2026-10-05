@@ -8,7 +8,9 @@ the level's splines (all roots first, then the splits as they happen). A stem pr
 point only.
 """
 
+import copy
 from collections.abc import Sequence
+from dataclasses import dataclass, fields
 
 import numpy as np
 
@@ -17,75 +19,70 @@ from .rotations import Rotation
 from .stem import BoneLink, BoneName
 
 
+@dataclass(slots=True)
 class StemRows:
-    """Per-stem values of a level, one entry per row."""
+    """Per-stem values of a level, one entry per row (every field an array of the same length)."""
 
-    FIELDS = (
-        "key",  # uint64 lineage key (randomness.py)
-        "spline",  # the stem's spline index in the tree
-        "parent_stem",  # the spline it grew or split from (-1 for a trunk)
-        "parent_point",  # the parent's point it hangs from: the sprout's segment, or the point before a split
-        "is_split",
-        "is_end",  # a child continuing its parent's tip
-        "removed",  # pruning removed the stem: only its start point stays
-        "root",  # the row of its family's root stem (a split's family is its parent's)
-        "origin",  # the step the row's points start at
-        "base_length",  # segment length before the random variation (splits inherit it)
-        "segment_length",
-        "curvature",
-        "curvature_v",
-        "children",
-        "radius_start",
-        "radius_end",
-        "offset_length",  # length along the family below the row's first point
-        "roll",  # the trunk's own curve plane (further trunks of a clump)
-        "curve_sign",  # the curvature variation alternates its sign per segment
-        "split_last",  # 1 after a segment that split
-        "last_rotation",  # the rotation the next split continues from
-        "has_rotation",  # whether last_rotation was drawn yet
-    )
-
-    key: np.ndarray
-    spline: np.ndarray
-    parent_stem: np.ndarray
-    parent_point: np.ndarray
+    key: np.ndarray  # uint64 lineage key (randomness.py)
+    spline: np.ndarray  # the stem's spline index in the tree
+    parent_stem: np.ndarray  # the spline it grew or split from (-1 for a trunk)
+    parent_point: np.ndarray  # the parent's point it hangs from: the sprout's segment, or the point before a split
     is_split: np.ndarray
-    is_end: np.ndarray
-    removed: np.ndarray
-    root: np.ndarray
-    origin: np.ndarray
-    base_length: np.ndarray
+    is_end: np.ndarray  # a child continuing its parent's tip
+    removed: np.ndarray  # pruning removed the stem: only its start point stays
+    root: np.ndarray  # the row of its family's root stem (a split's family is its parent's)
+    origin: np.ndarray  # the step the row's points start at
+    base_length: np.ndarray  # segment length before the random variation (splits inherit it)
     segment_length: np.ndarray
     curvature: np.ndarray
     curvature_v: np.ndarray
     children: np.ndarray
     radius_start: np.ndarray
     radius_end: np.ndarray
-    offset_length: np.ndarray
-    roll: np.ndarray
-    curve_sign: np.ndarray
-    split_last: np.ndarray
-    last_rotation: np.ndarray
-    has_rotation: np.ndarray
+    offset_length: np.ndarray  # length along the family below the row's first point
+    roll: np.ndarray  # the trunk's own curve plane (further trunks of a clump)
+    curve_sign: np.ndarray  # the curvature variation alternates its sign per segment
+    split_last: np.ndarray  # 1 after a segment that split
+    last_rotation: np.ndarray  # the rotation the next split continues from
+    has_rotation: np.ndarray  # whether last_rotation was drawn yet
 
-    def __init__(self, values: dict[str, np.ndarray]) -> None:
-        missing = [name for name in self.FIELDS if name not in values]
-        if missing:
-            raise ValueError(f"stem rows need {', '.join(missing)}")
-        for name in self.FIELDS:
-            setattr(self, name, values[name])
+    @classmethod
+    def names(cls) -> list[str]:
+        """The field names, in declaration order."""
+        return [field.name for field in fields(cls)]
 
     def __len__(self) -> int:
         return len(self.key)
 
     def append(self, other: "StemRows") -> None:
         """Add other's rows after these."""
-        for name in self.FIELDS:
+        for name in self.names():
             setattr(self, name, np.concatenate([getattr(self, name), getattr(other, name)]))
 
     def take(self, rows: np.ndarray) -> "StemRows":
         """A copy holding the given rows, in that order."""
-        return StemRows({name: getattr(self, name)[rows].copy() for name in self.FIELDS})
+        return StemRows(**{name: getattr(self, name)[rows].copy() for name in self.names()})
+
+
+@dataclass(frozen=True, slots=True)
+class RenumberedSplines:
+    """The spline numbers of a level after pruning dropped some splits: gap-free from the first split on."""
+
+    first_split: int  # the spline index of the level's first split (the roots come before it)
+    spline: np.ndarray  # every row's new spline index
+
+
+@dataclass(frozen=True, slots=True)
+class SplitBatch:
+    """The rows that split off at one step: their rows, the step, their parents' rows, and their first two points'
+    second positions and radii (the first point is the parent's point at the step)."""
+
+    stems: StemRows
+    step: int
+    parent_rows: np.ndarray
+    co_second: np.ndarray
+    radius_first: np.ndarray
+    radius_second: np.ndarray
 
 
 class LevelGrid:
@@ -98,7 +95,6 @@ class LevelGrid:
     def __init__(
         self,
         level: int,
-        depth: int,
         segments: int,
         handles: int,
         stems: StemRows,
@@ -109,7 +105,6 @@ class LevelGrid:
     ) -> None:
         count = len(stems)
         self.level = level
-        self.depth = depth
         self.segments = segments
         self.handles = handles
         self.stems = stems
@@ -146,19 +141,19 @@ class LevelGrid:
         return grid
 
     def _with(self, rows: np.ndarray) -> "LevelGrid":
-        grid = LevelGrid.__new__(LevelGrid)
-        grid.level = self.level
-        grid.depth = self.depth
-        grid.segments = self.segments
-        grid.handles = self.handles
-        grid.stems = self.stems.take(rows)
-        grid.co = self.co[rows].copy()
-        grid.radius = self.radius[rows].copy()
-        grid.h1 = self.h1[rows].copy()
-        grid.h2 = self.h2[rows].copy()
-        grid.dir0 = self.dir0[rows].copy()
-        grid.next_spline = self.next_spline
+        """A copy holding the given rows, in that order."""
+        grid = copy.copy(self)
+        grid._select(rows)
         return grid
+
+    def _select(self, rows: np.ndarray) -> None:
+        """Keep the given rows, in that order (copies of the arrays)."""
+        self.stems = self.stems.take(rows)
+        self.co = self.co[rows].copy()
+        self.radius = self.radius[rows].copy()
+        self.h1 = self.h1[rows].copy()
+        self.h2 = self.h2[rows].copy()
+        self.dir0 = self.dir0[rows].copy()
 
     def direction(self, step: int) -> np.ndarray:
         """Unit direction of every row's last segment at `step` (its start direction at step 0)."""
@@ -171,23 +166,16 @@ class LevelGrid:
         fraction = segment / self.segments
         return self.stems.radius_start * (1 - fraction) + self.stems.radius_end * fraction
 
-    def append_splits(
-        self,
-        stems: StemRows,
-        step: int,
-        parent_rows: np.ndarray,
-        co_second: np.ndarray,
-        radius_first: np.ndarray,
-        radius_second: np.ndarray,
-    ) -> None:
-        """New rows that split off at `step` from `parent_rows`: their first point is the parent's point there."""
-        count = len(stems)
+    def append_splits(self, batch: SplitBatch) -> None:
+        """New rows that split off at the batch's step: their first point is the parent's point there."""
+        count = len(batch.stems)
+        step = batch.step
         co = np.zeros((count, self.segments + 1, 3), dtype=np.float64)
-        co[:, step] = self.co[parent_rows, step]
-        co[:, step + 1] = co_second
+        co[:, step] = self.co[batch.parent_rows, step]
+        co[:, step + 1] = batch.co_second
         radius = np.zeros((count, self.segments + 1), dtype=np.float64)
-        radius[:, step] = radius_first
-        radius[:, step + 1] = radius_second
+        radius[:, step] = batch.radius_first
+        radius[:, step + 1] = batch.radius_second
         handles = np.full((count, self.segments + 1), self.handles, dtype=np.int8)
         handles[:, step] = HandleType.VECTOR
         self.co = np.concatenate([self.co, co])
@@ -195,7 +183,7 @@ class LevelGrid:
         self.h1 = np.concatenate([self.h1, handles])
         self.h2 = np.concatenate([self.h2, handles.copy()])
         self.dir0 = np.concatenate([self.dir0, np.zeros((count, 3))])
-        self.stems.append(stems)
+        self.stems.append(batch.stems)
 
     def remove(self, removed: np.ndarray) -> None:
         """Pruning removed the families of the given roots (one flag per root row): their splits are dropped and
@@ -203,28 +191,25 @@ class LevelGrid:
         stems = self.stems
         drop = stems.is_split & removed[stems.root]
         keep = np.flatnonzero(~drop)
+        renumbered = self._renumbered_splines(keep)
+        parent_rows = np.searchsorted(stems.spline, stems.parent_stem)  # a split's parent is in this level
+        stems.parent_stem = np.where(
+            stems.is_split, renumbered.spline[np.minimum(parent_rows, len(stems.spline) - 1)], stems.parent_stem
+        )
+        stems.spline = renumbered.spline
+        stems.removed = removed[stems.root]
+        self._select(keep)
+        self.next_spline = renumbered.first_split + int(np.count_nonzero(self.stems.is_split))
+
+    def _renumbered_splines(self, keep: np.ndarray) -> RenumberedSplines:
+        """Every row's spline index with the kept splits renumbered without gaps."""
+        stems = self.stems
         old_spline = stems.spline
         new_spline = old_spline.copy()
         kept_splits = np.flatnonzero(stems.is_split[keep])
         first_split = int(old_spline[stems.is_split].min()) if stems.is_split.any() else self.next_spline
         new_spline[keep[kept_splits]] = first_split + np.arange(len(kept_splits))
-        parent_rows = np.searchsorted(old_spline, stems.parent_stem)  # a split's parent is in this level
-        parent_stem = np.where(
-            stems.is_split, new_spline[np.minimum(parent_rows, len(old_spline) - 1)], stems.parent_stem
-        )
-        stems.spline = new_spline
-        stems.parent_stem = parent_stem
-        stems.removed = removed[stems.root]
-        trimmed = self._with(keep)
-        self.stems, self.co, self.radius, self.h1, self.h2, self.dir0 = (
-            trimmed.stems,
-            trimmed.co,
-            trimmed.radius,
-            trimmed.h1,
-            trimmed.h2,
-            trimmed.dir0,
-        )
-        self.next_spline = first_split + len(kept_splits)
+        return RenumberedSplines(first_split, new_spline)
 
     def flatten(self) -> FlatCurve:
         """The level's splines as flat float32 arrays in spline order, with their handles recalculated.

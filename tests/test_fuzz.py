@@ -9,7 +9,7 @@ import json
 import math
 import random
 import re
-import sys
+import statistics
 import time
 import unittest
 from typing import Any
@@ -20,8 +20,11 @@ from mathutils import Vector
 
 CASES = 100
 SEED = 20260929
-# A case taking longer than this many seconds fails (the slowest took 0.7 s): a slow build is a defect
-SLOW_CASE = 5.0
+# A case slower than SLOW_FACTOR times the median case and slower than SLOW_FLOOR seconds fails: a slow build is a
+# defect. The limit is relative because the cases run under the gate's coverage tracer, which slows every build
+# several times over and by how much depends on the machine; the run prints the median and the slowest case.
+SLOW_FACTOR = 8.0
+SLOW_FLOOR = 1.0
 
 # Unbounded counts are capped so each tree stays small; (low, high) per vector element or scalar.
 CAPS: dict[str, Any] = {
@@ -49,27 +52,12 @@ ANGLES = re.compile(r"(?i)angle|rotate|curve(V|Back)?$|leafangle")
 SKIP = {"leafDupliObj"}  # set explicitly (instanced leaves need an object)
 
 FACES_PER_LEAF = {"hex": 2, "rect": 1, "dFace": 1, "dVert": 0}
-BONE_NAME = re.compile(r"bone(\d{3})\.(\d{3})$")
-
-
-def tree_module():
-    return sys.modules[f"{helpers.MODULE}.model.tree"]
 
 
 class SettingsFuzz(unittest.TestCase):
     def setUp(self):
         self.rng = random.Random(SEED)
-        self.grown: list[tuple[int, int]] = []
-        grower = tree_module().TreeGrower
-        original = grower.grow
-
-        def recording_grow(grower_self, curve, scale):
-            grown = original(grower_self, curve, scale)
-            self.grown.append((len(grown.bone_map), len(curve.splines)))
-            return grown
-
-        grower.grow = recording_grow
-        self.addCleanup(setattr, grower, "grow", original)
+        self.grown = helpers.record_growth(self)
 
     def random_settings(self):
         rna = bpy.ops.curve.tree_add.get_rna_type()
@@ -129,33 +117,47 @@ class SettingsFuzz(unittest.TestCase):
     def test_random_settings(self):
         failures = []
         seen: dict[str, int] = {}
+        times: list[float] = []
+        cases: list[dict] = []
         for case in range(CASES):
             settings = self.random_settings()
+            cases.append(settings)
             for feature in self.features(settings):
                 seen[feature] = seen.get(feature, 0) + 1
             helpers.reset_scene()
-            leaf = bpy.data.objects.new("leaf_card", bpy.data.meshes.new("leaf_card"))
-            bpy.context.scene.collection.objects.link(leaf)
+            leaf = helpers.add_leaf_card()
             started = time.perf_counter()
             try:
-                result = bpy.ops.curve.tree_add(**settings, leafDupliObj="leaf_card", do_update=True)
+                result = bpy.ops.curve.tree_add(**settings, leafDupliObj=leaf.name, do_update=True)
                 self.assertEqual(result, {"FINISHED"})
                 self.check_tree(settings)
             except Exception as error:  # collect every failing case, then fail the test with all of them
                 failures.append(f"case {case}: {type(error).__name__}: {error}\n  {json.dumps(settings)}")
-            seconds = time.perf_counter() - started
-            print(f"fuzz case {case}: {seconds:.2f} s", flush=True)  # progress: a slow case shows which one it is
-            if seconds > SLOW_CASE:
-                failures.append(f"case {case}: took {seconds:.0f} s\n  {json.dumps(settings)}")
+            times.append(time.perf_counter() - started)
+            print(f"fuzz case {case}: {times[-1]:.2f} s", flush=True)  # progress: a slow case shows which one it is
+        failures += self.slow_cases(times, cases)
         self.assertEqual(failures, [], "\n".join(failures))
         self.assertEqual(len(self.grown), CASES)
         rare = {feature: count for feature, count in seen.items() if count < 5}
         self.assertEqual(rare, {}, f"features too rare to trust the run: {seen}")
         self.assertEqual(set(seen), set(self.FEATURES), "every feature occurs")
 
+    @staticmethod
+    def slow_cases(times, cases):
+        """The cases slower than SLOW_FACTOR times the median and SLOW_FLOOR seconds; prints the median and the
+        slowest case, so every run's log shows the margin."""
+        median = statistics.median(times)
+        slowest = max(range(len(times)), key=times.__getitem__)
+        print(f"fuzz: median {median:.2f} s, slowest {times[slowest]:.2f} s (case {slowest})", flush=True)
+        return [
+            f"case {case}: took {seconds:.1f} s, {seconds / median:.0f} times the median\n  {json.dumps(cases[case])}"
+            for case, seconds in enumerate(times)
+            if seconds > SLOW_FACTOR * median and seconds > SLOW_FLOOR
+        ]
+
     def check_tree(self, settings):
-        bone_links, splines = self.grown[-1]
-        self.assertEqual(bone_links, splines, "one bone link per spline")
+        model = self.grown[-1]
+        self.assertEqual(len(model.grown.bone_map), model.curve.spline_count, "one bone link per spline")
         self.assert_finite("tree_curves", [c for points in helpers.spline_points() for co, _r in points for c in co])
         for ob in bpy.data.objects:
             if ob.type == "MESH" and ob.name != "leaf_card":
@@ -171,11 +173,9 @@ class SettingsFuzz(unittest.TestCase):
         self.assertTrue(all(math.isfinite(v) for v in values), f"{name} has NaN or inf coordinates")
 
     def assert_bones_on_splines(self):
-        arm = next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
         splines = helpers.spline_points()
-        for bone in arm.data.bones:
-            match = BONE_NAME.match(bone.name)
-            if match:
-                spline, point = (int(g) for g in match.groups())
-                co = Vector(splines[spline][point][0])
+        for bone in helpers.armature().data.bones:
+            index = helpers.bone_index(bone.name)
+            if index is not None:
+                co = Vector(splines[index.spline][index.point][0])
                 self.assertLess((bone.head_local - co).length, 1e-4, bone.name)

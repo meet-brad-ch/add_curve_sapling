@@ -38,7 +38,9 @@ from typing import Any
 
 import bpy
 
-MODULE = "bl_ext.user_default.sapling_tree_gen"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from blender_env import MODULE  # noqa: E402  (needs the sys.path entry above)
+
 LINEAR = 2  # tree-gen leaf shape ids: 1 ovate, 2 linear, 3 cordate, ... 8 elliptic (default), 10 triangle
 DEFAULT_LEAF = 8
 NEUTRAL_RADIUS = [1, 1, 1, 1]

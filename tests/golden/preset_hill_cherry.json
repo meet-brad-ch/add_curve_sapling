@@ -602,7 +602,7 @@
   "baseSize": 0.15,
   "baseSize_s": 0.13333333333333333,
   "baseSplits": 0,
-  "bend": 0,
+  "bend": 0.0,
   "bevel": true,
   "bevelRes": 1,
   "branchDist": 1.0,

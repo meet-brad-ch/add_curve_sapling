@@ -4,10 +4,10 @@
 
 Each leaf is a template (in leaf space, growing along +z) scaled and turned by a chain of rotations. The chain
 is composed into one matrix per leaf (rotations.py) and applied to every template vertex in one array
-operation; placing 72,000 leaves one vertex at a time took 1.5 s. The random draws stay per leaf, in leaf order
-(turn, down angle, scale), so the rest of the tree draws the same numbers as before.
+operation. The random draws stay per leaf, in leaf order (turn, down angle, scale).
 """
 
+from dataclasses import dataclass
 from math import copysign, pi, radians
 from random import Random
 
@@ -18,6 +18,14 @@ from .rotations import Rotation
 from .sprouting import SproutArrays
 
 
+@dataclass(frozen=True, slots=True)
+class LeafTemplate:
+    """One leaf's geometry in leaf space: vertices (V, 3) float64 and faces (F, 4) int32 into them."""
+
+    vertices: np.ndarray
+    faces: np.ndarray
+
+
 class LeafShape:
     """Template geometry of one leaf, in leaf space (the leaf grows along +z)."""
 
@@ -26,41 +34,47 @@ class LeafShape:
     INSTANCE_FACES = "dFace"
     INSTANCE_POINTS = "dVert"
 
-    MESH = (HEX, RECT)
-    INSTANCED = (INSTANCE_FACES, INSTANCE_POINTS)
+    MESH = [HEX, RECT]
+    INSTANCED = [INSTANCE_FACES, INSTANCE_POINTS]
     VERTS_PER_LEAF = {HEX: 6, RECT: 4, INSTANCE_FACES: 4, INSTANCE_POINTS: 1}
     # Face instancing scales each instance by its face size times this; leaf faces are made this much smaller
     FACE_INSTANCE_SCALE = 10.0
     _VERTICES = {
-        HEX: ((0, 0, 0), (0.5, 0, 1 / 3), (0.5, 0, 2 / 3), (0, 0, 1), (-0.5, 0, 2 / 3), (-0.5, 0, 1 / 3)),
-        RECT: ((0.5, 0, 0), (0.5, 0, 1), (-0.5, 0, 1), (-0.5, 0, 0)),
-        INSTANCE_FACES: ((0.5, 0.5, 0), (0.5, -0.5, 0), (-0.5, -0.5, 0), (-0.5, 0.5, 0)),
-        INSTANCE_POINTS: ((0, 0, 1),),
+        HEX: [[0, 0, 0], [0.5, 0, 1 / 3], [0.5, 0, 2 / 3], [0, 0, 1], [-0.5, 0, 2 / 3], [-0.5, 0, 1 / 3]],
+        RECT: [[0.5, 0, 0], [0.5, 0, 1], [-0.5, 0, 1], [-0.5, 0, 0]],
+        INSTANCE_FACES: [[0.5, 0.5, 0], [0.5, -0.5, 0], [-0.5, -0.5, 0], [-0.5, 0.5, 0]],
+        INSTANCE_POINTS: [[0, 0, 1]],
     }
     _FACES = {
-        HEX: ((0, 1, 2, 3), (0, 3, 4, 5)),
-        RECT: ((0, 1, 2, 3),),
-        INSTANCE_FACES: ((0, 3, 2, 1),),
-        INSTANCE_POINTS: (),
+        HEX: [[0, 1, 2, 3], [0, 3, 4, 5]],
+        RECT: [[0, 1, 2, 3]],
+        INSTANCE_FACES: [[0, 3, 2, 1]],
+        INSTANCE_POINTS: [],
     }
 
     @classmethod
-    def template(cls, shape: str) -> tuple[np.ndarray, np.ndarray]:
-        """(vertices (V, 3) float64, faces (F, 4) int32) of a leaf of the given shape."""
+    def template(cls, shape: str) -> LeafTemplate:
+        """The vertices and faces of a leaf of the given shape; raises ValueError for an unknown shape."""
         if shape not in cls._VERTICES:
             raise ValueError(f"unknown leaf shape {shape}")
-        return np.array(cls._VERTICES[shape], dtype=np.float64), np.array(cls._FACES[shape], dtype=np.int32).reshape(
-            -1, 4
-        )
+        faces = np.array(cls._FACES[shape], dtype=np.int32).reshape(-1, 4)
+        return LeafTemplate(np.array(cls._VERTICES[shape], dtype=np.float64), faces)
+
+    @classmethod
+    def verts_per_leaf(cls, shape: str) -> int:
+        """How many vertices a leaf of the shape adds (1 for Instance Points); ValueError for an unknown shape."""
+        if shape not in cls.VERTS_PER_LEAF:
+            raise ValueError(f"unknown leaf shape {shape}")
+        return cls.VERTS_PER_LEAF[shape]
 
 
 class LeafSet:
-    """The generated leaves as arrays, and per leaf the bone it hangs from.
+    """The generated leaves as arrays, and per leaf the parent stem and point it hangs from.
 
     vertices (V, 3) float32: the leaf meshes' points (one point per leaf for Instance Points); faces (F, 4) int32
     into vertices; normals (L, 3) float32: each leaf's direction (Instance Points only, else empty); sprout_co
-    (L, 3) float32; parent_bones: per leaf, the name of the parent bone (a fan repeats its sprout's), and
-    parent_spline/parent_point (L,) the same as arrays.
+    (L, 3) float32; parent_spline/parent_point (L,): the parent's spline and the segment of the sprout (a fan
+    repeats its sprout's).
     """
 
     def __init__(
@@ -70,7 +84,6 @@ class LeafSet:
         faces: np.ndarray,
         normals: np.ndarray,
         sprout_co: np.ndarray,
-        parent_bones: list[str],
         parent_spline: np.ndarray,
         parent_point: np.ndarray,
     ) -> None:
@@ -79,35 +92,42 @@ class LeafSet:
         self.faces = faces
         self.normals = normals
         self.sprout_co = sprout_co
-        self.parent_bones = parent_bones
         self.parent_spline = parent_spline
         self.parent_point = parent_point
 
     @property
     def count(self) -> int:
         """How many leaves."""
-        return len(self.parent_bones)
+        return len(self.parent_spline)
 
     @property
     def verts_per_leaf(self) -> int:
         """How many vertices each leaf adds to `vertices` (1 for Instance Points), for per-leaf indexing."""
-        return LeafShape.VERTS_PER_LEAF[self.shape]
+        return LeafShape.verts_per_leaf(self.shape)
+
+
+@dataclass(frozen=True, slots=True)
+class LeafDraw:
+    """What one leaf's random draws and its sprout decided."""
+
+    sprout: int  # the index of the sprout the leaf grows from
+    spin: float  # the rotation about the stem the leaf starts from
+    rotation: float  # the rotation after this leaf's turn
+    down: float
+    scale: float
 
 
 class LeafPlacement:
-    """Per leaf, what its random draws and its sprout decided: arrays of length L, in leaf order."""
+    """The leaves' draws as arrays of length L, in leaf order, with their sprouts' positions and frames."""
 
-    def __init__(self, sprouts: SproutArrays, index: list[int], rows: list[tuple[float, float, float, float]]) -> None:
-        self.index = np.array(index, dtype=np.int64)
-        values = np.array(rows, dtype=np.float64).reshape(-1, 4)
-        self.spin = values[:, 0]  # the rotation about the stem the leaf starts from
-        self.rotation = values[:, 1]  # the rotation after this leaf's turn
-        self.down = values[:, 2]
-        self.scale = values[:, 3]
+    def __init__(self, sprouts: SproutArrays, draws: list[LeafDraw]) -> None:
+        self.index = np.array([draw.sprout for draw in draws], dtype=np.int64)
+        self.spin = np.array([draw.spin for draw in draws], dtype=np.float64)
+        self.rotation = np.array([draw.rotation for draw in draws], dtype=np.float64)
+        self.down = np.array([draw.down for draw in draws], dtype=np.float64)
+        self.scale = np.array([draw.scale for draw in draws], dtype=np.float64)
         self.co = sprouts.co[self.index]
         self.frame = sprouts.frame[self.index]
-        bones = sprouts.parent_bones()
-        self.parent_bones = [bones[i] for i in index]
         self.parent_spline = sprouts.parent_spline[self.index]
         self.parent_point = sprouts.parent_point[self.index]
 
@@ -123,10 +143,10 @@ class LeafGenerator:
         """The leaves of all sprouts, in sprout order: one per sprout, or a fan of |leaves| for a negative count."""
         p = self.params
         placement = self._place(sprouts)
-        verts, faces = LeafShape.template(p.leaf_shape)
+        template = LeafShape.template(p.leaf_shape)
         matrices = Rotation.compose(*self._turns(placement))
         scale = placement.scale
-        scaled = verts[None, :, :] * np.stack([p.leaf_scale_x * scale, scale, scale], axis=1)[:, None, :]
+        scaled = template.vertices[None, :, :] * np.stack([p.leaf_scale_x * scale, scale, scale], axis=1)[:, None, :]
         placed = np.einsum("lij,lvj->lvi", matrices, scaled)
         count = len(placement.index)
         if p.leaf_shape == LeafShape.INSTANCE_POINTS:
@@ -136,15 +156,14 @@ class LeafGenerator:
         else:
             vertices = (placed + placement.co[:, None, :]).reshape(-1, 3)
             normals = np.zeros((0, 3), dtype=np.float64)
-            offsets = (len(verts) * np.arange(count, dtype=np.int32))[:, None, None]
-            all_faces = (faces[None, :, :] + offsets).reshape(-1, 4)
+            offsets = (len(template.vertices) * np.arange(count, dtype=np.int32))[:, None, None]
+            all_faces = (template.faces[None, :, :] + offsets).reshape(-1, 4)
         return LeafSet(
             p.leaf_shape,
             vertices.astype(np.float32),
             all_faces.astype(np.int32),
             normals.astype(np.float32),
             placement.co.astype(np.float32),
-            placement.parent_bones,
             placement.parent_spline,
             placement.parent_point,
         )
@@ -153,34 +172,30 @@ class LeafGenerator:
         """Every leaf's draws, in leaf order; the leaf rotation carries over from one sprout to the next (a fan
         restarts it)."""
         p = self.params
-        index: list[int] = []
-        rows: list[tuple[float, float, float, float]] = []
+        draws: list[LeafDraw] = []
         rotation = 0.0
         for i, offset in enumerate(sprouts.offset.tolist()):
             if p.leaves < 0:
                 rotation = -p.leaf_rotate / 2
                 for _ in range(-p.leaves):
-                    rotation = self._place_one(i, offset, rotation, index, rows)
+                    rotation = self._place_one(i, offset, rotation, draws)
             else:
-                rotation = self._place_one(i, offset, rotation, index, rows)
-        return LeafPlacement(sprouts, index, rows)
+                rotation = self._place_one(i, offset, rotation, draws)
+        return LeafPlacement(sprouts, draws)
 
-    def _place_one(
-        self,
-        sprout: int,
-        offset: float,
-        rotation: float,
-        index: list[int],
-        rows: list[tuple[float, float, float, float]],
-    ) -> float:
-        """One leaf's draws, in this order: the turn around the stem, the down angle, the scale."""
+    def _place_one(self, sprout: int, offset: float, rotation: float, draws: list[LeafDraw]) -> float:
+        """One leaf's draws, in this order: the turn around the stem, the down angle, the scale; returns the
+        rotation the next leaf continues from."""
         spin = 0.0 if self.params.leaves == -1 else rotation  # a fan of one leaf does not spin
         rotation = self._turn(rotation)
         down = self._down(offset)
         scale = self._scale(offset, rotation)
-        index.append(sprout)
-        rows.append((spin, rotation, down, scale))
+        draws.append(LeafDraw(sprout, spin, rotation, down, scale))
         return rotation
+
+    def _fan_step(self) -> float:
+        """The angle between the leaves of a palmate fan."""
+        return self.params.leaf_rotate / (-self.params.leaves - 1)
 
     def _turn(self, rotation: float) -> float:
         """The rotation the next leaf continues from."""
@@ -193,7 +208,7 @@ class LeafGenerator:
         if count == -1:
             return rotation
         if count < -1:
-            return rotation + rotate / (-count - 1)
+            return rotation + self._fan_step()
         return rotation + rotate + self.rng.uniform(-p.leaf_rotate_v, p.leaf_rotate_v)
 
     def _down(self, offset: float) -> float:
@@ -213,7 +228,7 @@ class LeafGenerator:
         count = p.leaves
         rotate = p.leaf_rotate
         if (count < -1) and (rotate != 0):
-            f = 1 - abs((rotation - (rotate / (-count - 1))) / (rotate / 2))
+            f = 1 - abs((rotation - self._fan_step()) / (rotate / 2))
         else:
             f = offset
         if p.leaf_scale_t < 0:
@@ -228,20 +243,35 @@ class LeafGenerator:
     def _turns(self, placement: LeafPlacement) -> list[np.ndarray]:
         """The rotations every vertex of each leaf gets, in order (a turn that does not apply is the identity)."""
         p = self.params
+        turns = [Rotation.about(np.array(pi), "Z"), Rotation.about(np.array(radians(-p.leaf_angle)), "X")]
+        turns += self._alternating_turns(placement)
+        turns += self._orientation_turns(placement)
+        if (p.leaf_bend != 0.0) and (p.leaves > 0):
+            turns.extend(self._bend(placement))
+        return turns
+
+    def _alternating_turns(self, placement: LeafPlacement) -> list[np.ndarray]:
+        """A negative Leaf Rotate Angle puts the leaves on alternating sides: a quarter turn, then a half turn
+        for the leaves whose rotation is negative."""
+        if self.params.leaf_rotate >= 0:
+            return []
+        return [
+            Rotation.about(np.array(pi / 2), "Z"),
+            Rotation.about(np.where(placement.rotation < 0, pi, 0.0), "Z"),
+        ]
+
+    def _orientation_turns(self, placement: LeafPlacement) -> list[np.ndarray]:
+        """Horizontal Leaves, the down angle, the spin about the stem and the sprout's frame."""
+        p = self.params
         count = p.leaves
         rotate = p.leaf_rotate
-        turns = [Rotation.about(np.array(pi), "Z"), Rotation.about(np.array(radians(-p.leaf_angle)), "X")]
-        if rotate < 0:
-            turns.append(Rotation.about(np.array(pi / 2), "Z"))
-            turns.append(Rotation.about(np.where(placement.rotation < 0, pi, 0.0), "Z"))
+        turns = []
         if (count > 0) and (rotate > 0) and p.horizontal_leaves:
             turns.append(Rotation.about(-placement.rotation + rotate, "Z"))
         if count > 0:
             turns.append(Rotation.about(placement.down, "X"))
         turns.append(Rotation.about(placement.spin, "Y" if count < 0 else "Z"))
         turns.append(placement.frame)
-        if (p.leaf_bend != 0.0) and (count > 0):
-            turns.extend(self._bend(placement))
         return turns
 
     def _bend(self, placement: LeafPlacement) -> list[np.ndarray]:

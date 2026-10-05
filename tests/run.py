@@ -16,16 +16,22 @@ import bpy
 TESTS = Path(__file__).resolve().parent
 BUILD = TESTS.parent / "build"
 sys.path.insert(0, str(TESTS))
+sys.path.insert(0, str(TESTS.parent / "tools"))  # blender_env: the add-on's module name
 
-import helpers  # noqa: E402  (needs the sys.path entry above)
+import helpers  # noqa: E402  (needs the sys.path entries above)
 
 
 def main() -> int:
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     patterns = [a.removeprefix("-k=") for a in argv if a.startswith("-k=")]
-    helpers.RECORD_GOLDEN = "--record-golden" in argv
-    named = ("--line-min=", "--branch-min=", "--site=")
-    options = dict(a.removeprefix("--").split("=", 1) for a in argv if a.startswith(named))
+    helpers.Golden.record = "--record-golden" in argv
+    options = {}
+    for argument in argv:
+        if argument.startswith(("--line-min=", "--branch-min=", "--site=")):
+            name, value = argument.removeprefix("--").split("=", 1)
+            options[name] = value
+    if ("site" in options) != ({"line-min", "branch-min"} <= options.keys()):
+        raise SystemExit("--site, --line-min and --branch-min go together")
     coverage = start_coverage(options["site"]) if "site" in options else None
 
     bpy.ops.preferences.addon_enable(module=helpers.MODULE)

@@ -7,10 +7,9 @@ VECTOR handles of a spline follow from its points' positions (recalculated here 
 once); all of it is float32. build/ writes the arrays to Blender in bulk.
 """
 
-from collections.abc import Iterator
+from dataclasses import dataclass
 
 import numpy as np
-from mathutils import Vector
 
 
 class HandleType:
@@ -19,14 +18,24 @@ class HandleType:
     FREE = 0
     AUTO = 1
     VECTOR = 2
-    NAMES = ("FREE", "AUTO", "VECTOR")
 
-    @classmethod
-    def code(cls, name: str) -> int:
-        """The number of a handle type; raises ValueError for one the model does not use."""
-        if name not in cls.NAMES:
-            raise ValueError(f"handle type {name} is not used by the model (only {', '.join(cls.NAMES)})")
-        return cls.NAMES.index(name)
+
+@dataclass(frozen=True, slots=True)
+class HandleSides:
+    """Which points have an AUTO handle on their left (towards the previous point) and right side."""
+
+    left: np.ndarray
+    right: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class Neighbours:
+    """Every point's vector from the previous point and to the next one, with their lengths."""
+
+    to_point: np.ndarray
+    from_point: np.ndarray
+    length_to: np.ndarray
+    length_from: np.ndarray
 
 
 class AutoHandles:
@@ -77,10 +86,9 @@ class AutoHandles:
         len_b = cls.length(dvec_b)
         len_a[len_a == 0] = cls.ONE
         len_b[len_b == 0] = cls.ONE
-        auto1 = h1 == HandleType.AUTO
-        auto2 = h2 == HandleType.AUTO
-        if (auto1 | auto2).any():
-            cls._auto(co, left, right, (auto1, auto2), (dvec_a, dvec_b), (len_a, len_b))
+        auto = HandleSides(h1 == HandleType.AUTO, h2 == HandleType.AUTO)
+        if (auto.left | auto.right).any():
+            cls._auto(co, left, right, auto, Neighbours(dvec_a, dvec_b, len_a, len_b))
         vector1 = h1 == HandleType.VECTOR
         left[vector1] = co[vector1] + dvec_a[vector1] * cls.MINUS_THIRD
         vector2 = h2 == HandleType.VECTOR
@@ -88,26 +96,18 @@ class AutoHandles:
 
     @classmethod
     def _auto(
-        cls,
-        co: np.ndarray,
-        left: np.ndarray,
-        right: np.ndarray,
-        auto: tuple[np.ndarray, np.ndarray],
-        dvec: tuple[np.ndarray, np.ndarray],
-        lengths: tuple[np.ndarray, np.ndarray],
+        cls, co: np.ndarray, left: np.ndarray, right: np.ndarray, auto: HandleSides, neighbours: Neighbours
     ) -> None:
         """AUTO sides: along the mean direction of both neighbours, scaled by the neighbour distances."""
-        auto1, auto2 = auto
-        dvec_a, dvec_b = dvec
-        len_a, len_b = lengths
-        tvec = dvec_b / len_b[:, None] + dvec_a / len_a[:, None]
+        n = neighbours
+        tvec = n.from_point / n.length_from[:, None] + n.to_point / n.length_to[:, None]
         length = cls.length(tvec) * cls.AUTO_SCALE
         usable = length != 0
         safe = np.where(usable, length, cls.ONE)
-        limited_a = np.minimum(len_a, cls.FIVE * len_b)
-        limited_b = np.minimum(len_b, cls.FIVE * limited_a)
-        side1 = usable & auto1
-        side2 = usable & auto2
+        limited_a = np.minimum(n.length_to, cls.FIVE * n.length_from)
+        limited_b = np.minimum(n.length_from, cls.FIVE * limited_a)
+        side1 = usable & auto.left
+        side2 = usable & auto.right
         left[side1] = co[side1] + tvec[side1] * (-(limited_a / safe))[side1, None]
         right[side2] = co[side2] + tvec[side2] * (limited_b / safe)[side2, None]
 
@@ -169,114 +169,22 @@ class FlatCurve:
         )
 
 
-class FlatPoint:
-    """One point of a spline, read like Blender's BezierSplinePoint (read-only: the arrays are final)."""
-
-    __slots__ = ("_flat", "_index")
-
-    def __init__(self, flat: FlatCurve, index: int) -> None:
-        self._flat = flat
-        self._index = index
-
-    @property
-    def co(self) -> Vector:
-        """The position."""
-        return Vector(self._flat.co[self._index].tolist())
-
-    @property
-    def handle_left(self) -> Vector:
-        """The handle towards the previous point."""
-        return Vector(self._flat.left[self._index].tolist())
-
-    @property
-    def handle_right(self) -> Vector:
-        """The handle towards the next point."""
-        return Vector(self._flat.right[self._index].tolist())
-
-    @property
-    def handle_left_type(self) -> str:
-        """FREE, AUTO or VECTOR."""
-        return HandleType.NAMES[self._flat.h1[self._index]]
-
-    @property
-    def handle_right_type(self) -> str:
-        """FREE, AUTO or VECTOR."""
-        return HandleType.NAMES[self._flat.h2[self._index]]
-
-    @property
-    def radius(self) -> float:
-        """The branch radius at this point."""
-        return float(self._flat.radius[self._index])
-
-
-class FlatPoints:
-    """A spline's points (Blender's spline.bezier_points): indexing and length."""
-
-    def __init__(self, flat: FlatCurve, start: int, end: int) -> None:
-        self._flat = flat
-        self._start = start
-        self._end = end
-
-    def __len__(self) -> int:
-        return self._end - self._start
-
-    def __getitem__(self, index: int) -> FlatPoint:
-        count = len(self)
-        position = index + count if index < 0 else index
-        if not 0 <= position < count:
-            raise IndexError(f"point {index} of a spline with {count} points")
-        return FlatPoint(self._flat, self._start + position)
-
-
-class FlatSpline:
-    """One spline of the curve: its columns as array slices, and its points."""
-
-    def __init__(self, curve: "CurveData", flat: FlatCurve, index: int) -> None:
-        self.id_data = curve
-        start, end = int(flat.start[index]), int(flat.start[index + 1])
-        self.co = flat.co[start:end]
-        self.left = flat.left[start:end]
-        self.right = flat.right[start:end]
-        self.h1 = flat.h1[start:end]
-        self.h2 = flat.h2[start:end]
-        self.radius = flat.radius[start:end]
-        self.bezier_points = FlatPoints(flat, start, end)
-
-
-class FlatSplines:
-    """The curve's splines (Blender's curve.splines): indexing, length and iteration."""
-
-    def __init__(self, curve: "CurveData", flat: FlatCurve) -> None:
-        self._curve = curve
-        self._flat = flat
-
-    def __len__(self) -> int:
-        return len(self._flat.start) - 1
-
-    def __getitem__(self, index: int) -> FlatSpline:
-        count = len(self)
-        position = index + count if index < 0 else index
-        if not 0 <= position < count:
-            raise IndexError(f"spline {index} of a curve with {count} splines")
-        return FlatSpline(self._curve, self._flat, position)
-
-    def __iter__(self) -> Iterator[FlatSpline]:
-        return (self[i] for i in range(len(self)))
-
-
 class CurveData:
     """The tree's curve in memory: its splines, in the order they are grown, held as flat arrays."""
 
-    def __init__(self, flat: FlatCurve | None = None) -> None:
-        self._flat = flat if flat is not None else FlatCurve.empty()
-        self.splines = FlatSplines(self, self._flat)
+    def __init__(self) -> None:
+        self._flat = FlatCurve.empty()
+
+    @property
+    def spline_count(self) -> int:
+        """How many splines the curve has."""
+        return len(self._flat.start) - 1
 
     def load(self, flat: FlatCurve) -> None:
         """Become the curve the flat arrays describe (only an empty curve can be loaded)."""
-        if len(self.splines):
+        if self.spline_count:
             raise RuntimeError("only an empty curve can be loaded from flat arrays")
         self._flat = flat
-        self.splines = FlatSplines(self, flat)
 
     def flatten(self) -> FlatCurve:
         """The curve's flat arrays, as build/ writes them."""
