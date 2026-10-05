@@ -20,7 +20,7 @@
   },
   "leaves": {
    "data": {
-    "co": "cbba77ddb7e0719d",
+    "co": "3abd1ab780bd43b9",
     "edges": 32634,
     "faces": 9324,
     "topology": "f61b527d417ea3d5",
@@ -689,7 +689,7 @@
   ],
   "leafDist": "3",
   "leafDownAngle": 45.0,
-  "leafDownAngleV": 30.0,
+  "leafDownAngleV": -30.0,
   "leafFlutter": false,
   "leafMaterial": true,
   "leafRotate": 77.0,

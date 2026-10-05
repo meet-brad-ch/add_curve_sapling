@@ -3,7 +3,7 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "4d0d2798f0ddc3ae",
+    "co": "9315ef86b23ebf5b",
     "edges": 609490,
     "faces": 174140,
     "topology": "c1fcc1fc95957171",
@@ -4633,7 +4633,7 @@
   ],
   "leafDist": "3",
   "leafDownAngle": 45.0,
-  "leafDownAngleV": 10.0,
+  "leafDownAngleV": -10.0,
   "leafFlutter": false,
   "leafMaterial": true,
   "leafRotate": 140.0,
