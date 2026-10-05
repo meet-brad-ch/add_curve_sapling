@@ -4,8 +4,8 @@
 
 Leaf Animation used to make a bone, a vertex group and two F-curves per leaf; Blender's cost to create each
 grows with how many there already are, so doubling the leaves made the leaf part about 4 times slower and
-big trees took minutes. Measured now (Quaking Aspen, 3 levels, branches 50/30/10): the leaf part takes
-0.125, 0.25 and 0.465 s for 20, 40 and 80 leaves per sprout (9,676 to 38,730 leaves).
+big trees took minutes. The leaf part is timed inside the build (the leaf stages), not as a difference of
+whole builds: the rig's own time varies by more than the leaf part now takes.
 """
 
 import math
@@ -15,33 +15,64 @@ import unittest
 import bpy
 import helpers
 
-# Leaf part at 80 leaves per sprout over the part at 40: about 1.9 measured, 2 if linear, 4 if quadratic
+# Leaf stages at 80 leaves per sprout over the stages at 40: 2 if linear, 4 if quadratic
 MAX_RATIO = 2.6
+
+
+class StageTimer:
+    """Adds up the time spent in the given methods while a tree is built (patched for the test's duration)."""
+
+    def __init__(self, test: unittest.TestCase, stages: tuple[tuple[str, str, str], ...]) -> None:
+        self.total = 0.0
+        for module_name, class_name, method_name in stages:
+            owner = getattr(helpers.module(module_name), class_name)
+            raw = owner.__dict__[method_name]
+            function = raw.__func__ if isinstance(raw, staticmethod | classmethod) else raw
+            timed = self._timed(function)
+            setattr(owner, method_name, type(raw)(timed) if isinstance(raw, staticmethod | classmethod) else timed)
+            test.addCleanup(setattr, owner, method_name, raw)
+
+    def _timed(self, function):
+        def timed(*args, **kwargs):
+            started = time.perf_counter()
+            try:
+                return function(*args, **kwargs)
+            finally:
+                self.total += time.perf_counter() - started
+
+        return timed
 
 
 class LeafScaling(unittest.TestCase):
     RUNS = 2  # the shortest of these runs counts, which keeps other load on the machine out of the ratio
+    STAGES = (
+        ("model.leaves", "LeafGenerator", "generate"),
+        ("build.leaf_object", "LeafObjectBuilder", "build"),
+        ("build.leaf_object", "LeafObjectBuilder", "finish"),
+        ("build.armature", "ArmatureBuilder", "_leaf_groups"),  # vertex groups and the flutter
+    )
 
-    def build_time(self, leaves):
+    def leaf_time(self, leaves):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(
-            levels=3, branches=(0, 50, 30, 10), leaves=leaves, showLeaves=leaves > 0,
+            levels=3, branches=(0, 50, 30, 10), leaves=leaves, showLeaves=True,
             useRig=True, windAnim=True, leafFlutter=True,
         )  # fmt: skip
         times = []
         with helpers.untraced():
             for _ in range(self.RUNS):
                 helpers.reset_scene()
-                started = time.perf_counter()
+                timer = StageTimer(self, self.STAGES)
                 self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-                times.append(time.perf_counter() - started)
+                times.append(timer.total)
+                self.doCleanups()
         return min(times)
 
     def test_leaf_build_is_linear(self):
-        bare = self.build_time(0)
-        half = self.build_time(40) - bare
-        full = self.build_time(80) - bare
-        self.assertLess(full / half, MAX_RATIO, f"leaf part {half:.3f} s at 40 leaves, {full:.3f} s at 80")
+        half = self.leaf_time(40)
+        full = self.leaf_time(80)
+        self.assertGreater(half, 0.0)
+        self.assertLess(full / half, MAX_RATIO, f"leaf stages {half:.3f} s at 40 leaves, {full:.3f} s at 80")
 
 
 class ModelSpeed(unittest.TestCase):
@@ -64,7 +95,7 @@ class ModelSpeed(unittest.TestCase):
         with helpers.untraced():
             for _ in range(self.RUNS):
                 started = time.perf_counter()
-                grown = grower(params, random.Random(params.seed)).grow(curve_class(), None, params.scale)
+                grown = grower(params, random.Random(params.seed)).grow(curve_class(), params.scale)
                 times.append(time.perf_counter() - started)
         self.assertGreater(grown.level_ends[-1], 1000)
         self.assertLess(min(times), self.LIMIT, f"model time {min(times):.3f} s for {grown.level_ends[-1]} stems")

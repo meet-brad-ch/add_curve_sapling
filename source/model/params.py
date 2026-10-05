@@ -5,6 +5,8 @@
 from math import radians
 from typing import Any, Literal
 
+import numpy as np
+
 from .geometry import Angles, Bezier, CrownShape
 
 
@@ -137,3 +139,7 @@ class TreeParams:
     def envelope(self, ratio: float) -> float:
         """Pruning envelope width factor at a height ratio of the envelope."""
         return CrownShape.envelope(ratio, self.prune_width_peak, self.prune_power_high, self.prune_power_low)
+
+    def envelopes(self, ratio: np.ndarray) -> np.ndarray:
+        """envelope() for an array of height ratios."""
+        return CrownShape.envelopes(ratio, self.prune_width_peak, self.prune_power_high, self.prune_power_low)

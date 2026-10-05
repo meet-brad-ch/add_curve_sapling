@@ -171,6 +171,15 @@ class CrownShape:
         return 0.0
 
     @staticmethod
+    def envelopes(ratio: np.ndarray, peak: float, power_high: float, power_low: float) -> np.ndarray:
+        """envelope() for an array of ratios."""
+        r = np.asarray(ratio, dtype=np.float64)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            rising = (np.clip(r, 0.0, None) / (1 - peak)) ** power_high
+            falling = (np.clip(1 - r, 0.0, None) / peak) ** power_low
+        return np.where((r < 1 - peak) & (r > 0.0), rising, np.where((r >= 1 - peak) & (r < 1.0), falling, 0.0))
+
+    @staticmethod
     def _flame(ratio: float) -> float:
         if ratio <= 0.7:
             return 0.05 + 0.95 * ratio / 0.7

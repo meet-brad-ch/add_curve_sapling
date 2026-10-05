@@ -19,7 +19,7 @@ def grow(**changes):
     params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
     curve = helpers.module("model.curve_data").CurveData()
     grower = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed))
-    grown = grower.grow(curve, curve.__class__() if params.prune else None, params.scale)
+    grown = grower.grow(curve, params.scale)
     return params, curve, grown
 
 
@@ -157,10 +157,66 @@ class CrownShapes(unittest.TestCase):
             self.assertAlmostEqual(value, geometry.Angles.mean(x, y, 0.3), places=9)
 
 
-class PrunedPathStillGrows(unittest.TestCase):
-    def test_pruned_tree_gives_the_same_structures(self):
-        """With pruning, the per-stem path still produces the same kinds of results."""
-        _, curve, grown = grow(preset="callistemon", prune=True)
-        self.assertEqual(len(grown.bone_map), len(curve.splines))
-        self.assertGreater(grown.sprouts.count, 10)
-        self.assertEqual(len(grown.sprouts.parent_bones()), grown.sprouts.count)
+class PrunedTrees(unittest.TestCase):
+    """Pruning on the grid: the kept stems fit the envelope, the removed ones are stubs without sprouts."""
+
+    def test_kept_stems_end_near_or_inside_the_envelope(self):
+        """The search settles on an interval midpoint and the envelope is not monotone along a stem, so a few ends
+        overshoot a little: measured 13-18 % outside, worst 1.13-1.31 x the limit, for this search and the per-stem
+        search before it. Without pruning most ends are far outside."""
+        for preset, changes in (("callistemon", {}), ("quaking_aspen", {"pruneWidth": 0.25})):
+            with self.subTest(preset=preset):
+                params, curve, grown = grow(preset=preset, prune=True, pruneRatio=1.0, **changes)
+                over = self.overshoots(params, curve, grown)
+                self.assertGreater(len(over), 100)
+                self.assertLess(
+                    (over > 1.0).mean(), 0.25, f"{100 * (over > 1.0).mean():.0f} % of the stem ends outside"
+                )
+                self.assertLess(over.max(), 1.35, f"worst end {over.max():.2f} x the envelope")
+
+    @staticmethod
+    def overshoots(params, curve, grown):
+        """Per kept stem end, its distance from the axis over the envelope's limit there (1 = on the envelope)."""
+        flat = curve.flatten()
+        scale = params.scale
+        ends = flat.co[flat.start[1:] - 1].astype(np.float64)
+        sizes = flat.sizes
+        over = []
+        for i, end in enumerate(ends):
+            level = grown.level_of(i)
+            if sizes[i] < 2 or (level == 0 and end[2] < params.prune_base_clamped * scale):
+                continue
+            ratio = (scale - end[2]) / (scale * max(1 - params.prune_base_clamped, 1e-6))
+            limit = params.prune_width * params.envelope(ratio)
+            if limit > 0:
+                over.append(np.hypot(end[0], end[1]) / scale / limit)
+        return np.array(over)
+
+    def test_removed_stems_are_stubs_without_sprouts(self):
+        params, curve, grown = grow(preset="quaking_aspen", prune=True, pruneRatio=1.0, pruneWidth=0.25)
+        flat = curve.flatten()
+        removed = [i for i in range(1, len(flat.sizes)) if flat.sizes[i] == 1]
+        self.assertGreater(len(removed), 10)
+        bone_name = helpers.module("model.stem").BoneName
+        parents = {bone_name.spline(link.bone) for link in grown.bone_map if link.bone}
+        self.assertFalse(set(removed) & parents, "no stem hangs from a removed stem")
+        self.assertFalse(set(removed) & set(grown.sprouts.parent_spline.tolist()), "no leaf sprouts on a removed stem")
+        for i in removed:
+            point = curve.splines[i].bezier_points[0]
+            self.assertEqual((point.handle_left_type, point.handle_right_type), ("FREE", "FREE"))
+            # the stub's handles are its start and its start direction: never uninitialized memory
+            self.assertEqual(tuple(point.handle_left), (0.0, 0.0, 0.0))
+            self.assertLess((point.handle_right - point.co).length, 1.001)
+        self.assertEqual(len(grown.bone_map), len(flat.sizes))
+
+    def test_two_growths_are_identical(self):
+        """The same settings give the same arrays, bit for bit, every time."""
+        _, first, _ = grow(preset="cambridge_oak")
+        _, second, _ = grow(preset="cambridge_oak")
+        a, b = first.flatten(), second.flatten()
+        for name in ("co", "left", "right", "radius", "h1", "h2", "start"):
+            np.testing.assert_array_equal(getattr(a, name), getattr(b, name), err_msg=name)
+
+    def test_partial_ratio_keeps_every_stem(self):
+        params, curve, grown = grow(preset="quaking_aspen", prune=True, pruneRatio=0.5, pruneWidth=0.25)
+        self.assertTrue((curve.flatten().sizes >= 2).all())

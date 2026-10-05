@@ -1,145 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Where child stems and leaves sprout along a grown stem."""
+"""Where child stems and leaves sprout along the grown stems of a level."""
 
 from math import floor
-from random import Random
 
 import numpy as np
-from mathutils import Vector
 
 from .branching import BranchingMode
 from .curve_data import FlatCurve
-from .geometry import BezierSegment
 from .level_grid import LevelGrid
 from .params import TreeParams
 from .randomness import Draw, KeyedRandom, Kind
-from .rotations import BezierBatch, Quaternions, TrackFrame
-from .stem import BoneName, ChildPoint, Stem
-
-
-class SproutPlanner:
-    """Places the sprout points of one grown stem (with its splits) for the next level."""
-
-    # Branch Rings: each ring's height varies randomly within this factor range
-    RING_JITTER = (0.995, 1.005)
-
-    def __init__(self, params: TreeParams, rng: Random) -> None:
-        self.params = params
-        self.rng = rng
-
-    def plan(self, stems: list[Stem], level: int, base_size: float) -> list[ChildPoint]:
-        """Sprout points of a stem and its splits, in order: along each stem, then its tip.
-
-        `stems` is the grown stem followed by its splits; `base_size` (0..1) is the bare part of the stem.
-        """
-        p = self.params
-        stem = stems[0]
-        if (level == 0) and (p.rotate_mode != BranchingMode.ORIGINAL):
-            positions = self._even_positions(stem.children)
-        else:
-            positions = self._positions_per_segment(stems, stem.children)
-        # A negative leaf count only sprouts at the stem tip
-        if not stem.children:
-            positions = [1.0]
-        # Nothing sprouts on the bare base of the stem
-        positions = positions[int(base_size * (len(positions) + 1)) :]
-
-        if (level == 0) and (p.rings > 0):
-            positions = [(floor(t * p.rings) / p.rings) * self.rng.uniform(*self.RING_JITTER) for t in positions[:-1]]
-            positions.append(1)
-            positions = [t for t in positions if t > base_size]
-
-        if level == 0:
-            positions = self._distribute(positions, base_size)
-
-        max_offset = max([s.offset_length + (len(s.spline.bezier_points) - 1) * s.segment_length for s in stems])
-        points = []
-        for s in stems:
-            points.extend(self._sample(s, positions, s.segments * s.segment_length, max_offset, base_size))
-        return points
-
-    @staticmethod
-    def _positions_per_segment(stems: list[Stem], children: float) -> list[float]:
-        points = sum([len(s.spline.bezier_points) for s in stems])
-        segments = points - len(stems)
-        per_segment = children / segments
-        count = round(per_segment * stems[0].segments, 0)
-        return [(a + 1) / count for a in range(int(count))]
-
-    @staticmethod
-    def _even_positions(children: float) -> list[float]:
-        return [(a + 1) / children for a in range(int(children))]
-
-    def _distribute(self, positions: list[float], base_size: float) -> list[float]:
-        return self.distribute(self.params.branch_dist, positions, base_size)
-
-    @staticmethod
-    def distribute(dist: float, positions: list[float], base_size: float) -> list[float]:
-        """Branch Distribution: crowd trunk branches towards the base (< 1) or the top (> 1)."""
-        positions = [((t - base_size) / (1 - base_size)) for t in positions]
-        if dist < 1.0:
-            positions = [t ** (1 / dist) for t in positions]
-        else:
-            positions = [1 - (1 - t) ** dist for t in positions]
-        return [t * (1 - base_size) + base_size for t in positions]
-
-    @staticmethod
-    def _sample(
-        stem: Stem, positions: list[float], length_parent: float, max_offset: float, base_size: float
-    ) -> list[ChildPoint]:
-        """A ChildPoint at each position that falls on this stem, plus one at its tip."""
-        points = stem.spline.bezier_points
-        segments = len(points) - 1
-        stem_length = stem.segment_length * segments
-
-        bottom = stem.offset_length / max_offset
-        top = bottom + (stem_length / max_offset)
-
-        sprouts = []
-        for t in positions:
-            if (t >= bottom) and (t <= top) and (t < 1.0):
-                scaled = (t - bottom) / (top - bottom)
-                offset = ((t - base_size) / (top - base_size)) * (1 - base_size) + base_size
-
-                length = segments * scaled
-                # scaled can round to exactly 1.0: stay on the last segment
-                index = min(int(length), segments - 1)
-                local_t = length - index
-
-                segment = BezierSegment.between(points[index], points[index + 1])
-                quat = segment.tangent(local_t).to_track_quat("Z", "Y")
-                radius = (1 - local_t) * points[index].radius + local_t * points[index + 1].radius
-                sprouts.append(
-                    ChildPoint(
-                        segment.point(local_t),
-                        quat,
-                        (stem.radius_start, radius),
-                        t,
-                        offset,
-                        length_parent,
-                        BoneName.of(stem.index, index),
-                    )
-                )
-
-        # The tip
-        tip = points[-1]
-        sprouts.append(
-            ChildPoint(
-                Vector(tip.co),  # type: ignore[arg-type]  # stub: Vector is not typed as a Sequence
-                (tip.handle_right - tip.co).to_track_quat("Z", "Y"),
-                (stem.radius_start, tip.radius),
-                1,
-                1,
-                length_parent,
-                BoneName.of(stem.index, segments - 1),
-            )
-        )
-        return sprouts
+from .rotations import BezierBatch, TrackFrame
+from .stem import BoneName
 
 
 class SproutArrays:
-    """The sprout points of a level, one row each: where child stems or leaves grow next (ChildPoints as arrays).
+    """The sprout points of a level, one row each: where child stems or leaves grow next.
 
     co (M, 3); frame (M, 3, 3) the stem direction's TrackFrame there; radius_parent (M, 2) the parent's start
     radius and its radius at the sprout; offset and stem_offset (M,) the position along the parent (offset as
@@ -224,28 +101,6 @@ class SproutArrays:
         """Per sprout, the name of the parent bone it hangs from (BoneName.of the parent's spline and segment)."""
         return [BoneName.of(s, q) for s, q in zip(self.parent_spline.tolist(), self.parent_point.tolist(), strict=True)]
 
-    @classmethod
-    def from_child_points(cls, sprouts: list[ChildPoint]) -> "SproutArrays":
-        """ChildPoints (the pruning path still makes them) as arrays."""
-        count = len(sprouts)
-        bones = [s.parent_bone for s in sprouts]
-        offset = np.array([s.offset for s in sprouts], dtype=np.float64)
-        return cls(
-            np.array([s.co.to_tuple() for s in sprouts], dtype=np.float64).reshape(count, 3),
-            Quaternions.to_matrices(
-                np.array([(s.quat.w, s.quat.x, s.quat.y, s.quat.z) for s in sprouts]).reshape(count, 4)
-            ),
-            np.array([s.radius_parent for s in sprouts], dtype=np.float64).reshape(count, 2),
-            offset,
-            np.array([s.stem_offset for s in sprouts], dtype=np.float64),
-            np.array([s.length_parent for s in sprouts], dtype=np.float64),
-            np.array([BoneName.spline(b) for b in bones], dtype=np.int64),
-            np.array([int(b[-3:]) for b in bones], dtype=np.int64),
-            np.zeros(count, dtype=np.uint64),
-            np.where(offset == 1.0, -1, 0).astype(np.int64),
-            np.zeros(count, dtype=np.int64),
-        )
-
 
 class FamilyPositions:
     """Where along each family (a root stem with its splits) the sprouts go: fractions of the family's length.
@@ -267,7 +122,7 @@ class FamilyPositions:
 
 
 class LevelSprouts:
-    """Places the sprout points of a whole grown level for the next level (SproutPlanner as array maths)."""
+    """Places the sprout points of a whole grown level for the next level."""
 
     # Branch Rings: each ring's height varies randomly within this factor range
     RING_JITTER = (0.995, 1.005)
@@ -298,7 +153,7 @@ class LevelSprouts:
     def _positions(self, grid: LevelGrid, flat: FlatCurve, level: int, base_size: float) -> FamilyPositions:
         """Every family's positions (0..1 along the family) that are not on its bare base."""
         stems = grid.stems
-        roots = np.flatnonzero(~stems.is_split)
+        roots = np.flatnonzero(~stems.is_split & ~stems.removed)
         if level == 0:
             return self._trunk_positions(grid, flat, roots, base_size)
         sizes = flat.sizes
@@ -339,13 +194,23 @@ class LevelSprouts:
                 positions = [1.0]
             positions = positions[int(base_size * (len(positions) + 1)) :]
             positions = self._rings(positions, root, base_size)
-            positions = SproutPlanner.distribute(p.branch_dist, positions, base_size)
+            positions = self._distribute(positions, base_size)
             root_list += [root] * len(positions)
             t_list += positions
             index_list += list(range(len(positions)))
         return FamilyPositions(
             np.array(root_list, dtype=np.int64), np.array(t_list), np.array(index_list, dtype=np.int64)
         )
+
+    def _distribute(self, positions: list[float], base_size: float) -> list[float]:
+        """Branch Distribution: crowd trunk branches towards the base (< 1) or the top (> 1)."""
+        dist = self.params.branch_dist
+        positions = [((t - base_size) / (1 - base_size)) for t in positions]
+        if dist < 1.0:
+            positions = [t ** (1 / dist) for t in positions]
+        else:
+            positions = [1 - (1 - t) ** dist for t in positions]
+        return [t * (1 - base_size) + base_size for t in positions]
 
     def _rings(self, positions: list[float], root: int, base_size: float) -> list[float]:
         """Branch Rings: the positions snap to rings, each ring at a slightly random height."""
@@ -361,11 +226,11 @@ class LevelSprouts:
     def _along(
         self, grid: LevelGrid, flat: FlatCurve, positions: FamilyPositions, family_max: np.ndarray, base_size: float
     ) -> tuple[np.ndarray, SproutArrays]:
-        """(row, sprout) for every position that falls on a stem of its family (SproutPlanner._sample)."""
+        """(row, sprout) for every position that falls on a stem of its family."""
         stems = grid.stems
         sizes = flat.sizes
         counts, starts = positions.counts(grid.rows)
-        per_row = counts[stems.root]
+        per_row = np.where(stems.removed, 0, counts[stems.root])
         rows = np.repeat(np.arange(grid.rows), per_row)
         slot = np.arange(len(rows)) - np.repeat(np.cumsum(per_row) - per_row, per_row)
         at = starts[stems.root[rows]] + slot
@@ -410,22 +275,22 @@ class LevelSprouts:
     def _tips(grid: LevelGrid, flat: FlatCurve) -> tuple[np.ndarray, SproutArrays]:
         """(row, sprout) at the tip of every stem."""
         stems = grid.stems
-        rows = np.arange(grid.rows)
-        last = flat.start[1:] - 1
+        rows = np.flatnonzero(~stems.removed)  # a removed stem has no tip to sprout from
+        last = (flat.start[1:] - 1)[rows]
         co = flat.co[last].astype(np.float64)
-        ones = np.ones(grid.rows)
+        ones = np.ones(len(rows))
         sprouts = SproutArrays(
             co,
             TrackFrame.matrices(flat.right[last].astype(np.float64) - co),
-            np.stack([stems.radius_start, flat.radius[last].astype(np.float64)], axis=1),
+            np.stack([stems.radius_start[rows], flat.radius[last].astype(np.float64)], axis=1),
             ones,
             ones,
-            grid.segments * stems.segment_length,
-            stems.spline,
-            flat.sizes - 2,
-            stems.key,
-            np.full(grid.rows, -1, dtype=np.int64),
-            stems.root,
+            grid.segments * stems.segment_length[rows],
+            stems.spline[rows],
+            flat.sizes[rows] - 2,
+            stems.key[rows],
+            np.full(len(rows), -1, dtype=np.int64),
+            stems.root[rows],
         )
         return rows, sprouts
 

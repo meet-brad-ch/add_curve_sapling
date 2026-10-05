@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The model's curve (CurveData) behaves like a Blender curve, to the bit, for everything the model uses."""
+"""The model's handle calculation gives Blender's handles to the bit, and the flat curve reads like a Blender curve."""
 
 import random
 import unittest
@@ -15,21 +15,36 @@ def curve_data():
     return helpers.module("model.curve_data")
 
 
-class HandlesMatchBlender(unittest.TestCase):
-    """AUTO and VECTOR handles computed in Python equal the ones Blender computes, bit for bit."""
-
-    TYPES = ("FREE", "AUTO", "VECTOR")
-
-    def random_spline_writes(self, rng):
-        """A random spline as the model writes it: per point co, then left type, then right type."""
+def random_splines(rng, count):
+    """Random splines as the model makes them: per point a position and the two handle types."""
+    types = ("FREE", "AUTO", "VECTOR")
+    splines = []
+    for _ in range(count):
         points = []
         for _ in range(rng.randint(2, 9)):
             co = Vector([rng.uniform(-5, 5) for _ in range(3)])
-            points.append((co, rng.choice(self.TYPES), rng.choice(self.TYPES)))
-        return points
+            points.append((co, rng.choice(types), rng.choice(types)))
+        splines.append(points)
+    return splines
 
-    @staticmethod
-    def write(spline, points):
+
+def flat_of(splines):
+    """The splines as a FlatCurve with recalculated handles (FREE handles stay zero)."""
+    module = curve_data()
+    co = np.array([tuple(p[0]) for s in splines for p in s], dtype=np.float32).reshape(-1, 3)
+    h1 = np.array([module.HandleType.code(p[1]) for s in splines for p in s], dtype=np.int8)
+    h2 = np.array([module.HandleType.code(p[2]) for s in splines for p in s], dtype=np.int8)
+    sizes = np.array([len(s) for s in splines], dtype=np.int64)
+    start = np.concatenate([[0], np.cumsum(sizes)])
+    left = np.zeros_like(co)
+    right = np.zeros_like(co)
+    module.AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1], start[1:] - 1)
+    return module.FlatCurve(co, left, right, h1, h2, np.ones(len(co), dtype=np.float32), start)
+
+
+def write_to_blender(curve, splines):
+    for points in splines:
+        spline = curve.splines.new("BEZIER")
         for i, (co, left, right) in enumerate(points):
             if i:
                 spline.bezier_points.add(1)
@@ -38,120 +53,26 @@ class HandlesMatchBlender(unittest.TestCase):
             point.handle_left_type = left
             point.handle_right_type = right
 
+
+class HandlesMatchBlender(unittest.TestCase):
+    """AUTO and VECTOR handles computed for all splines at once equal the ones Blender computes, bit for bit."""
+
     def test_random_splines(self):
-        rng = random.Random(7)
+        splines = random_splines(random.Random(7), 300)
         blender = bpy.data.curves.new("probe", "CURVE")
         self.addCleanup(bpy.data.curves.remove, blender)
-        ours = curve_data().CurveData()
-        for _ in range(300):
-            points = self.random_spline_writes(rng)
-            self.write(blender.splines.new("BEZIER"), points)
-            self.write(ours.splines.new("BEZIER"), points)
-        for b, o in zip(blender.splines, ours.splines, strict=True):
-            for bp, op in zip(b.bezier_points, (o.bezier_points[i] for i in range(len(o.bezier_points))), strict=True):
-                self.assertEqual(bp.handle_left.to_tuple(), op.handle_left.to_tuple())
-                self.assertEqual(bp.handle_right.to_tuple(), op.handle_right.to_tuple())
-                self.assertEqual(bp.co.to_tuple(), op.co.to_tuple())
-        self.assert_flat_matches(blender, ours.flatten())
-
-    def assert_flat_matches(self, blender, flat):
-        """The flat arrays (one pass over every spline) hold exactly what Blender holds, in spline order."""
-        sizes = [len(s.bezier_points) for s in blender.splines]
-        self.assertEqual(flat.start.tolist(), [sum(sizes[:i]) for i in range(len(sizes) + 1)])
+        write_to_blender(blender, splines)
+        flat = flat_of(splines)
         for name, column in (("co", flat.co), ("handle_left", flat.left), ("handle_right", flat.right)):
-            expected = np.concatenate([helpers._floats(s.bezier_points, name, 3) for s in blender.splines])
-            self.assertEqual(column.dtype, np.float32)
-            np.testing.assert_array_equal(column.ravel(), expected, err_msg=name)
-        radius = np.concatenate([helpers._floats(s.bezier_points, "radius", 1) for s in blender.splines])
-        np.testing.assert_array_equal(flat.radius, radius)
-        types = [(p.handle_left_type, p.handle_right_type) for s in blender.splines for p in s.bezier_points]
-        names = curve_data().HandleType.NAMES
-        self.assertEqual([(names[a], names[b]) for a, b in zip(flat.h1, flat.h2, strict=True)], types)
+            expected = np.concatenate([helpers._floats(s.bezier_points, name, 3) for s in blender.splines]).reshape(
+                -1, 3
+            )
+            # FREE handles are whatever was stored (zero here, Blender's own value there): compare the rest
+            kinds = flat.h1 if name == "handle_left" else flat.h2
+            computed = (kinds != curve_data().HandleType.FREE) | (name == "co")
+            np.testing.assert_array_equal(column[computed], expected[computed], err_msg=name)
 
-    def test_flat_handles_equal_per_spline_handles(self):
-        """recalculate_flat on all splines at once gives the per-spline recalculation's bits."""
-        rng = random.Random(11)
-        ours = curve_data().CurveData()
-        for _ in range(200):
-            self.write(ours.splines.new("BEZIER"), self.random_spline_writes(rng))
-        flat = ours.flatten()  # recalculates per spline on the way
-        left = np.zeros_like(flat.left)
-        right = np.zeros_like(flat.right)
-        first, last = flat.start[:-1], flat.start[1:] - 1
-        curve_data().AutoHandles.recalculate_flat(flat.co, left, right, flat.h1, flat.h2, first, last)
-        free = flat.h1 == curve_data().HandleType.FREE
-        np.testing.assert_array_equal(left[~free], flat.left[~free])
-        free = flat.h2 == curve_data().HandleType.FREE
-        np.testing.assert_array_equal(right[~free], flat.right[~free])
-
-
-class FlatViews(unittest.TestCase):
-    """A curve loaded from flat arrays reads like a grown one, and cannot be grown further."""
-
-    def loaded(self):
-        grown = curve_data().CurveData()
-        HandlesMatchBlender.write(
-            grown.splines.new("BEZIER"), [(Vector((0, 0, 0)), "VECTOR", "VECTOR"), (Vector((0, 0, 1)), "AUTO", "AUTO")]
-        )
-        HandlesMatchBlender.write(
-            grown.splines.new("BEZIER"),
-            [
-                (Vector((1, 0, 0)), "FREE", "AUTO"),
-                (Vector((1, 0, 2)), "AUTO", "VECTOR"),
-                (Vector((1, 1, 3)), "AUTO", "AUTO"),
-            ],
-        )
-        flat = grown.flatten()
-        curve = curve_data().CurveData()
-        curve.load(flat)
-        return grown, curve
-
-    def test_points_read_alike(self):
-        grown, curve = self.loaded()
-        self.assertEqual(len(curve.splines), 2)
-        for i in range(2):
-            a, b = grown.splines[i].bezier_points, curve.splines[i].bezier_points
-            self.assertEqual(len(a), len(b))
-            for j in range(-len(a), len(a)):
-                self.assertEqual(tuple(a[j].co), tuple(b[j].co))
-                self.assertEqual(tuple(a[j].handle_left), tuple(b[j].handle_left))
-                self.assertEqual(tuple(a[j].handle_right), tuple(b[j].handle_right))
-                self.assertEqual(
-                    (a[j].handle_left_type, a[j].handle_right_type), (b[j].handle_left_type, b[j].handle_right_type)
-                )
-                self.assertEqual(a[j].radius, b[j].radius)
-        self.assertIs(curve.flatten(), curve.flatten())
-        self.assertIs(curve.splines[1].id_data, curve)
-        curve.splines[1].ensure_handles()  # nothing to do, nothing raised
-        self.assertEqual([len(s.co) for s in curve.splines], [2, 3])
-
-    def test_out_of_range_and_growth_rejected(self):
-        _, curve = self.loaded()
-        with self.assertRaises(IndexError):
-            curve.splines[2]
-        with self.assertRaises(IndexError):
-            curve.splines[0].bezier_points[2]
-        with self.assertRaisesRegex(RuntimeError, "cannot grow"):
-            curve.splines.new("BEZIER")
-        with self.assertRaisesRegex(RuntimeError, "cannot be cleared"):
-            curve.splines.clear()
-        with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
-            curve.load(curve.flatten())
-        grown = curve_data().CurveData()
-        grown.splines.new("BEZIER")
-        with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
-            grown.load(curve.flatten())
-
-    def test_concatenate(self):
-        _, curve = self.loaded()
-        flat = curve.flatten()
-        both = curve_data().FlatCurve.concatenate([flat, flat])
-        self.assertEqual(both.start.tolist(), [0, 2, 5, 7, 10])
-        np.testing.assert_array_equal(both.co[5:], flat.co)
-        with self.assertRaises(ValueError):
-            curve_data().FlatCurve.concatenate([])
-
-    def test_flat_recalculation_needs_two_points(self):
+    def test_one_point_splines_rejected(self):
         auto = curve_data().AutoHandles
         co = np.zeros((1, 3), np.float32)
         with self.assertRaisesRegex(ValueError, "two or more points"):
@@ -159,82 +80,54 @@ class FlatViews(unittest.TestCase):
                 co, co.copy(), co.copy(), np.zeros(1, np.int8), np.zeros(1, np.int8), np.array([0]), np.array([0])
             )
 
-
-class BlenderWriteRules(unittest.TestCase):
-    """Blender's update rules, which the model's reads depend on."""
-
-    def setUp(self):
-        self.curve = curve_data().CurveData()
-        self.spline = self.curve.splines.new("BEZIER")
-
-    def test_new_point_is_free_and_zero_with_radius_one(self):
-        self.spline.bezier_points.add(1)
-        point = self.spline.bezier_points[-1]
-        self.assertEqual((point.handle_left_type, point.handle_right_type), ("FREE", "FREE"))
-        self.assertEqual(tuple(point.co), (0.0, 0.0, 0.0))
-        self.assertEqual(point.radius, 1.0)
-
-    def test_one_point_spline_keeps_its_handles(self):
-        point = self.spline.bezier_points[0]
-        point.handle_right = Vector((0, 0, 1))
-        point.handle_left_type = "VECTOR"
-        self.assertEqual(tuple(point.handle_right), (0.0, 0.0, 1.0))
-
-    def test_adding_a_point_recalculates_nothing(self):
-        first = self.spline.bezier_points[0]
-        first.handle_left_type = first.handle_right_type = "AUTO"
-        first.handle_right = Vector((0, 0, 5))
-        self.spline.bezier_points.add(1)
-        self.assertEqual(tuple(first.handle_right), (0.0, 0.0, 5.0))
-
-    def test_writing_a_position_recalculates_the_whole_spline(self):
-        self.spline.bezier_points.add(1)
-        first, second = self.spline.bezier_points[0], self.spline.bezier_points[1]
-        first.handle_left_type = first.handle_right_type = "VECTOR"
-        second.co = Vector((0, 0, 3))
-        self.assertEqual(tuple(first.handle_right), (0.0, 0.0, 1.0))
-
-    def test_free_handles_stick(self):
-        self.spline.bezier_points.add(1)
-        first = self.spline.bezier_points[0]
-        first.handle_right = Vector((1, 2, 3))
-        self.spline.bezier_points[1].co = Vector((0, 0, 3))
-        self.assertEqual(tuple(first.handle_right), (1.0, 2.0, 3.0))
-
-    def test_radius_is_clamped_like_blender(self):
-        point = self.spline.bezier_points[0]
-        point.radius = float("inf")
-        self.assertEqual(point.radius, curve_data().AutoHandles.FLT_MAX)
-        point.radius = -1.0
-        self.assertEqual(point.radius, 0.0)
-
-    def test_unknown_handle_type_fails(self):
+    def test_unknown_handle_type(self):
         with self.assertRaisesRegex(ValueError, "ALIGNED"):
-            self.spline.bezier_points[0].handle_left_type = "ALIGNED"
+            curve_data().HandleType.code("ALIGNED")
 
-    def test_only_bezier_splines(self):
-        with self.assertRaisesRegex(ValueError, "POLY"):
-            self.curve.splines.new("POLY")
 
-    def test_point_index_out_of_range(self):
+class FlatViews(unittest.TestCase):
+    """A curve loaded from flat arrays reads like a Blender curve, and the arrays are final."""
+
+    def loaded(self):
+        splines = random_splines(random.Random(2), 4)
+        flat = flat_of(splines)
+        curve = curve_data().CurveData()
+        curve.load(flat)
+        return splines, flat, curve
+
+    def test_points_read_alike(self):
+        splines, flat, curve = self.loaded()
+        self.assertEqual(len(curve.splines), 4)
+        self.assertEqual([len(s.co) for s in curve.splines], [len(s) for s in splines])
+        for i, points in enumerate(splines):
+            view = curve.splines[i].bezier_points
+            self.assertEqual(len(view), len(points))
+            for j in range(-len(points), len(points)):
+                co, left, right = points[j]
+                self.assertEqual(tuple(view[j].co), co.to_tuple())
+                self.assertEqual((view[j].handle_left_type, view[j].handle_right_type), (left, right))
+                self.assertEqual(tuple(view[j].handle_left), tuple(flat.left[flat.start[i] + j % len(points)].tolist()))
+                self.assertEqual(
+                    tuple(view[j].handle_right), tuple(flat.right[flat.start[i] + j % len(points)].tolist())
+                )
+                self.assertEqual(view[j].radius, 1.0)
+        self.assertIs(curve.flatten(), flat)
+        self.assertIs(curve.splines[1].id_data, curve)
+
+    def test_out_of_range_and_reloading_rejected(self):
+        _, flat, curve = self.loaded()
         with self.assertRaises(IndexError):
-            self.spline.bezier_points[1]
+            curve.splines[4]
+        with self.assertRaises(IndexError):
+            curve.splines[0].bezier_points[len(curve.splines[0].co)]
+        with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
+            curve.load(flat)
+        self.assertEqual(len(curve_data().CurveData().splines), 0)
 
-    def test_copy_is_exact_and_recalculates_nothing(self):
-        self.spline.bezier_points.add(2)
-        for i, z in enumerate((0, 1, 3)):
-            point = self.spline.bezier_points[i]
-            point.co = Vector((0, i, z))
-            point.handle_left_type = point.handle_right_type = "AUTO"
-        copy = self.curve.splines.new("BEZIER")
-        copy.copy_from(self.spline)
-        for i in range(3):
-            a, b = self.spline.bezier_points[i], copy.bezier_points[i]
-            self.assertEqual(
-                (tuple(a.co), tuple(a.handle_left), tuple(a.handle_right), a.radius),
-                (tuple(b.co), tuple(b.handle_left), tuple(b.handle_right), b.radius),
-            )
-            self.assertEqual((a.handle_left_type, a.handle_right_type), (b.handle_left_type, b.handle_right_type))
-        self.assertIs(copy.id_data, self.curve)
-        self.curve.splines.clear()
-        self.assertEqual(len(self.curve.splines), 0)
+    def test_concatenate(self):
+        _, flat, _ = self.loaded()
+        both = curve_data().FlatCurve.concatenate([flat, flat])
+        self.assertEqual(both.start.tolist(), flat.start.tolist() + (flat.start[1:] + flat.start[-1]).tolist())
+        np.testing.assert_array_equal(both.co[flat.start[-1] :], flat.co)
+        with self.assertRaises(ValueError):
+            curve_data().FlatCurve.concatenate([])

@@ -4,7 +4,8 @@
 
 A row's points are the columns from its origin step to the last segment: a root starts at column 0, a split
 that left its parent at step k at column k. Rows are appended in creation order, which is also the order of
-the level's splines (all roots first, then the splits as they happen).
+the level's splines (all roots first, then the splits as they happen). A stem pruning removed keeps its start
+point only.
 """
 
 from collections.abc import Sequence
@@ -26,6 +27,7 @@ class StemRows:
         "parent_point",  # the parent's point it hangs from: the sprout's segment, or the point before a split
         "is_split",
         "is_end",  # a child continuing its parent's tip
+        "removed",  # pruning removed the stem: only its start point stays
         "root",  # the row of its family's root stem (a split's family is its parent's)
         "origin",  # the step the row's points start at
         "base_length",  # segment length before the random variation (splits inherit it)
@@ -49,6 +51,7 @@ class StemRows:
     parent_point: np.ndarray
     is_split: np.ndarray
     is_end: np.ndarray
+    removed: np.ndarray
     root: np.ndarray
     origin: np.ndarray
     base_length: np.ndarray
@@ -79,6 +82,10 @@ class StemRows:
         """Add other's rows after these."""
         for name in self.FIELDS:
             setattr(self, name, np.concatenate([getattr(self, name), getattr(other, name)]))
+
+    def take(self, rows: np.ndarray) -> "StemRows":
+        """A copy holding the given rows, in that order."""
+        return StemRows({name: getattr(self, name)[rows].copy() for name in self.FIELDS})
 
 
 class LevelGrid:
@@ -121,6 +128,38 @@ class LevelGrid:
         """The stems so far, splits included."""
         return len(self.stems)
 
+    @property
+    def root_count(self) -> int:
+        """The level's root stems (its families)."""
+        return int(np.count_nonzero(~self.stems.is_split))
+
+    def copy(self) -> "LevelGrid":
+        """An independent copy (the pruning search grows the same start several times)."""
+        return self._with(np.arange(self.rows))
+
+    def subset(self, roots: np.ndarray) -> "LevelGrid":
+        """A copy holding the given root rows only, renumbered as roots 0..n-1 (before any growth)."""
+        if self.stems.is_split.any():
+            raise RuntimeError("a subset is taken before the level grows")
+        grid = self._with(roots)
+        grid.stems.root = np.arange(len(roots))
+        return grid
+
+    def _with(self, rows: np.ndarray) -> "LevelGrid":
+        grid = LevelGrid.__new__(LevelGrid)
+        grid.level = self.level
+        grid.depth = self.depth
+        grid.segments = self.segments
+        grid.handles = self.handles
+        grid.stems = self.stems.take(rows)
+        grid.co = self.co[rows].copy()
+        grid.radius = self.radius[rows].copy()
+        grid.h1 = self.h1[rows].copy()
+        grid.h2 = self.h2[rows].copy()
+        grid.dir0 = self.dir0[rows].copy()
+        grid.next_spline = self.next_spline
+        return grid
+
     def direction(self, step: int) -> np.ndarray:
         """Unit direction of every row's last segment at `step` (its start direction at step 0)."""
         if step == 0:
@@ -158,11 +197,44 @@ class LevelGrid:
         self.dir0 = np.concatenate([self.dir0, np.zeros((count, 3))])
         self.stems.append(stems)
 
+    def remove(self, removed: np.ndarray) -> None:
+        """Pruning removed the families of the given roots (one flag per root row): their splits are dropped and
+        the roots keep their start point only; the remaining splits are renumbered without gaps."""
+        stems = self.stems
+        drop = stems.is_split & removed[stems.root]
+        keep = np.flatnonzero(~drop)
+        old_spline = stems.spline
+        new_spline = old_spline.copy()
+        kept_splits = np.flatnonzero(stems.is_split[keep])
+        first_split = int(old_spline[stems.is_split].min()) if stems.is_split.any() else self.next_spline
+        new_spline[keep[kept_splits]] = first_split + np.arange(len(kept_splits))
+        parent_rows = np.searchsorted(old_spline, stems.parent_stem)  # a split's parent is in this level
+        parent_stem = np.where(
+            stems.is_split, new_spline[np.minimum(parent_rows, len(old_spline) - 1)], stems.parent_stem
+        )
+        stems.spline = new_spline
+        stems.parent_stem = parent_stem
+        stems.removed = removed[stems.root]
+        trimmed = self._with(keep)
+        self.stems, self.co, self.radius, self.h1, self.h2, self.dir0 = (
+            trimmed.stems,
+            trimmed.co,
+            trimmed.radius,
+            trimmed.h1,
+            trimmed.h2,
+            trimmed.dir0,
+        )
+        self.next_spline = first_split + len(kept_splits)
+
     def flatten(self) -> FlatCurve:
-        """The level's splines as flat float32 arrays in spline order, with their handles recalculated."""
+        """The level's splines as flat float32 arrays in spline order, with their handles recalculated.
+
+        A removed stem is one point with the handles it started with (FREE): its start, and its start direction.
+        """
+        stems = self.stems
         columns = np.arange(self.segments + 1)[None, :]
-        valid = columns >= self.stems.origin[:, None]
-        sizes = (self.segments + 1 - self.stems.origin).astype(np.int64)
+        valid = (columns >= stems.origin[:, None]) & (~stems.removed[:, None] | (columns == 0))
+        sizes = np.where(stems.removed, 1, self.segments + 1 - stems.origin).astype(np.int64)
         start = np.zeros(len(sizes) + 1, dtype=np.int64)
         np.cumsum(sizes, out=start[1:])
         co = self.co[valid].astype(np.float32)
@@ -170,7 +242,12 @@ class LevelGrid:
         right = np.zeros_like(co)
         h1 = self.h1[valid]
         h2 = self.h2[valid]
-        AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1], start[1:] - 1)
+        # a removed stem's point keeps FREE handles: set before the recalculation, which skips FREE sides
+        at = start[:-1][stems.removed]
+        h1[at] = h2[at] = HandleType.FREE
+        right[at] = (self.co[stems.removed, 0] + self.dir0[stems.removed]).astype(np.float32)
+        grown = sizes >= 2
+        AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1][grown], (start[1:] - 1)[grown])
         return FlatCurve(co, left, right, h1, h2, self.radius[valid].astype(np.float32), start)
 
     def bone_links(self, bone_step: Sequence[int]) -> list[BoneLink]:

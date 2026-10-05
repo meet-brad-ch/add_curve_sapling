@@ -84,7 +84,7 @@ class TreeGenerator:
 
         # The model grows in memory (every write O(1)); the curves are then written to Blender in bulk
         grown_curve = CurveData()
-        grown = TreeGrower(p, rng).grow(grown_curve, CurveData() if p.prune else None, scale)
+        grown = TreeGrower(p, rng).grow(grown_curve, scale)
         rig = p.use_armature
         curves_ob = CurveSource(p, objects).build(grown_curve, root, rig=rig)
 

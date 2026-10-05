@@ -21,7 +21,7 @@ from bpy.types import (
     SplineBezierPoints,
 )
 
-from ..model.curve_data import CurvePoints
+from ..model.curve_data import FlatPoints
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
@@ -58,7 +58,7 @@ class WindModel:
         return freq1, freq2
 
     def branch_amplitudes(
-        self, points: SplineBezierPoints | CurvePoints, n: int, tail: int, step: int, spline_length: float
+        self, points: SplineBezierPoints | FlatPoints, n: int, tail: int, step: int, spline_length: float
     ) -> tuple[float, float, float, float]:
         """Sway amplitudes (radians) of the bone from point n to point tail: stronger for thin bones far up."""
         p = self.params

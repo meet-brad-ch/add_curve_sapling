@@ -96,7 +96,6 @@ class PrunedArmature(unittest.TestCase):
                 settings.update(prune=True, useRig=True, showLeaves=True)
                 self.assertEqual(helpers.generate(settings), {"FINISHED"})
                 self.assert_bones_on_their_splines()
-                self.assertNotIn("sapling_prune_scratch", bpy.data.curves)
 
     def test_unpruned_bones_on_their_splines(self):
         settings = helpers.resolve_preset("callistemon.py")
@@ -367,15 +366,11 @@ class MoveByTheBranches(unittest.TestCase):
 class PrunedAwayStems(unittest.TestCase):
     """Pruning shrank some stems to ~1 cm stubs: invisible, but their leaves floated next to the branches."""
 
-    def search(self, scale):
-        search = helpers.module("model.stem_builder").PruningSearch()
-        search.scale = scale
-        return search
-
     def test_only_short_stems_at_full_ratio_are_removed(self):
-        self.assertTrue(self.search(0.1).removes_stem(1.0))
-        self.assertFalse(self.search(0.2).removes_stem(1.0))
-        self.assertFalse(self.search(0.1).removes_stem(0.8))  # a partial ratio keeps part of the stem anyway
+        pruning = helpers.module("model.pruning").LevelPruning
+        self.assertTrue(pruning.removes(0.1, 1.0))
+        self.assertFalse(pruning.removes(0.2, 1.0))
+        self.assertFalse(pruning.removes(0.1, 0.8))  # a partial ratio keeps part of the stem anyway
 
     def test_removed_stems_keep_only_their_start_point(self):
         settings = helpers.resolve_preset("quaking_aspen.py")

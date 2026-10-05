@@ -39,7 +39,7 @@ def stats(preset, changes):
     settings.update(changes)
     params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
     curve = helpers.module("model.curve_data").CurveData()
-    grown = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, None, params.scale)
+    grown = helpers.module("model.tree").TreeGrower(params, random.Random(params.seed)).grow(curve, params.scale)
     flat = curve.flatten()
     starts = [0, *grown.level_ends]
     out: dict[str, Any] = {"levels": []}

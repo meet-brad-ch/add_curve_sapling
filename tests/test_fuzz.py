@@ -62,8 +62,8 @@ class SettingsFuzz(unittest.TestCase):
         grower = tree_module().TreeGrower
         original = grower.grow
 
-        def recording_grow(grower_self, curve, scratch, scale):
-            grown = original(grower_self, curve, scratch, scale)
+        def recording_grow(grower_self, curve, scale):
+            grown = original(grower_self, curve, scale)
             self.grown.append((len(grown.bone_map), len(curve.splines)))
             return grown
 
