@@ -13,7 +13,7 @@
   unchanged.
 - *Helix* (Branch Growth page): grow the stems of a level as helixes, as tree-gen does for a negative
   `curve_v`. Each segment is half a turn around the stem's start direction. *Curvature Variation* sets
-  the helix angle and must be less than 90 degrees; a larger value is an error that names the level.
+  the helix angle and must be less than 90 degrees. A larger value is an error that names the level.
   Helix stems do not split, curve, bend or follow *Vertical Attraction*. The node wind turns their
   handles with their joints (Blender's Set Position moves a free handle with its point but does not
   turn it).
@@ -36,8 +36,20 @@
   Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Hill Cherry*, *Lombardy Poplar*, *Quaking
   Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*. `tools/port_treegen.py` maps their
   Weber–Penn values to the settings of Sapling. The presets were checked against renders of tree-gen's
-  own trees in Blender 5.2. Not carried over: blossoms (Apple, Hill Cherry), helix stems (Black Oak,
-  Sphere Tree) and random branch bending. Sapling did not have these features.
+  own trees in Blender 5.2.
+- The 15 presets ported from tree-gen are ported again with the new mapping, one change at a time:
+  the leaf down angle variation sign (tree-gen's positive value is random, Sapling's varies along the
+  parent), Bend Variation from `bend_v`, Helix on Black Oak's third level and Sphere Tree's trunk,
+  blossoms on Apple and Hill Cherry, and Count Above Base with Leaves Above Base. Trees made from these
+  presets change. Cambridge Oak grows more branches above its bare base. Measured headless, alone:
+
+  | Cambridge Oak with leaves and flutter | Build | Seconds per animation frame |
+  | --- | --- | --- |
+  | Wind | 0.91 s | 0.02–0.03 |
+  | Wind, Make Mesh | 1.04 s | 0.01–0.02 |
+  | Rig with wind | 1.66 s | 0.03–0.04 |
+  | Rig with wind, Make Mesh | 2.93 s | 0.02 |
+
 - 3 more presets ported from tree-gen: *Palm*, *Fan Palm* and *Bamboo*. They use *Trunks*, *Trunks Face
   Out*, *Count Above Base*, *Leaves Above Base* and *Fan Angles*. Measured against tree-gen (seeds 1 to
   5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees), bamboo 50 culms
