@@ -156,7 +156,7 @@ class BoneStep(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         settings = helpers.resolve_preset("quaking_aspen.py")
-        # Bone Step only applies together with Make Mesh (armature simplification for the skin mesh)
+        # Joint Length thins the rig with Make Mesh only (the skin mesh follows the bones through its groups)
         settings.update(useRig=True, windAnim=True, makeMesh=True, jointStep=(2, 2, 1, 1))
         cls.result = helpers.generate(settings)
 

@@ -3,6 +3,9 @@
 """Generator features: several trunks (for tree-gen's species), leaf flutter with Geometry Nodes, ..."""
 
 import itertools
+import os
+import sys
+import tempfile
 import unittest
 
 import bpy
@@ -156,3 +159,120 @@ class LeafFlutterOptions(unittest.TestCase):
     def test_no_flutter_without_wind(self):
         self.generate(windAnim=False)
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["ARMATURE"])
+
+
+def grown_tree(settings):
+    """Generate a tree and return (result, params, curve, grown) as the generator grew it."""
+    captured = []
+    grower = helpers.module("model.tree").TreeGrower
+    original = grower.grow
+
+    def recording(grower_self, curve, scale):
+        grown = original(grower_self, curve, scale)
+        captured.append((grower_self.params, curve, grown))
+        return grown
+
+    grower.grow = recording
+    try:
+        result = helpers.generate(settings)
+    finally:
+        grower.grow = original
+    return (result, *captured[-1])
+
+
+class RigLevels(unittest.TestCase):
+    """With Make Mesh, Joint Levels and Joint Length thin the rig: level 1 rigs the trunks, level 2 adds their
+    branches, and so on; deeper levels of the skin mesh follow their parent's bones. Without Make Mesh every
+    segment gets a bone: the bones deform the bark curve by their envelopes, which cannot bind a boneless stem."""
+
+    def test_joint_levels_rig_the_trunk_only(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=3, showLeaves=True, useRig=True, jointLevels=1, makeMesh=True)
+        result, params, curve, grown = grown_tree(settings)
+        self.assertEqual(result, {"FINISHED"})
+        bone_name = helpers.module("model.stem").BoneName
+        splines = {bone_name.spline(b.name) for b in armature().data.bones}
+        self.assertTrue(splines)
+        self.assertLess(max(splines), grown.level_ends[0], "a branch got bones of its own")
+        rig_size = helpers.module("build.armature").RigSize
+        self.assertEqual(len(armature().data.bones), rig_size.bones(params, curve, grown))
+
+    def test_joint_length_thins_the_rig(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, useRig=True, jointLevels=2, jointStep=(2, 3, 1, 1), makeMesh=True)
+        result, params, curve, grown = grown_tree(settings)
+        self.assertEqual(result, {"FINISHED"})
+        bone_name = helpers.module("model.stem").BoneName
+        for bone in armature().data.bones:
+            step = 2 if bone_name.spline(bone.name) < grown.level_ends[0] else 3
+            self.assertEqual(bone_name.point(bone.name) % step, 0, bone.name)
+        rig_size = helpers.module("build.armature").RigSize
+        self.assertEqual(len(armature().data.bones), rig_size.bones(params, curve, grown))
+
+    def test_without_make_mesh_every_segment_has_a_bone(self):
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=3, useRig=True, jointLevels=1, jointStep=(2, 3, 1, 1), makeMesh=False)
+        result, _, curve, _ = grown_tree(settings)
+        self.assertEqual(result, {"FINISHED"})
+        sizes = curve.flatten().sizes
+        self.assertEqual(len(armature().data.bones), int((sizes[sizes >= 2] - 1).sum()))
+
+
+class RigSizeLimits(unittest.TestCase):
+    """Blender creates bones in time proportional to the bones already made, so a rig's build time grows with
+    the square of its bone count: the operator warns above WARN_BONES and refuses above MAX_BONES."""
+
+    def rig_size(self):
+        return helpers.module("build.armature").RigSize
+
+    def limit(self, name, value):
+        rig_size = self.rig_size()
+        self.addCleanup(setattr, rig_size, name, getattr(rig_size, name))
+        setattr(rig_size, name, value)
+
+    def test_check_names_the_count_and_the_settings_that_lower_it(self):
+        rig_size = self.rig_size()
+        self.assertIsNone(rig_size.check(rig_size.WARN_BONES))
+        warning = rig_size.check(rig_size.WARN_BONES + 1)
+        for text in ("10,001 bones", "Joint Levels", "Joint Length", "Wind without the rig"):
+            self.assertIn(text, warning)
+        settings_error = helpers.module("settings").SettingsError
+        with self.assertRaisesRegex(settings_error, "40,001 bones .*limit 40,000"):
+            rig_size.check(rig_size.MAX_BONES + 1)
+
+    def test_seconds_follow_the_measured_square_law(self):
+        rig_size = self.rig_size()
+        bones, seconds = rig_size.MEASURED
+        self.assertAlmostEqual(rig_size.seconds(bones), seconds)
+        self.assertAlmostEqual(rig_size.seconds(bones // 2), seconds / 4)
+
+    def test_big_rig_warns_but_builds(self):
+        self.limit("WARN_BONES", 10)
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, useRig=True)
+        # without a window, Blender prints an operator's reports to the console (file descriptor 1)
+        with tempfile.TemporaryFile(mode="w+") as console:
+            saved = os.dup(1)
+            sys.stdout.flush()
+            os.dup2(console.fileno(), 1)
+            try:
+                result = helpers.generate(settings)
+            finally:
+                sys.stdout.flush()
+                os.dup2(saved, 1)
+                os.close(saved)
+            console.seek(0)
+            printed = console.read()
+        self.assertEqual(result, {"FINISHED"})
+        warnings = [line for line in printed.splitlines() if "Warning" in line]
+        self.assertEqual(len(warnings), 1, printed)
+        self.assertIn(f"{len(armature().data.bones):,} bones", warnings[0])
+        self.assertIn("Joint Levels", warnings[0])
+
+    def test_too_big_rig_fails_before_building_anything(self):
+        self.limit("MAX_BONES", 10)
+        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings.update(levels=2, useRig=True)
+        with self.assertRaisesRegex(RuntimeError, "bones .*limit 10.*Joint Levels"):
+            helpers.generate(settings)
+        self.assertEqual(len(bpy.data.objects), 0)

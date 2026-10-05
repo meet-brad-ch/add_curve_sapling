@@ -57,6 +57,18 @@ class WindModel:
             freq2 = max(1, round(freq2 / loop)) * loop
         return freq1, freq2
 
+    def branch_frequency_arrays(self, spline_lengths: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """branch_frequencies() for an array of spline lengths."""
+        p = self.params
+        multiplier = (1 / np.maximum(np.sqrt(np.maximum(spline_lengths, 0.0)), 1e-6)) * (1 / 4)
+        freq1 = multiplier * self.anim_speed
+        freq2 = self.SECOND_WAVE_FREQUENCY * multiplier * self.anim_speed
+        if p.loop_frames != 0:
+            loop = 1 / (p.loop_frames / Angles.TAU)
+            freq1 = np.maximum(1, np.round(freq1 / loop)) * loop
+            freq2 = np.maximum(1, np.round(freq2 / loop)) * loop
+        return freq1, freq2
+
     def branch_amplitudes(
         self, points: SplineBezierPoints | FlatPoints, n: int, tail: int, step: int, spline_length: float
     ) -> tuple[float, float, float, float]:

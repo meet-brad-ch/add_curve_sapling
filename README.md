@@ -82,6 +82,14 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
   generation, the bones are hidden in the bone collection *Sapling Bones*. To show them, click the
   eye icon of that collection in *Armature Properties > Bone Collections*. *Fast Preview* shows the
   bones and shows the tree as its bounding box.
+  With *Make Mesh*, *Joint Levels* and *Joint Length* (Armature page) set how many bones the rig has:
+  level 1 rigs the trunk, level 2 adds its branches, and so on; deeper levels of the skin mesh follow
+  their parent's bones, and one bone spans *Joint Length* stem segments. Without *Make Mesh* every stem
+  segment gets a bone, because the bones deform the bark curve through their envelopes, which cannot
+  bind a stem without bones. Blender creates each bone in time proportional to the bones that already
+  exist, so a rig's build time grows with the square of its bone count (measured: 79,648 bones took
+  415 s). The operator warns above 10,000 bones and refuses above 40,000; *Wind* without *Use Armature*
+  moves the same joints in Geometry Nodes and needs no bones.
 - **Trunks** (Branch Splitting page): more than 1 grows a clump, such as bamboo. The further trunks
   stand on a disc around the first, each with its own size, curve direction and branches.
 - **Pruning:** stems that grow out of the pruning envelope are shortened. With *Prune Ratio* 1, a stem

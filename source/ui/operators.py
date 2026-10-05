@@ -125,7 +125,10 @@ class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
 
         # The new tree is complete before the old one is touched: a failure leaves the old tree as it was
         settings = TreeSettings.from_properties(self, TreeProperties.stored_names())
-        result = TreeGenerator(self, context, collections).generate()
+        generator = TreeGenerator(self, context, collections)
+        result = generator.generate()
+        for warning in generator.warnings:
+            self.report({"WARNING"}, warning)
         TreeRecord.tag(result, settings)
 
         if placement is None:

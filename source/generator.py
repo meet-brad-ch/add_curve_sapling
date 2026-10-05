@@ -9,7 +9,7 @@ from typing import Any
 
 from bpy.types import Collection, Context, Object
 
-from .build.armature import ArmatureBuilder
+from .build.armature import ArmatureBuilder, RigSize
 from .build.leaf_object import LeafObjectBuilder
 from .build.materials import MaterialLibrary
 from .build.node_wind import NodeWind, WindJoints
@@ -55,6 +55,7 @@ class TreeGenerator:
         self.params = TreeParams(settings)
         self.context = context
         self.collections = collections
+        self.warnings: list[str] = []  # for the operator to report (the tree is still built)
 
     def generate(self) -> TreeResult:
         """Build the tree; if anything fails, remove what was created and re-raise."""
@@ -86,6 +87,10 @@ class TreeGenerator:
         grown_curve = CurveData()
         grown = TreeGrower(p, rng).grow(grown_curve, scale)
         rig = p.use_armature
+        if rig:
+            warning = RigSize.check(RigSize.bones(p, grown_curve, grown))
+            if warning:
+                self.warnings.append(warning)
         curves_ob = CurveSource(p, objects).build(grown_curve, root, rig=rig)
 
         leaf_set = leaves_ob = None

@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import helpers
 import numpy as np
-from mathutils import Vector
 
 
 def grow(**changes):
@@ -90,13 +89,14 @@ class TreeStructure(unittest.TestCase):
         _, curve, grown = grow(levels=2, branches=(0, 60, 0, 0))
         flat = curve.flatten()
         sprouts = grown.sprouts
-        bezier = helpers.module("model.geometry").BezierSegment
+        bezier = helpers.module("model.rotations").BezierBatch
+        t = np.arange(65) / 64
         for i in range(0, sprouts.count, max(1, sprouts.count // 200)):
             spline, point = int(sprouts.parent_spline[i]), int(sprouts.parent_point[i])
             a, b = flat.start[spline] + point, flat.start[spline] + point + 1
-            segment = bezier(*(Vector(c.tolist()) for c in (flat.co[a], flat.right[a], flat.left[b], flat.co[b])))
-            target = Vector(sprouts.co[i].tolist())
-            best = min((segment.point(t / 64) - target).length for t in range(65))
+            controls = (flat.co[a], flat.right[a], flat.left[b], flat.co[b])
+            along = bezier.points(*(np.repeat(c[None], 65, axis=0) for c in controls), t)
+            best = np.linalg.norm(along - sprouts.co[i], axis=1).min()
             self.assertLess(best, 0.02, f"sprout {i} is {best:.3f} from its segment")
 
 
@@ -128,10 +128,31 @@ class FailFast(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "not finite"):
             model("model.sprouting").LevelSprouts(params, root_key).plan(grid, grid.flatten(), 0, 0.0)
 
+    def test_pruning_that_does_not_settle_is_an_error(self):
+        pruning = helpers.module("model.pruning").LevelPruning
+        passes = pruning.MAX_PASSES
+        pruning.MAX_PASSES = 0
+        self.addCleanup(setattr, pruning, "MAX_PASSES", passes)
+        with self.assertRaisesRegex(RuntimeError, "did not settle"):
+            grow(preset="callistemon", prune=True)
+
+    def test_a_grown_level_cannot_be_subset(self):
+        params, _, _ = grow(levels=1)
+        model = helpers.module
+        root_key = model("model.randomness").KeyedRandom.root(params.seed)
+        grid = model("model.branching").LevelStarter(params, random.Random(1), root_key).trunks(params.scale)
+        self.assertEqual(grid.subset(np.array([0])).rows, 1)
+        model("model.growth").LevelGrower(params, params.scale).grow(grid, False)
+        if grid.stems.is_split.any():
+            with self.assertRaisesRegex(RuntimeError, "before the level grows"):
+                grid.subset(np.array([0]))
+
     def test_unknown_shapes(self):
         geometry = helpers.module("model.geometry")
         with self.assertRaisesRegex(ValueError, "crown shape"):
             geometry.CrownShape.ratios(99, np.array([0.5]))
+        with self.assertRaisesRegex(ValueError, "crown shape"):
+            geometry.CrownShape.ratio(99, 0.5)
         with self.assertRaisesRegex(ValueError, "leaf shape"):
             helpers.module("model.leaves").LeafShape.template("star")
 
@@ -154,7 +175,9 @@ class CrownShapes(unittest.TestCase):
         a2 = np.array([1.5, -3.0, 2.5])
         ours = geometry.Angles.means(a1, a2, 0.3)
         for x, y, value in zip(a1.tolist(), a2.tolist(), ours.tolist(), strict=True):
-            self.assertAlmostEqual(value, geometry.Angles.mean(x, y, 0.3), places=9)
+            # the per-stem add-on's mean of two angles through their unit vectors
+            sx, sy = math.sin(x) + (math.sin(y) - math.sin(x)) * 0.3, math.cos(x) + (math.cos(y) - math.cos(x)) * 0.3
+            self.assertAlmostEqual(value, math.atan2(sx, sy), places=9)
 
 
 class PrunedTrees(unittest.TestCase):

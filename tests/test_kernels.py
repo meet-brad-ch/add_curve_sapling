@@ -4,7 +4,7 @@
 
 import random
 import unittest
-from math import atan2, pi
+from math import acos, atan2, pi
 
 import helpers
 import numpy as np
@@ -75,6 +75,25 @@ class QuaternionMatrices(unittest.TestCase):
         ours = rotations().Quaternions.to_matrices(np.array([(q.w, q.x, q.y, q.z) for q in quats], np.float32))
         for q, matrix in zip(quats, ours, strict=True):
             np.testing.assert_allclose(matrix, np.array(q.to_matrix()), atol=1e-6)
+
+    def test_from_matrices_round_trips(self):
+        rng = random.Random(7)
+        quats = []
+        for _ in range(2000):
+            q = Quaternion((rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1)))
+            q.normalize()
+            quats.append(q)
+        # the four branches: also near-180-degree turns about each axis
+        quats += [
+            Quaternion((0.001, 1, 0, 0)).normalized(),
+            Quaternion((0.001, 0, 1, 0)).normalized(),
+            Quaternion((0.001, 0, 0, 1)).normalized(),
+        ]
+        matrices = np.array([np.array(q.to_matrix()) for q in quats])
+        ours = rotations().Quaternions.from_matrices(matrices)
+        rebuilt = rotations().Quaternions.to_matrices(ours)
+        np.testing.assert_allclose(rebuilt, matrices, atol=1e-6)
+        self.assertTrue((ours[:, 0] >= 0).all())
 
     def test_multiply_equals_blender(self):
         rng = random.Random(6)
@@ -186,7 +205,6 @@ class CompatibleEulers(unittest.TestCase):
 class AttractUpKernel(unittest.TestCase):
     def test_equals_the_per_stem_bend(self):
         rng = random.Random(12)
-        angles = helpers.module("model.geometry").Angles
         vectors = random_directions(rng, 1500) * np.array([rng.uniform(0.1, 3) for _ in range(1500)])[:, None]
         for attract_up in (-1.0, 0.5, 2.0):
             ours = rotations().AttractUp.apply(vectors, attract_up, 10)
@@ -195,8 +213,25 @@ class AttractUpKernel(unittest.TestCase):
                 track = expected.to_track_quat("Z", "Y")
                 up_axis = Vector((1, 0, 0))
                 up_axis.rotate(track)
-                expected.rotate(Matrix.Rotation(-angles.curve_up(attract_up, track, 10), 3, up_axis.to_tuple()))
+                expected.rotate(Matrix.Rotation(-self.curve_up(attract_up, track, 10), 3, up_axis.to_tuple()))
                 np.testing.assert_allclose(bent, np.array(expected), atol=1e-4, err_msg=f"{attract_up} {v}")
+
+    @staticmethod
+    def curve_up(attract_up, quat, curve_res):
+        """The per-stem add-on's upward rotation angle (geometry.py's curve_up before the array model)."""
+        side = Vector((0, 1, 0))
+        side.rotate(quat)
+        side.normalize()
+        direction = Vector((0, 0, 1))
+        direction.rotate(quat)
+        direction.normalize()
+        declination = acos(max(-1.0, min(1.0, direction.z)))
+        angle = attract_up * declination * abs(side.z) / curve_res
+        if (-declination + angle) < -pi:
+            angle = -pi + declination
+        if (declination - angle) < 0:
+            angle = declination
+        return angle
 
     def test_zero_attraction_changes_nothing(self):
         vectors = random_directions(random.Random(1), 10)
@@ -204,17 +239,19 @@ class AttractUpKernel(unittest.TestCase):
 
 
 class BezierBatches(unittest.TestCase):
-    def test_points_and_tangents_equal_the_segment(self):
+    def test_points_and_tangents_equal_the_cubic_formula(self):
         rng = random.Random(13)
-        segment_class = helpers.module("model.geometry").BezierSegment
         p1, h1, h2, p2 = (np.array([[rng.uniform(-3, 3) for _ in range(3)] for _ in range(300)]) for _ in range(4))
         t = np.array([rng.random() for _ in range(300)])
         points = rotations().BezierBatch.points(p1, h1, h2, p2, t)
         tangents = rotations().BezierBatch.tangents(p1, h1, h2, p2, t)
         for i in range(300):
-            segment = segment_class(Vector(p1[i]), Vector(h1[i]), Vector(h2[i]), Vector(p2[i]))
-            np.testing.assert_allclose(points[i], np.array(segment.point(float(t[i]))), atol=1e-5)
-            np.testing.assert_allclose(tangents[i], np.array(segment.tangent(float(t[i]))), atol=1e-5)
+            a, b, c, d = (Vector(v[i]) for v in (p1, h1, h2, p2))
+            u, s = float(1 - t[i]), float(t[i])
+            expected = (u**3) * a + (3 * s * u**2) * b + (3 * s**2 * u) * c + (s**3) * d
+            derivative = (-3 * u**2) * a + (-6 * s * u + 3 * u**2) * b + (-3 * s**2 + 6 * s * u) * c + (3 * s**2) * d
+            np.testing.assert_allclose(points[i], np.array(expected), atol=1e-5)
+            np.testing.assert_allclose(tangents[i], np.array(derivative.normalized()), atol=1e-5)
 
 
 class KeyedDraws(unittest.TestCase):

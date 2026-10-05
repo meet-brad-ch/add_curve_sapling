@@ -27,6 +27,11 @@ class BoneName:
         """Spline index of a bone name."""
         return int(bone[4:-4])
 
+    @staticmethod
+    def point(bone: str) -> int:
+        """Point index of a bone name."""
+        return int(bone[-3:])
+
 
 @dataclass(frozen=True, slots=True)
 class BoneLink:

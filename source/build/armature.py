@@ -19,11 +19,14 @@ from bpy.types import (
     SplineBezierPoints,
 )
 
+from ..model.curve_data import CurveData
 from ..model.geometry import Angles
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
 from ..model.stem import BoneLink, BoneName
 from ..model.tree import GrownTree
+from ..settings import SettingsError
+from .node_wind import WindJoints
 from .objects import ObjectFactory, VertexGroupWriter
 from .wind import BranchSway, LeafFlutter, WindAnimator, WindModel
 
@@ -59,6 +62,48 @@ class BoneGeometry:
         bones.foreach_set("head_radius", self.head_radii)
         bones.foreach_set("tail_radius", self.tail_radii)
         bones.foreach_set("envelope_distance", [envelope] * len(self.head_radii))
+
+
+class RigSize:
+    """How many bones the rig would have, and whether that is reasonable.
+
+    Creating a bone costs Blender time in proportion to the bones already made (edit_bones.new, measured), so a
+    rig's build time grows with the square of its bone count: 79,648 bones took 415 s. Joint Levels and Joint
+    Length with Make Mesh keep the count down; above WARN_BONES the operator warns, above MAX_BONES it refuses.
+    """
+
+    WARN_BONES = 10_000
+    MAX_BONES = 40_000
+    MEASURED = (79_648, 415.0)  # bones, seconds
+    ADVICE = (
+        "turn on Make Mesh and lower Joint Levels or raise Joint Length on the Armature page, "
+        "or use Wind without the rig"
+    )
+
+    @staticmethod
+    def bones(params: TreeParams, curve: CurveData, grown: GrownTree) -> int:
+        """The bones the rig makes for this tree (the node wind's joints are the same)."""
+        return int(WindJoints(params, curve, grown).count.sum())
+
+    @classmethod
+    def seconds(cls, bones: int) -> float:
+        """About how long Blender takes to create that many bones, from the measured quadratic cost."""
+        measured_bones, measured_seconds = cls.MEASURED
+        return measured_seconds * (bones / measured_bones) ** 2
+
+    @classmethod
+    def check(cls, bones: int) -> str | None:
+        """A warning above WARN_BONES; raises SettingsError above MAX_BONES."""
+        if bones > cls.MAX_BONES:
+            seconds = cls.seconds(bones)
+            raise SettingsError(
+                f"The armature rig would have {bones:,} bones (limit {cls.MAX_BONES:,}; "
+                f"about {seconds:.0f} s to build): {cls.ADVICE}"
+            )
+        if bones > cls.WARN_BONES:
+            seconds = cls.seconds(bones)
+            return f"The armature rig has {bones:,} bones; building it takes about {seconds:.0f} s: {cls.ADVICE}"
+        return None
 
 
 class ArmatureBuilder:
@@ -219,8 +264,8 @@ class ArmatureBuilder:
         p = self.params
         # one walk over the splines: curve.splines[i] walks the spline list up to i
         for i, (link, spline) in enumerate(zip(grown.bone_map, curve.splines, strict=True)):
-            # Make Mesh simplifies the armature: deeper levels use their parent's bones
-            if p.make_mesh and i >= grown.level_ends[p.bone_levels]:
+            # Joint Levels: deeper levels use their parent's bones
+            if i >= grown.level_ends[p.bone_levels]:
                 continue
             points = spline.bezier_points
             if len(points) > 1:  # a stem pruning removed has only its start point

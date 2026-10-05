@@ -59,7 +59,8 @@ class LeafSet:
 
     vertices (V, 3) float32: the leaf meshes' points (one point per leaf for Instance Points); faces (F, 4) int32
     into vertices; normals (L, 3) float32: each leaf's direction (Instance Points only, else empty); sprout_co
-    (L, 3) float32; parent_bones: per leaf, the name of the parent bone (a fan repeats its sprout's).
+    (L, 3) float32; parent_bones: per leaf, the name of the parent bone (a fan repeats its sprout's), and
+    parent_spline/parent_point (L,) the same as arrays.
     """
 
     def __init__(
@@ -70,6 +71,8 @@ class LeafSet:
         normals: np.ndarray,
         sprout_co: np.ndarray,
         parent_bones: list[str],
+        parent_spline: np.ndarray,
+        parent_point: np.ndarray,
     ) -> None:
         self.shape = shape
         self.vertices = vertices
@@ -77,6 +80,8 @@ class LeafSet:
         self.normals = normals
         self.sprout_co = sprout_co
         self.parent_bones = parent_bones
+        self.parent_spline = parent_spline
+        self.parent_point = parent_point
 
     @property
     def count(self) -> int:
@@ -103,6 +108,8 @@ class LeafPlacement:
         self.frame = sprouts.frame[self.index]
         bones = sprouts.parent_bones()
         self.parent_bones = [bones[i] for i in index]
+        self.parent_spline = sprouts.parent_spline[self.index]
+        self.parent_point = sprouts.parent_point[self.index]
 
 
 class LeafGenerator:
@@ -138,6 +145,8 @@ class LeafGenerator:
             normals.astype(np.float32),
             placement.co.astype(np.float32),
             placement.parent_bones,
+            placement.parent_spline,
+            placement.parent_point,
         )
 
     def _place(self, sprouts: SproutArrays) -> LeafPlacement:

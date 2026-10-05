@@ -2,6 +2,7 @@
 
 """Growing the whole branch structure, level by level, on the tree curve."""
 
+from collections.abc import Sequence
 from random import Random
 
 from .branching import LevelStarter
@@ -44,7 +45,7 @@ class GrownLevels:
         self.links: list[BoneLink] = []
         self.ends: list[int] = []
 
-    def add(self, grid: LevelGrid, flat: FlatCurve, bone_step: list[int]) -> None:
+    def add(self, grid: LevelGrid, flat: FlatCurve, bone_step: Sequence[int]) -> None:
         """Take a grown level's splines."""
         self.chunks.append(flat)
         self.links += grid.bone_links(bone_step)

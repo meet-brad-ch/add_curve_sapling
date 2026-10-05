@@ -408,11 +408,13 @@ class TreeProperties:
         default=False, update=update_tree,
     )  # fmt: skip
     jointLevels: IntProperty(
-        name="Joint Levels", description="Number of branching levels that bend with joints of their own (with Make "
-        "Mesh; 0 is all levels)", min=0, default=2, update=update_tree,
+        name="Joint Levels", description="With Make Mesh: number of branching levels that get bones (joints) of "
+        "their own; deeper levels of the skin mesh follow their parent's bones. 1 rigs the trunk, 2 adds its "
+        "branches (0 is all levels)", min=0, default=2, update=update_tree,
     )  # fmt: skip
     jointStep: IntVectorProperty(
-        name="Joint Length", description="Number of stem segments per joint (with Make Mesh)", min=1,
+        name="Joint Length", description="With Make Mesh: number of stem segments per bone (joint), per level",
+        min=1,
         default=[1, 1, 1, 1], size=4, update=update_tree,
     )  # fmt: skip
 

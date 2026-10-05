@@ -99,6 +99,61 @@ class Quaternions:
         )
 
     @staticmethod
+    def from_matrices(matrices: np.ndarray) -> np.ndarray:
+        """(N, 4) unit quaternions (w, x, y, z) of rotation matrices; the sign is the one with w >= 0."""
+        m = np.asarray(matrices, dtype=np.float64)
+        trace = m[:, 0, 0] + m[:, 1, 1] + m[:, 2, 2]
+        # the four branches of Shepperd's method, each stable where its pivot is the largest
+        pivot = np.argmax(np.stack([trace, m[:, 0, 0], m[:, 1, 1], m[:, 2, 2]], axis=1), axis=1)
+        q = np.empty((len(m), 4))
+        with np.errstate(invalid="ignore", divide="ignore"):  # unused branches may divide by zero
+            s0 = np.sqrt(np.maximum(1.0 + trace, 0.0)) * 2.0
+            q0 = np.stack(
+                [
+                    0.25 * s0,
+                    (m[:, 2, 1] - m[:, 1, 2]) / s0,
+                    (m[:, 0, 2] - m[:, 2, 0]) / s0,
+                    (m[:, 1, 0] - m[:, 0, 1]) / s0,
+                ],
+                1,
+            )
+            s1 = np.sqrt(np.maximum(1.0 + m[:, 0, 0] - m[:, 1, 1] - m[:, 2, 2], 0.0)) * 2.0
+            q1 = np.stack(
+                [
+                    (m[:, 2, 1] - m[:, 1, 2]) / s1,
+                    0.25 * s1,
+                    (m[:, 0, 1] + m[:, 1, 0]) / s1,
+                    (m[:, 0, 2] + m[:, 2, 0]) / s1,
+                ],
+                1,
+            )
+            s2 = np.sqrt(np.maximum(1.0 - m[:, 0, 0] + m[:, 1, 1] - m[:, 2, 2], 0.0)) * 2.0
+            q2 = np.stack(
+                [
+                    (m[:, 0, 2] - m[:, 2, 0]) / s2,
+                    (m[:, 0, 1] + m[:, 1, 0]) / s2,
+                    0.25 * s2,
+                    (m[:, 1, 2] + m[:, 2, 1]) / s2,
+                ],
+                1,
+            )
+            s3 = np.sqrt(np.maximum(1.0 - m[:, 0, 0] - m[:, 1, 1] + m[:, 2, 2], 0.0)) * 2.0
+            q3 = np.stack(
+                [
+                    (m[:, 1, 0] - m[:, 0, 1]) / s3,
+                    (m[:, 0, 2] + m[:, 2, 0]) / s3,
+                    (m[:, 1, 2] + m[:, 2, 1]) / s3,
+                    0.25 * s3,
+                ],
+                1,
+            )
+            for branch, candidate in enumerate((q0, q1, q2, q3)):
+                rows = pivot == branch
+                q[rows] = candidate[rows]
+        q = q / np.linalg.norm(q, axis=1)[:, None]
+        return np.where((q[:, :1] < 0), -q, q)
+
+    @staticmethod
     def multiply(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         """Row-wise a * b (Blender's mul_qt_qtqt)."""
         a0, a1, a2, a3 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]

@@ -19,11 +19,11 @@ from typing import Any
 
 import numpy as np
 from bpy.types import NodeSocket, NodeTree, Object
-from mathutils import Matrix, Vector
 
 from ..model.curve_data import CurveData
 from ..model.leaves import LeafSet
 from ..model.params import TreeParams
+from ..model.rotations import Quaternions, Rotation
 from ..model.stem import BoneName
 from ..model.tree import GrownTree
 from .node_groups import SharedNodeGroup
@@ -37,112 +37,142 @@ class JointFrame:
     CRITICAL = 2.5e-4
 
     @classmethod
-    def axes(cls, direction: Vector) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
-        """The bone's X and Z axes for a unit direction (its Y axis)."""
-        x, y, z = direction.to_tuple()
+    def rests(cls, directions: np.ndarray) -> np.ndarray:
+        """rest() for (N, 3) unit directions: (N, 4) quaternions (the sign may differ; the rotation is the same)."""
+        d = np.asarray(directions, dtype=np.float64)
+        x, y, z = d[:, 0], d[:, 1], d[:, 2]
         theta = 1.0 + y
         theta_alt = x * x + z * z
-        if theta > cls.SAFE or theta_alt > cls.CRITICAL * cls.CRITICAL:
-            if theta <= cls.SAFE:
-                theta = theta_alt * 0.5 + theta_alt * theta_alt * 0.125
-            return (1 - x * x / theta, -x, -x * z / theta), (-x * z / theta, -z, 1 - z * z / theta)
-        return (-1.0, 0.0, 0.0), (0.0, 0.0, 1.0)
-
-    @classmethod
-    def rest(cls, direction: Vector) -> tuple[float, float, float, float]:
-        """The bone's rest rotation as a quaternion (w, x, y, z)."""
-        x_axis, z_axis = cls.axes(direction)
-        matrix = Matrix((x_axis, direction.to_tuple(), z_axis)).transposed()  # columns: X, Y, Z
-        q = matrix.to_quaternion()
-        return (q.w, q.x, q.y, q.z)
+        regular = (theta > cls.SAFE) | (theta_alt > cls.CRITICAL * cls.CRITICAL)
+        theta = np.where(theta <= cls.SAFE, theta_alt * 0.5 + theta_alt * theta_alt * 0.125, theta)
+        theta = np.where(theta == 0.0, 1.0, theta)
+        x_axis = np.stack([1 - x * x / theta, -x, -x * z / theta], axis=1)
+        z_axis = np.stack([-x * z / theta, -z, 1 - z * z / theta], axis=1)
+        x_axis[~regular] = (-1.0, 0.0, 0.0)
+        z_axis[~regular] = (0.0, 0.0, 1.0)
+        return Quaternions.from_matrices(np.stack([x_axis, d, z_axis], axis=2))
 
 
 class WindJoints:
-    """Per point of the grown curve, the wind of the joint that starts there; per curve its place in the tree."""
+    """Per point of the grown curve, the wind of the joint that starts there; per curve its place in the tree.
+
+    Everything is computed from the curve's flat arrays at once; only the two phase offsets per curve are drawn
+    one by one, in the rig's order, so the node wind matches the rig's.
+    """
 
     FLOAT_KEYS = ("a1", "a2", "a3", "a4", "f1", "f2", "ox", "oz")
 
     def __init__(self, params: TreeParams, curve: CurveData, grown: GrownTree) -> None:
         self.params = params
-        self.curve = curve
         self.grown = grown
-        self.sizes = [len(spline.co) for spline in curve.splines]
-        self.starts = np.concatenate([[0], np.cumsum(self.sizes)[:-1]]).astype(np.int64)
-        self.names: set[str] = set()
-        # Parent bone per spline, listed once: listing it per leaf made the leaves' joints quadratic (measured
-        # 17.7 s of a 30 s build on 71,905 leaves and 23,612 stems)
+        self.flat = curve.flatten()
+        self.sizes = self.flat.sizes
+        self.starts = self.flat.start[:-1]
+        count = len(self.sizes)
         self.parent_bones = grown.bone_map.bones()
-
-    def index(self, joint: str) -> int:
-        """The point index (in the whole curve) of the joint's head."""
-        return int(self.starts[BoneName.spline(joint)]) + int(joint[-3:])
+        self.link_spline = np.array([BoneName.spline(b) if b else -1 for b in self.parent_bones], dtype=np.int64)
+        self.link_point = np.array([BoneName.point(b) if b else -1 for b in self.parent_bones], dtype=np.int64)
+        level = np.minimum(np.searchsorted(np.array(grown.level_ends), np.arange(count), side="right"), 3)
+        self.step = np.array(params.bone_step, dtype=np.int64)[level]
+        segments = self.sizes - 1
+        eligible = segments >= 1  # a stem pruning removed has only its start point
+        # Joint Levels: deeper levels follow their parent's joints
+        eligible &= np.arange(count) < grown.level_ends[params.bone_levels]
+        self.eligible = eligible
+        # the joints of a curve: every Joint Length segments from its start
+        self.count = np.where(eligible, (segments + self.step - 1) // self.step, 0)
+        self.joint_spline = np.repeat(np.arange(count), self.count)
+        slot = np.arange(len(self.joint_spline)) - np.repeat(np.cumsum(self.count) - self.count, self.count)
+        self.joint_n = slot * self.step[self.joint_spline]
+        self.joint_tail = np.minimum(self.joint_n + self.step[self.joint_spline], segments[self.joint_spline])
+        self.joint_point = self.starts[self.joint_spline] + self.joint_n
+        self.is_joint = np.zeros(int(self.flat.start[-1]), dtype=bool)
+        self.is_joint[self.joint_point] = True
 
     def hierarchy(self) -> tuple[np.ndarray, np.ndarray]:
         """Per curve: its depth below a trunk, and the point its first joint hangs from (-1 for a trunk)."""
-        depth = np.zeros(len(self.sizes), np.int32)
-        attach = np.full(len(self.sizes), -1, np.int32)
-        for i, link in enumerate(self.grown.bone_map):
-            if link.bone:
-                depth[i] = depth[BoneName.spline(link.bone)] + 1
-                attach[i] = self.index(link.bone)
-        return depth, attach
+        has_parent = self.link_spline >= 0
+        parent = np.maximum(self.link_spline, 0)
+        depth = np.zeros(len(self.sizes), dtype=np.int64)
+        deeper = np.where(has_parent, depth[parent] + 1, 0)
+        while not np.array_equal(deeper, depth):  # one pass per level of nesting; parents come before children
+            depth = deeper
+            deeper = np.where(has_parent, depth[parent] + 1, 0)
+        attach = np.where(has_parent, self.starts[parent] + self.link_point, -1)
+        return depth.astype(np.int32), attach.astype(np.int32)
 
     def poses(self, model: WindModel, rng: Random) -> dict[str, np.ndarray]:
         """The wind of every joint, with the rig's random draws in the rig's order (ArmatureBuilder._branch_bones):
         two phases per curve that has joints."""
-        n = int(sum(self.sizes))
-        out: dict[str, np.ndarray] = {key: np.zeros(n, np.float32) for key in self.FLOAT_KEYS}
-        rest = np.zeros((n, 4), np.float32)
+        p = self.params
+        total = int(self.flat.start[-1])
+        out: dict[str, np.ndarray] = {key: np.zeros(total, np.float32) for key in self.FLOAT_KEYS}
+        rest = np.zeros((total, 4), np.float32)
         rest[:, 0] = 1.0  # identity where no joint starts
         out["bone_rest"] = rest
-        for i, link in enumerate(self.grown.bone_map):
-            if self.params.make_mesh and i >= self.grown.level_ends[self.params.bone_levels]:
-                continue  # Make Mesh simplifies: deeper levels follow their parent's joints
-            points = self.curve.splines[i].bezier_points
-            if len(points) > 1:  # a stem pruning removed has only its start point
-                self._curve_poses(out, i, link.bone, points, model, rng)
+        co = self.flat.co.astype(np.float64)
+        spline = self.joint_spline
+        segments = (self.sizes - 1)[spline]
+        n = self.joint_n
+        head = self.joint_point
+        first_length = np.zeros(len(self.sizes))
+        starts = self.starts[self.eligible]
+        first_length[self.eligible] = np.linalg.norm(co[starts + 1] - co[starts], axis=1)
+        spline_length = (self.sizes - 1) * first_length
+        offsets = self._offsets(rng)
+        frequencies = model.branch_frequency_arrays(spline_length)
+        direction = Rotation.unit(co[self.starts[spline] + self.joint_tail] - co[head])
+        a0 = (
+            2 * (spline_length[spline] / segments) * (1 - n / (segments + 1)) / np.maximum(self.flat.radius[head], 1e-6)
+        )
+        a0 = a0 * np.minimum(self.step[spline], segments)
+        a1 = (p.wind / 50) * a0
+        gust = (p.wind * p.gust / 50) * a0
+        sway = np.stack([a1, a1 * model.SECOND_WAVE_AMPLITUDE, -direction[:, 0] * gust, direction[:, 2] * gust], axis=1)
+        # the first two joints of every trunk hold the tree base still
+        sway[(self.link_spline[spline] < 0) & (n <= self.step[spline])] = 0.0
+        for key, column in zip(("a1", "a2", "a3", "a4"), np.radians(sway).T, strict=True):
+            out[key][head] = column
+        out["f1"][head], out["f2"][head] = frequencies[0][spline], frequencies[1][spline]
+        out["ox"][head], out["oz"][head] = offsets[0][spline], offsets[1][spline]
+        out["bone_rest"][head] = JointFrame.rests(direction)
         return out
 
-    def _curve_poses(
-        self, out: dict[str, np.ndarray], i: int, parent: str, points: Any, model: WindModel, rng: Random
-    ) -> None:
-        segments = len(points) - 1
-        step = self.params.bone_step[self.grown.level_of(i)]
-        spline_length = segments * ((points[0].co - points[1].co).length)
-        offsets = (rng.uniform(0, math.tau), rng.uniform(0, math.tau))
-        frequencies = model.branch_frequencies(spline_length)
-        tail = 0
-        for n in range(0, segments, step):
-            self.names.add(BoneName.of(i, n))
-            tail = min(tail + step, segments)
-            sway = model.branch_amplitudes(points, n, tail, step, spline_length)
-            if (parent == "") and (n <= step):
-                sway = (0, 0, 0, 0)  # the first two joints of every trunk hold the tree base still
-            g = int(self.starts[i]) + n
-            out["bone_rest"][g] = JointFrame.rest((points[tail].co - points[n].co).normalized())
-            out["a1"][g], out["a2"][g], out["a3"][g], out["a4"][g] = sway
-            out["f1"][g], out["f2"][g] = frequencies
-            out["ox"][g], out["oz"][g] = offsets
+    def _offsets(self, rng: Random) -> tuple[np.ndarray, np.ndarray]:
+        """The two wind phases of every curve with joints, drawn in curve order as the rig draws them."""
+        ox = np.zeros(len(self.sizes))
+        oz = np.zeros(len(self.sizes))
+        for i in np.flatnonzero(self.eligible).tolist():
+            ox[i] = rng.uniform(0, math.tau)
+            oz[i] = rng.uniform(0, math.tau)
+        return ox, oz
 
     def joint_of(self, bone: str) -> int:
-        """The point index of the nearest joint at or below `bone` (rounded to Joint Length), as leaves and the
-        skin mesh pick their bone in the rig."""
-        while bone not in self.names:
-            bone = self.parent_bones[BoneName.spline(bone)]
-        return self.index(bone)
+        """The point index of the joint `bone` (a bone name the rig would make, rounded to Joint Length)."""
+        point = int(self.starts[BoneName.spline(bone)]) + int(bone[-3:])
+        if not self.is_joint[point]:
+            raise RuntimeError(f"{bone} is not a joint")
+        return point
 
-    def leaf_joints(self, leaves: LeafSet) -> list[int]:
-        """Per leaf vertex, the joint its leaf hangs from."""
-        size = leaves.verts_per_leaf
+    def leaf_joints(self, leaves: LeafSet) -> np.ndarray:
+        """Per leaf vertex, the joint its leaf hangs from (int32)."""
         step = self.params.leaf_bone_step
-        joints = []
-        for parent_bone in leaves.parent_bones:
-            joints += [self.joint_of(BoneName.rounded(parent_bone, step))] * size
-        return joints
+        spline = leaves.parent_spline.astype(np.int64)
+        point = (leaves.parent_point.astype(np.int64) // step) * step
+        found = self.is_joint[self.starts[spline] + point]
+        while not found.all():  # climb to the parent until a joint is found; every trunk has one
+            if (self.link_spline[spline[~found]] < 0).any():
+                raise RuntimeError("a leaf hangs from a stem without a joint below it")
+            next_spline = self.link_spline[spline]
+            next_point = self.link_point[spline]
+            spline = np.where(found, spline, next_spline)
+            point = np.where(found, point, next_point)
+            found = self.is_joint[self.starts[spline] + point]
+        return np.repeat(self.starts[spline] + point, leaves.verts_per_leaf).astype(np.int32)
 
     def passes(self) -> tuple[int, int]:
         """(scan passes along the longest curve, depth passes down the hierarchy) the wind group needs."""
-        longest = max(self.sizes)
+        longest = int(self.sizes.max())
         depth, _attach = self.hierarchy()
         return max(0, math.ceil(math.log2(longest))) if longest > 1 else 0, int(depth.max())
 
@@ -178,7 +208,7 @@ class NodeWind:
         return joints
 
     @staticmethod
-    def follow(ob: Object, curves_ob: Object, joints: list[int]) -> None:
+    def follow(ob: Object, curves_ob: Object, joints: np.ndarray | list[int]) -> None:
         """Make ob's points follow the wind of their joints (one joint index per point)."""
         mesh = ob.data
         mesh.attributes.new(FollowWindNodes.JOINT, "INT", "POINT").data.foreach_set("value", joints)  # type: ignore[union-attr]  # a mesh

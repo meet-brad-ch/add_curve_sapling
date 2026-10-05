@@ -17,6 +17,17 @@
 
 ### Changed
 
+- The armature rig refuses to build more than 40,000 bones and warns above 10,000, naming the count,
+  the estimated time and the settings that lower it. Blender creates each bone in time proportional to
+  the bones that already exist, so a rig's build time grows with the square of its bone count: 79,648
+  bones (Cambridge Oak, every segment) took 415 s. With *Make Mesh*, *Joint Levels* 2 rigs the trunk and
+  its branches (3,713 bones for Cambridge Oak, 11.4 s with leaves, 8 s of which is Blender's Skin
+  modifier building the 12 million vertex skin). Without *Make Mesh* every segment keeps its bone, because
+  the bark curve follows the bones through their envelopes, which cannot bind a stem without bones.
+- *Make Mesh* builds its skeleton for all stems at once (vertices, edges, radii, roots and bone groups as
+  arrays): the same mesh as before, byte for byte, in 0.3 s instead of per spline in Python.
+- The node wind's joints, rest frames and hierarchy are computed from the tree's arrays in one pass each;
+  the evaluated tree moves by at most 2e-5 against the previous build.
 - *Leaf Animation* turns the leaves with a Geometry Nodes modifier (*Sapling Leaf Flutter*) instead of
   one bone, one vertex group and two F-curves per leaf. Each leaf still turns about its sprout with the
   same noise, strength, frequency and random offsets, then follows its branch bone. Big trees no longer

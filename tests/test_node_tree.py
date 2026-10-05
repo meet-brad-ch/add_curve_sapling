@@ -281,6 +281,43 @@ class NodeWindLeafOptions(unittest.TestCase):
         self.assertTrue(any((a - b).length > 1e-4 for a, b in zip(*positions, strict=True)))
 
 
+class NodeWindJoints(unittest.TestCase):
+    """The joints as the rig would make them: leaves climb to the nearest joint below when their level has none."""
+
+    def test_leaves_follow_joints_of_the_level_below(self):
+        settings = tree_settings(
+            levels=3, branches=(0, 20, 5, 0), showLeaves=True, windAnim=True, makeMesh=True, jointLevels=1
+        )
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        leaves = bpy.data.objects["leaves"]
+        joints = np.empty(len(leaves.data.vertices), np.int32)
+        leaves.data.attributes["sapling_joint"].data.foreach_get("value", joints)
+        curves = helpers.tree_curves().data
+        sizes = np.array([len(c.points) for c in curves.curves])
+        trunk_points = int(sizes[0])
+        self.assertTrue((joints < trunk_points).all(), "with Joint Levels 1 every leaf hangs from a trunk joint")
+        self.assertGreater(len(set(joints.tolist())), 1)
+        moved = np.linalg.norm(vertices("leaves", 17) - vertices("leaves", 1), axis=1)
+        self.assertGreater(moved.max(), 1e-3)
+
+    def test_a_name_that_is_no_joint_is_an_error(self):
+        settings = tree_settings(levels=2, windAnim=True, makeMesh=True)
+        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        from types import SimpleNamespace
+
+        params = helpers.module("model.params").TreeParams(SimpleNamespace(**settings, leafDupliObj=""))
+        curve = helpers.module("model.curve_data").CurveData()
+        grown = (
+            helpers.module("model.tree")
+            .TreeGrower(params, __import__("random").Random(params.seed))
+            .grow(curve, params.scale)
+        )
+        joints = helpers.module("build.node_wind").WindJoints(params, curve, grown)
+        self.assertEqual(joints.joint_of("bone000.000"), 0)
+        with self.assertRaisesRegex(RuntimeError, "is not a joint"):
+            joints.joint_of(f"bone000.{params.curve_res[0]:03d}")  # a stem's last point starts no bone
+
+
 class NodeWindSkinMesh(unittest.TestCase):
     """Make Mesh without the rig: the skin mesh follows the node wind."""
 
