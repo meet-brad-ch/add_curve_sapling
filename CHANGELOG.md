@@ -46,6 +46,10 @@
 
 ### Fixed
 
+- A split trunk shares one branch per height among its pieces again, as before the array rewrite of the
+  branch model. The rewrite grouped the trunk's sprouts by their offset, which each piece measures on its
+  own length, so every piece kept its own branch at every height: White Birch with two base splits grew
+  2.7 times the first-level branches. Trees whose trunk splits change; the others do not.
 - A tree copied with Blender's Duplicate had no leaves or blossoms, and its branches stood where the
   original stands, not where the copy is. The tree's node groups now read its hidden parts in their
   own space, and the copy gets all its parts.

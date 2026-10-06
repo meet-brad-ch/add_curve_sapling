@@ -125,7 +125,9 @@ class TrunkPick:
         """The chosen sprouts in order, with their aim angles."""
         body = np.flatnonzero(~sprouts.is_end)
         tips = np.flatnonzero(sprouts.is_end)
-        pairs = np.stack([sprouts.family[body].astype(np.float64), sprouts.offset[body]], axis=1)
+        # one group per family position: the pieces of a split trunk sprout at the same positions, each at a
+        # slightly different offset (measured on its own length), and share one branch per height
+        pairs = np.stack([sprouts.family[body], sprouts.position[body]], axis=1)
         groups, inverse = np.unique(pairs, axis=0, return_inverse=True)
         inverse = inverse.reshape(-1)
         trunk = groups[:, 0].astype(np.int64)

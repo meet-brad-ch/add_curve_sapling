@@ -471,6 +471,23 @@ class LastLevelBase(unittest.TestCase):
         self.assertLess(float(along.min()), 0.2)
 
 
+class SplitTrunkBranches(unittest.TestCase):
+    """A split trunk shares one branch per height among its pieces, as Sapling's per-stem code did: the array
+    rewrite grouped the trunk's sprouts by their offset, which each piece measures on its own length, so every
+    piece kept its own branch at every height and a birch with two base splits grew 2.7 times the branches."""
+
+    def branches(self, base_splits: int) -> int:
+        settings = helpers.resolve_preset("white_birch.py")
+        settings.update(levels=2, baseSplits=base_splits, segSplits=(0.0, 0.0, 0.0, 0.0), showLeaves=False)
+        ends = helpers.grow_model(settings).grown.level_ends
+        return ends[1] - ends[0]
+
+    def test_base_splits_do_not_multiply_the_first_level(self):
+        whole, split = self.branches(0), self.branches(2)
+        self.assertGreater(whole, 20)
+        self.assertLess(split, 1.25 * whole, f"{split} branches on the split trunk, {whole} on the whole one")
+
+
 class Guards(unittest.TestCase):
     """The internal checks fail with a message naming the cause, instead of a wrong tree or a bare KeyError."""
 
@@ -504,7 +521,8 @@ class Guards(unittest.TestCase):
         settings = helpers.resolve_preset("quaking_aspen.py")
         settings.update(rMode="original")
         pick = helpers.module("model.branching").TrunkPick(helpers.model_params(settings), np.zeros(1, np.uint64))
-        sprouts = SimpleNamespace(is_end=np.zeros(1, bool), family=np.zeros(1, np.int64), offset=np.full(1, 0.5))
+        one = np.zeros(1, np.int64)
+        sprouts = SimpleNamespace(is_end=np.zeros(1, bool), family=one, position=one)
         with self.assertRaisesRegex(ValueError, "does not choose"):
             pick.choose(sprouts, 0.0, np.zeros((1, 3)))
 
