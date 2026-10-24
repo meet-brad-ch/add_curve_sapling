@@ -244,7 +244,7 @@ Each item gives the decision and the reason for it.
 Upstream: <https://projects.blender.org/extensions/add_curve_sapling> (v0.3.7). Andrew Hale
 (TrumanBlending) and Aaron Buchler wrote the original extension. CansecoGPC, Campbell Barton, Nika
 Kutsniashvili and many Blender contributors maintained it (see `git log`). The license is
-GPL-3.0-or-later (see `source/blender_manifest.toml`).
+GPL-3.0-or-later (see `LICENSE` and `source/blender_manifest.toml`).
 
 Eighteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `bamboo`, `black_oak`,
 `black_tupelo`, `cambridge_oak`, `douglas_fir`, `european_larch`, `fan_palm`, `hill_cherry`,
