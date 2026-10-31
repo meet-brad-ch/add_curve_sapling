@@ -160,6 +160,8 @@ class TreeParams(PlainParams):
         self._check_helix()
         self.attract_up = self._floats(s.attractUp)
         self.attract_out = self._floats(s.attractOut)
+        self.wind_dir = radians(float(s.windDir))
+        self.wind_bend = self._floats(s.windBend)
 
     def _check_helix(self) -> None:
         """A helix level takes its helix angle from Curvature Variation, which must be less than 90 degrees."""
@@ -179,6 +181,7 @@ class TreeParams(PlainParams):
         self.prune_power_low = float(s.prunePowerLow)
         self.prune_power_high = float(s.prunePowerHigh)
         self.prune_ratio = float(s.pruneRatio)
+        self.wind_shear = float(s.windShear)
 
     def _leaves(self, s: Any) -> None:
         # a negative count grows palmate leaves from the stem tips

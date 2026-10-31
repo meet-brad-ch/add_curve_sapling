@@ -109,7 +109,7 @@ class SettingsPages:
 
     @staticmethod
     def branch_growth(props: Any, box: UILayout) -> None:
-        """Branch lengths, down angles, curvature and attraction."""
+        """Branch lengths, down angles, curvature, attraction and the shaping wind."""
         box.prop(props, "taperCrown")
         split = box.split()
         col = split.column()
@@ -123,6 +123,9 @@ class SettingsPages:
         col.prop(props, "downAngleV")
         col.prop(props, "curveV")
         col.prop(props, "attractUp")
+        row = box.row()
+        row.prop(props, "windDir")
+        box.prop(props, "windBend")
         box.prop(props, "helix")
         box.prop(props, "useOldDownAngle")
         box.prop(props, "useParentAngle")
@@ -139,6 +142,7 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "prunePowerHigh")
         row.prop(props, "prunePowerLow")
+        box.prop(props, "windShear")
 
     @staticmethod
     def leaves(props: Any, box: UILayout) -> None:

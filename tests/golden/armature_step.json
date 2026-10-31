@@ -351,6 +351,14 @@
   "useParentAngle": true,
   "useRig": true,
   "windAnim": false,
+  "windBend": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "windDir": 0.0,
+  "windShear": 0.0,
   "windStrength": 1.0
  }
 }

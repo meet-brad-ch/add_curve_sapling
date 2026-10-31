@@ -273,6 +273,18 @@ class TreeProperties:
         name="Outward Attraction", description="Branch outward attraction", default=[0, 0, 0, 0], min=0.0, max=1.0,
         size=4, update=update_tree,
     )  # fmt: skip
+    windDir: FloatProperty(
+        name="Wind Direction", description="The direction the shaping wind blows toward, round the trunk "
+        "(0: toward -Y, 90: toward +X)", min=0.0, max=360.0, default=0.0, update=update_tree,
+    )  # fmt: skip
+    windShear: FloatProperty(
+        name="Wind Shear", description="How far the wind shears the pruning envelope: cut back on the windward side, "
+        "reaching further downwind (needs Prune)", min=0.0, max=0.9, default=0.0, update=update_tree,
+    )  # fmt: skip
+    windBend: FloatVectorProperty(
+        name="Wind Bend", description="Branches turned downwind, like Outward Attraction toward one direction "
+        "(levels 2 to 4)", default=[0, 0, 0, 0], min=0.0, max=1.0, size=4, update=update_tree,
+    )  # fmt: skip
     rMode: EnumProperty(
         name="Branching Mode", description="Branching and rotation mode", items=EnumItem.items(Choices.BRANCH_MODES),
         default=BranchingMode.ROTATE, update=update_tree,

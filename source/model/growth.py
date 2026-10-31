@@ -102,6 +102,7 @@ class LevelGrower:
         has_split = splits > 0
         growth = self._frames(grid.direction(k), level)
         frames = self._attract_out(growth.frames, grid.co[:, k], kp, level)
+        frames = self._attract_wind(frames, kp, level)
         angles = StepAngles(self._curve_angles(grid, k, kp), self._split_angles(grid, k, frames, has_split))
         local = self._local_rotations(stems, angles, level, has_split)
         direction = self._segment(grid, frames @ local, stems.segment_length, growth.taper)
@@ -210,6 +211,17 @@ class LevelGrower:
         zeros = np.zeros_like(outward)
         euler = EulerXYZ.compatible(frames, np.stack([zeros, zeros, outward], axis=1))
         turned = Angles.means(euler[:, 2], outward, kp * attract_out)
+        return EulerXYZ.matrices(np.stack([euler[:, 0], euler[:, 1], turned], axis=1))
+
+    def _attract_wind(self, frames: np.ndarray, kp: float, level: int) -> np.ndarray:
+        """Turn the frames toward the wind's direction (Wind Bend): heading 0 is toward -Y, as Attract Out's."""
+        wind_bend = self.params.wind_bend[level]
+        if level == 0 or kp <= 0 or wind_bend <= 0:
+            return frames
+        downwind = np.full(len(frames), self.params.wind_dir + Angles.TAU)
+        zeros = np.zeros_like(downwind)
+        euler = EulerXYZ.compatible(frames, np.stack([zeros, zeros, downwind], axis=1))
+        turned = Angles.means(euler[:, 2], downwind, kp * wind_bend)
         return EulerXYZ.matrices(np.stack([euler[:, 0], euler[:, 1], turned], axis=1))
 
     def _split_angles(self, grid: LevelGrid, k: int, frames: np.ndarray, has_split: np.ndarray) -> SplitAngles:

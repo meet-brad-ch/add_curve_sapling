@@ -68,12 +68,23 @@ class LevelPruning:
             grid.remove(np.array([self.removes(s, self.params.prune_ratio) for s in final.tolist()]))
         return grid
 
+    @staticmethod
+    def _wind_reach(end: np.ndarray, wind_dir: float, shear: float, distance: np.ndarray) -> np.ndarray:
+        """The factor on each end's distance from the axis: above 1 on the windward side (cut back), below 1
+        downwind (reaching further); 1 on the axis."""
+        downwind = np.array([np.sin(wind_dir), -np.cos(wind_dir)])
+        safe = np.maximum(distance, 1e-9)
+        along = (end[:, 0] * downwind[0] + end[:, 1] * downwind[1]) / safe
+        return np.where(distance > 1e-9, 1.0 - shear * along, 1.0)
+
     def _inside(self, grid: LevelGrid) -> np.ndarray:
         """Per family (root row), whether every stem end stays inside the envelope."""
         p = self.params
         scale = self.tree_scale
         end = grid.co[:, grid.segments]
         distance = np.hypot(end[:, 0], end[:, 1])
+        if p.wind_shear > 0:
+            distance = distance * self._wind_reach(end, p.wind_dir, p.wind_shear, distance)
         ratio = (scale - end[:, 2]) / (scale * max(1 - p.prune_base_clamped, 1e-6))
         inside = distance / scale < p.prune_width * p.envelopes(ratio)
         if grid.level == 0:
