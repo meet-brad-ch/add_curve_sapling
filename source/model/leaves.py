@@ -146,12 +146,26 @@ class LeafGenerator:
         p = self.params
         placement = self._place(sprouts)
         matrices = Rotation.compose(*self._turns(placement))
+        if p.leaf_up > 0:
+            matrices = self._face_up(matrices, p.leaf_up) @ matrices
         slot = np.arange(len(placement.index)) - np.searchsorted(placement.index, placement.index)
         blossom = BlossomPick.chosen(
             p.blossom_rate, sprouts.parent_key[placement.index], sprouts.position[placement.index], slot
         )
         blossoms = self._blossoms(placement, matrices[blossom], blossom) if blossom.any() else None
         return Foliage(self._leaves(placement, matrices[~blossom], ~blossom), blossoms)
+
+    @staticmethod
+    def _face_up(matrices: np.ndarray, share: float) -> np.ndarray:
+        """Leaf Face Up: per leaf, the turn of its face (the template's +Y normal, as placed) toward the vertical
+        it is nearer (+Z or -Z: a leaf has two faces) by `share` of the angle between them."""
+        normal = matrices[:, :, 1]
+        target = np.where(normal[:, 2:3] >= 0.0, 1.0, -1.0) * np.array([0.0, 0.0, 1.0])
+        axis = np.cross(normal, target)
+        length = np.linalg.norm(axis, axis=1)
+        angle = np.arctan2(length, np.abs(normal[:, 2]))
+        safe = np.where(length[:, None] > 1e-9, axis / np.maximum(length, 1e-9)[:, None], np.array([1.0, 0.0, 0.0]))
+        return Rotation.axis_angle(safe, np.where(length > 1e-9, share * angle, 0.0))
 
     def _leaves(self, placement: LeafPlacement, matrices: np.ndarray, rows: np.ndarray) -> LeafSet:
         """The leaf geometry of the placed leaves selected by `rows`."""

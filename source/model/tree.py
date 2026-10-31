@@ -85,14 +85,17 @@ class TreeGrower:
             level = TreeParams.level_index(depth)
             last_level = depth == p.levels - 1
             grid = starter.children(result.sprouts, level, depth, base_size, scale, levels.ends[-1], result.grid)
-            base_size = self._base_size(base_size, last_level)
+            base_size = self._base_size(base_size, level, last_level)
             result = self._finish_level(grid, level, base_size, last_level, levels)
         curve.load(FlatCurve.concatenate(levels.chunks))
         return GrownTree(result.sprouts, levels.ends, BoneMap(levels.links))
 
-    def _base_size(self, parent_base: float, last_level: bool) -> float:
-        """The bare base of a level's stems: its parent level's times Trunk Height Scale. The last level's children
-        are leaves, which grow along the whole stem unless Leaves Above Base."""
+    def _base_size(self, parent_base: float, level: int, last_level: bool) -> float:
+        """The bare base of a level's stems: Branch Base when set; else its parent level's times Trunk Height Scale.
+        The last level's children are leaves, which grow along the whole stem unless Leaves Above Base or Branch
+        Base."""
+        if self.params.branch_base[level] > 0:
+            return self.params.branch_base[level]
         if last_level and not self.params.leaves_above_base:
             return 0.0
         return parent_base * self.params.base_size_s

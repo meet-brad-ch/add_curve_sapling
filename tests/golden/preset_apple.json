@@ -3427,6 +3427,12 @@
   "blossomRate": 0.35,
   "blossomScale": 0.1072,
   "blossomShape": "cherry",
+  "branchBase": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
   "branchDist": 1.0,
   "branches": [
    0,
@@ -3512,6 +3518,7 @@
   "leafScaleV": 0.0,
   "leafScaleX": 0.5,
   "leafShape": "hex",
+  "leafUp": 0.0,
   "leafangle": 0.0,
   "leaves": 50,
   "leavesAboveBase": true,

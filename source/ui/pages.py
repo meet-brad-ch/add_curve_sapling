@@ -90,6 +90,7 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "baseSize")
         row.prop(props, "baseSize_s")
+        box.prop(props, "branchBase")
         box.prop(props, "splitHeight")
         box.prop(props, "splitBias")
         box.prop(props, "splitByLen")
@@ -173,6 +174,7 @@ class SettingsPages:
         if props.leafShape in LeafShape.MESH or props.blossomRate > 0:
             box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
+        box.prop(props, "leafUp")
         box.prop(props, "fanAngles")
         box.prop(props, "leavesAboveBase")
         box.prop(props, "leafangle")

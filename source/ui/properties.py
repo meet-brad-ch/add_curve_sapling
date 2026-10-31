@@ -221,6 +221,11 @@ class TreeProperties:
         name="Trunk Height", description="Fraction of tree height with no branches (Base Size)", min=0.0, max=1.0,
         default=0.4, update=update_tree,
     )  # fmt: skip
+    branchBase: FloatVectorProperty(
+        name="Branch Base", description="The bare share of each level's stems, where nothing sprouts (0: the parent "
+        "level's base times Secondary Base Size); on the last level it keeps the leaves to the outer part",
+        default=[0, 0, 0, 0], min=0.0, max=0.95, size=4, update=update_tree,
+    )  # fmt: skip
     baseSize_s: FloatProperty(
         name="Secondary Base Size", description="Factor to decrease base size for each level", min=0.0, max=1.0,
         default=0.25, update=update_tree,
@@ -477,6 +482,10 @@ class TreeProperties:
         description="Keep the leaves off the bare base of their stems (Trunk Height times Trunk Height Scale, as for "
         "branches). Off: leaves grow along the whole stem",
         default=False, update=update_tree,
+    )  # fmt: skip
+    leafUp: FloatProperty(
+        name="Leaf Face Up", description="Turn each leaf's face toward the sky by this share, after every other turn "
+        "(1: every leaf lies flat, as a foliage pad)", min=0.0, max=1.0, default=0.0, update=update_leaves,
     )  # fmt: skip
     horzLeaves: BoolProperty(
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
