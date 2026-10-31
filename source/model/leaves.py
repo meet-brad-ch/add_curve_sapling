@@ -148,6 +148,8 @@ class LeafGenerator:
         matrices = Rotation.compose(*self._turns(placement))
         if p.leaf_up > 0:
             matrices = self._face_up(matrices, p.leaf_up) @ matrices
+        if p.leaf_up_v > 0:
+            matrices = self._tilt(len(matrices), p.leaf_up_v) @ matrices
         slot = np.arange(len(placement.index)) - np.searchsorted(placement.index, placement.index)
         blossom = BlossomPick.chosen(
             p.blossom_rate, sprouts.parent_key[placement.index], sprouts.position[placement.index], slot
@@ -166,6 +168,14 @@ class LeafGenerator:
         angle = np.arctan2(length, np.abs(normal[:, 2]))
         safe = np.where(length[:, None] > 1e-9, axis / np.maximum(length, 1e-9)[:, None], np.array([1.0, 0.0, 0.0]))
         return Rotation.axis_angle(safe, np.where(length > 1e-9, share * angle, 0.0))
+
+    def _tilt(self, count: int, most: float) -> np.ndarray:
+        """Leaf Face Up Variation: per leaf, a turn by a random angle up to `most` either way about a random
+        horizontal axis (drawn only when set, so a tree without it draws the same random numbers as before)."""
+        heading = np.array([self.rng.uniform(0.0, 2.0 * pi) for _ in range(count)])
+        angle = np.array([self.rng.uniform(-most, most) for _ in range(count)])
+        axes = np.stack([np.cos(heading), np.sin(heading), np.zeros(count)], axis=1)
+        return Rotation.axis_angle(axes, angle)
 
     def _leaves(self, placement: LeafPlacement, matrices: np.ndarray, rows: np.ndarray) -> LeafSet:
         """The leaf geometry of the placed leaves selected by `rows`."""

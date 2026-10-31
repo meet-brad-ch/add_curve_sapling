@@ -200,6 +200,7 @@ class TreeParams(PlainParams):
         self.leaf_angle = float(s.leafangle)
         self.horizontal_leaves = bool(s.horzLeaves)
         self.leaf_up = float(s.leafUp)
+        self.leaf_up_v = radians(float(s.leafUpV))
         self.leaf_dist = int(s.leafDist)
         self.fan_angles = bool(s.fanAngles)
         self.leaves_above_base = bool(s.leavesAboveBase)

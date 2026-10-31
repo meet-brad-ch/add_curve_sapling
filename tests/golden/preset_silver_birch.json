@@ -2617,6 +2617,7 @@
   "leafScaleX": 0.7,
   "leafShape": "hex",
   "leafUp": 0.0,
+  "leafUpV": 0.0,
   "leafangle": 0.0,
   "leaves": 65,
   "leavesAboveBase": true,

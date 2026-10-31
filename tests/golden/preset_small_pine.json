@@ -546,6 +546,7 @@
   "leafScaleX": 0.019999999552965164,
   "leafShape": "rect",
   "leafUp": 0.0,
+  "leafUpV": 0.0,
   "leafangle": -10.0,
   "leaves": 500,
   "leavesAboveBase": false,

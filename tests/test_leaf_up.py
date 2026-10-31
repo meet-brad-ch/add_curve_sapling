@@ -39,6 +39,14 @@ class LeafUp(unittest.TestCase):
         # the mesh's normals are float32: near vertical, arccos magnifies their error to about 0.01 degrees
         np.testing.assert_allclose(after, before / 2.0, atol=0.02)
 
+    def test_variation_tilts_each_leaf_within_its_range(self):
+        normals = leaf_normals(dict(self.base, leafUp=1.0, leafUpV=10.0))
+        tilt = np.degrees(np.arccos(np.clip(np.abs(normals[:, 2]), 0.0, 1.0)))
+        # every leaf within 10 degrees of horizontal (float32 normals: 0.02), and spread over the range, not flat
+        self.assertLessEqual(tilt.max(), 10.02)
+        self.assertGreater(tilt.max(), 8.0)
+        self.assertGreater(np.median(tilt), 3.0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,6 +35,9 @@ PRESETS = (
     "palm",
     "fan_palm",
     "bamboo",
+    "monterey_cypress_sheared",
+    "monterey_cypress_lone",
+    "monterey_cypress_grove",
 )
 
 # Cases on quaking_aspen pin its former 2 levels and leaves off, so they keep testing the trees they were recorded with

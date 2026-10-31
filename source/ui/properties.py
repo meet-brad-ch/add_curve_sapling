@@ -487,6 +487,10 @@ class TreeProperties:
         name="Leaf Face Up", description="Turn each leaf's face toward the sky by this share, after every other turn "
         "(1: every leaf lies flat, as a foliage pad)", min=0.0, max=1.0, default=0.0, update=update_leaves,
     )  # fmt: skip
+    leafUpV: FloatProperty(
+        name="Leaf Face Up Variation", description="After Leaf Face Up, each leaf tilted by a random angle up to this "
+        "either way, about a random horizontal axis (degrees)", min=0.0, max=90.0, default=0.0, update=update_leaves,
+    )  # fmt: skip
     horzLeaves: BoolProperty(
         name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
     )

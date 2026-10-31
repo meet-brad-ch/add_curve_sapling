@@ -175,6 +175,7 @@ class SettingsPages:
             box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
         box.prop(props, "leafUp")
+        box.prop(props, "leafUpV")
         box.prop(props, "fanAngles")
         box.prop(props, "leavesAboveBase")
         box.prop(props, "leafangle")
