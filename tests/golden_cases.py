@@ -38,6 +38,10 @@ PRESETS = (
     "monterey_cypress_sheared",
     "monterey_cypress_lone",
     "monterey_cypress_grove",
+    "monterey_pine",
+    "coast_live_oak",
+    "coyote_brush",
+    "california_sagebrush",
 )
 
 # Cases on quaking_aspen pin its former 2 levels and leaves off, so they keep testing the trees they were recorded with
