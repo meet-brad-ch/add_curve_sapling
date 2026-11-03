@@ -14,14 +14,8 @@ for the stdlib `Random` stream order.
 
 ### Owner decisions (change computed trees)
 ### Complexity and control flow (no change to computed trees)
-- **Q4** lizard CCN > 10 (bug S2): `build/tree_copy.py` `complete` (12, also a call in `?:`), `_relink_modifiers`
-  (11, nesting 4); `settings.py` `_check_migratable` (11, `min(levels, 3)` twice); `tools/port_treegen_in_blender.py`
-  `convert` (15, 86 lines), `shape_points` (14); `tests/run.py` `main` (16); tests `features` (11), `check_tree` (12),
-  `assert_whole_copy` (11), `test_every_trunk_base_stays_still` (11). Then lizard -C 10 in the gate.
-- **Q5** Recursion: `tests/support/fingerprint.py` `FingerprintDiff.first/in_dict/in_list` (mutual);
-  `source/settings.py:185` `plain()`. Fix: an explicit work list.
-- **Q6** Unbounded loops that end only on data: `model/joints.py:187, 226`, `build/tree_record.py:85` `_top`.
-  Fix: a `for` bounded by the size, then raise.
+- **Q4 (rest)** lizard CCN > 10 (bug S2): `tools/port_treegen_in_blender.py` `convert` (15, 86 lines),
+  `shape_points` (14), after the owner's decision on the port tools (Appendix B). Then lizard -C 10 in the gate.
 - **Q7** Nested conditional expressions and calls inside `?:`: model `geometry.py:89, 107`, `growth.py:113, 129,
   285`, `branching.py:287, 388`, `level_grid.py:221`, `leaves.py:157`, `joints.py:213`, `params.py:189`, `tree.py:46`;
   `generator.py:179`, `armature.py:131, 229`, `presets.py:80`, `leaf_object.py:97-101`, `settings.py:168-169`,
@@ -113,4 +107,12 @@ for the stdlib `Random` stream order.
   value raises SettingsError. (Open: tests/support `FingerprintDiff`.)
 - **Q6** the loops over parent links are bounded: `joints.depths`, `joints.nearest_joint`, `tree_record._top`; a cycle
   raises. Unit tests force each raise.
+- **Q4 (tests part)** `tests/run.py` `main` became `RunOptions` (a dataclass, parsed once), `CoverageRun` and
+  `TestRun` (also its Q7 ternaries, the Q16 `minimums` tuple and its Q22 module functions); the fuzz test's `features`
+  and `check_tree`, `assert_whole_copy` and `test_every_trunk_base_stays_still` split into named helpers. lizard -C 10
+  on source/ and tests/ finds nothing. (Open: the port tool's `convert` and `shape_points`: Appendix B proposes the
+  port tools for retirement, the owner decides first.)
+- **Q5** `FingerprintDiff`: an explicit work list (`DiffStep`), depth first in key order, the same report text;
+  unit tests in tests/unit/support. `test_trunk.root_of` (Q22/Q26: a bone's parent chain, not a copy of
+  `Trees.root_of`) is a bounded method of its test class.
 

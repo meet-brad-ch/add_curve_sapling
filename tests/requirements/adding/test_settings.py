@@ -174,26 +174,40 @@ class SettingsFuzz(unittest.TestCase):
         "leaf_hex", "leaf_rect", "leaf_dFace", "leaf_dVert", "palmate", "trunks", "bend", "helix", "blossoms",
     )  # fmt: skip
 
-    @staticmethod
-    def features(settings):
+    SWITCHES = ("prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves")
+
+    @classmethod
+    def features(cls, settings):
         """The features a case exercises, so the run can prove it covered all of them."""
-        flags = [
-            name for name in ("prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves") if settings[name]
-        ]
-        if settings["levels"] == 4:
+        flags = [name for name in cls.SWITCHES if settings[name]]
+        flags += cls.shape_features(settings)
+        if settings["showLeaves"]:
+            flags += cls.leaf_features(settings)
+        return flags
+
+    @staticmethod
+    def shape_features(settings):
+        """The stem features a case exercises: four levels, a clump of trunks, bends, helices."""
+        levels = settings["levels"]
+        flags = []
+        if levels == 4:
             flags.append("levels_4")
         if settings["trunks"] > 1:
             flags.append("trunks")
-        if any(settings["bendV"][: settings["levels"]]):
+        if any(settings["bendV"][:levels]):
             flags.append("bend")
-        if any(settings["helix"][: settings["levels"]]):
+        if any(settings["helix"][:levels]):
             flags.append("helix")
-        if settings["showLeaves"]:
-            flags.append(f"leaf_{settings['leafShape']}")
-            if settings["leaves"] < 0:
-                flags.append("palmate")
-            if settings["leaves"] and settings["blossomRate"] > 0:
-                flags.append("blossoms")
+        return flags
+
+    @staticmethod
+    def leaf_features(settings):
+        """The leaf features a case with leaves exercises: its leaf shape, palmate leaves, blossoms."""
+        flags = [f"leaf_{settings['leafShape']}"]
+        if settings["leaves"] < 0:
+            flags.append("palmate")
+        if settings["leaves"] and settings["blossomRate"] > 0:
+            flags.append("blossoms")
         return flags
 
     def test_random_settings(self):
@@ -241,15 +255,25 @@ class SettingsFuzz(unittest.TestCase):
         model = self.grown[-1]
         self.assertEqual(len(model.grown.bone_map), model.curve.spline_count, "one bone link per spline")
         self.assert_finite("tree_curves", [c for points in Evaluated.spline_points() for co, _r in points for c in co])
+        self.assert_meshes_finite()
+        self.assert_whole_leaves(settings)
+        if settings["useRig"]:
+            self.assert_bones_on_splines()
+
+    def assert_meshes_finite(self):
+        """Every mesh of the tree (not the user's leaf card) has finite vertex coordinates."""
         for ob in bpy.data.objects:
             if ob.type == "MESH" and ob.name != "leaf_card":
                 self.assert_finite(ob.name, [c for v in ob.data.vertices for c in v.co])
+
+    def assert_whole_leaves(self, settings):
+        """The leaves mesh holds whole leaves: its face count is a multiple of the leaf shape's faces (dVert
+        instances on vertices, so it has no faces to count)."""
         leaves = bpy.data.objects.get("leaves")
-        if leaves and settings["leafShape"] != "dVert":
-            per_leaf = FACES_PER_LEAF[settings["leafShape"]]
-            self.assertEqual(len(leaves.data.polygons) % per_leaf, 0, "whole leaves")
-        if settings["useRig"]:
-            self.assert_bones_on_splines()
+        if leaves is None or settings["leafShape"] == "dVert":
+            return
+        per_leaf = FACES_PER_LEAF[settings["leafShape"]]
+        self.assertEqual(len(leaves.data.polygons) % per_leaf, 0, "whole leaves")
 
     def assert_finite(self, name, values):
         self.assertTrue(all(math.isfinite(v) for v in values), f"{name} has NaN or inf coordinates")

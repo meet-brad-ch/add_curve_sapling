@@ -16,12 +16,6 @@ from support.scene import Scene
 from support.verifies import Verifies
 
 
-def root_of(bone):
-    while bone.parent is not None:
-        bone = bone.parent
-    return bone
-
-
 @Verifies("SWR-0060")
 class DeepTrees(unittest.TestCase):
     """The last-level checks compared the level index clamped to 3 with levels - 1, so with 5 or 6
@@ -54,6 +48,26 @@ class SeveralTrunks(unittest.TestCase):
     def roots(self):
         return [b for b in Scene.armature().data.bones if b.parent is None]
 
+    @staticmethod
+    def root_of(bone):
+        """The bone's farthest parent (a trunk's first bone). A chain of parents is at most as long as there are
+        bones; Blender refuses a parent loop, so the bound only makes the loop's end visible."""
+        bones = Scene.armature().data.bones
+        for _ in range(len(bones)):
+            if bone.parent is None:
+                return bone
+            bone = bone.parent
+        raise AssertionError(f"{bone.name}: the chain of parents is longer than the bones")
+
+    def base_bones(self):
+        """The names of each trunk's first two bones: the root and its connected child."""
+        names = set()
+        for root in self.roots():
+            for bone in (root, *root.children):
+                if bone.use_connect or bone.parent is None:
+                    names.add(bone.name)
+        return {name for name in names if name.endswith((".000", ".001"))}
+
     def test_trunks_stand_on_the_ground_apart(self):
         self.assertEqual(self.result, {"FINISHED"})
         bases = [Vector(s[0][0]) for s in Evaluated.spline_points() if s[0][0][2] == 0.0]
@@ -69,17 +83,18 @@ class SeveralTrunks(unittest.TestCase):
         branches_per_root = {root.name: 0 for root in roots}
         for bone in Scene.armature().data.bones:
             if bone.parent is not None and not bone.use_connect:  # the first bone of a branch
-                branches_per_root[root_of(bone).name] += 1
+                branches_per_root[self.root_of(bone).name] += 1
         self.assertTrue(all(count >= 10 for count in branches_per_root.values()), branches_per_root)
 
     def test_every_trunk_base_stays_still(self):
-        base = {b.name for root in self.roots() for b in (root, *root.children) if b.use_connect or b.parent is None}
-        base = {name for name in base if name.endswith((".000", ".001"))}
+        base = self.base_bones()
         self.assertGreaterEqual(len(base), self.TRUNKS)
+        quoted = [f'"{name}"' for name in base]
         for fc in Evaluated.fcurves_of(Scene.armature()):
-            if any(f'"{name}"' in fc.data_path for name in base):
-                for mod in fc.modifiers:
-                    self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
+            if not any(name in fc.data_path for name in quoted):
+                continue
+            for mod in fc.modifiers:
+                self.assertEqual(mod.amplitude, 0.0, f"{fc.data_path}[{fc.array_index}]")
 
 
 @Verifies("SWR-0070")

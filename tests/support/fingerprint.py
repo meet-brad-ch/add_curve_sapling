@@ -3,6 +3,7 @@
 """The golden trees' fingerprint of the scene."""
 
 import hashlib
+from dataclasses import dataclass
 from typing import Any
 
 import bpy
@@ -193,36 +194,85 @@ class Fingerprint:
         return cls.text([g.name for g in ob.vertex_groups] + members)
 
 
+@dataclass(frozen=True)
+class DiffStep:
+    """One place of the comparison: the two values at a path, or a difference already known there (a key that only
+    one side has)."""
+
+    path: str
+    expected: Any = None
+    actual: Any = None
+    found: str = ""
+
+
 class FingerprintDiff:
-    """The first difference between two fingerprints, as a readable path."""
+    """The first difference between two fingerprints, as a readable path.
+
+    The places are compared depth first, keys in sorted order, items in order: a work list (no recursion), each place
+    taken once. A place's children go on the list in reverse, so its first child and everything below it come first."""
 
     @classmethod
-    def first(cls, expected, actual, path="") -> str:
-        """Human-readable location of the first difference between two fingerprints."""
+    def first(cls, expected: Any, actual: Any) -> str:
+        """The first difference between two fingerprints ("path: old -> new", "path: missing", ...), "" if equal."""
+        work = [DiffStep(path="", expected=expected, actual=actual)]
+        # each step leaves the list once; a fingerprint is a tree (JSON), so the list empties
+        while work:
+            step = work.pop()
+            found = cls.difference_at(step)
+            if found:
+                return found
+            children = cls.children(step)
+            work.extend(reversed(children))
+        return ""
+
+    @staticmethod
+    def difference_at(step: DiffStep) -> str:
+        """The difference this place shows by itself: a known one, a list length, or two unequal plain values."""
+        if step.found:
+            return step.found
+        expected = step.expected
+        actual = step.actual
+        both_dicts = isinstance(expected, dict) and isinstance(actual, dict)
+        both_lists = isinstance(expected, list) and isinstance(actual, list)
+        if both_dicts:
+            return ""
+        if both_lists:
+            if len(expected) != len(actual):
+                return f"{step.path}: length {len(expected)} -> {len(actual)}"
+            return ""
+        if expected == actual:
+            return ""
+        return f"{step.path}: {expected!r} -> {actual!r}"
+
+    @classmethod
+    def children(cls, step: DiffStep) -> list[DiffStep]:
+        """The places below this one, in comparison order (none below a plain value)."""
+        expected = step.expected
+        actual = step.actual
         if isinstance(expected, dict) and isinstance(actual, dict):
-            return cls.in_dict(expected, actual, path)
+            return cls.dict_children(step)
         if isinstance(expected, list) and isinstance(actual, list):
-            return cls.in_list(expected, actual, path)
-        return "" if expected == actual else f"{path}: {expected!r} -> {actual!r}"
+            return cls.list_children(step)
+        return []
 
-    @classmethod
-    def in_dict(cls, expected, actual, path) -> str:
-        for key in sorted(set(expected) | set(actual)):
-            if key not in actual:
-                return f"{path}/{key}: missing"
-            if key not in expected:
-                return f"{path}/{key}: unexpected"
-            found = cls.first(expected[key], actual[key], f"{path}/{key}")
-            if found:
-                return found
-        return ""
+    @staticmethod
+    def dict_children(step: DiffStep) -> list[DiffStep]:
+        """A step per key of either side, in sorted order; a key on one side only is a known difference."""
+        out = []
+        for key in sorted(set(step.expected) | set(step.actual)):
+            path = f"{step.path}/{key}"
+            if key not in step.actual:
+                out.append(DiffStep(path=path, found=f"{path}: missing"))
+            elif key not in step.expected:
+                out.append(DiffStep(path=path, found=f"{path}: unexpected"))
+            else:
+                out.append(DiffStep(path=path, expected=step.expected[key], actual=step.actual[key]))
+        return out
 
-    @classmethod
-    def in_list(cls, expected, actual, path) -> str:
-        if len(expected) != len(actual):
-            return f"{path}: length {len(expected)} -> {len(actual)}"
-        for i, (e, a) in enumerate(zip(expected, actual, strict=True)):
-            found = cls.first(e, a, f"{path}[{i}]")
-            if found:
-                return found
-        return ""
+    @staticmethod
+    def list_children(step: DiffStep) -> list[DiffStep]:
+        """A step per item, in order (the lengths are equal: difference_at checked them)."""
+        out = []
+        for i, (e, a) in enumerate(zip(step.expected, step.actual, strict=True)):
+            out.append(DiffStep(path=f"{step.path}[{i}]", expected=e, actual=a))
+        return out

@@ -45,25 +45,39 @@ class DuplicateTree(unittest.TestCase):
     def assert_whole_copy(self, root, copy):
         """The copy has a part for every part of the original, none shared, all its links inside the copy, a new
         tree id, and it draws where it stands; editing the original leaves it whole."""
-        parts = {ob[Trees.record().ROLE]: ob for ob in Trees.record().owned(root)}
-        copies = {ob[Trees.record().ROLE]: ob for ob in Trees.record().owned(copy)}
+        record = Trees.record()
+        parts = {ob[record.ROLE]: ob for ob in record.owned(root)}
+        copies = {ob[record.ROLE]: ob for ob in record.owned(copy)}
         self.assertEqual(sorted(copies), sorted(parts))
-        self.assertEqual(len(Trees.record().owned(copy)), len(parts), "no part is copied twice")
-        self.assertNotEqual(copy[Trees.record().ID], root[Trees.record().ID])
+        self.assertEqual(len(record.owned(copy)), len(parts), "no part is copied twice")
+        self.assertNotEqual(copy[record.ID], root[record.ID])
         self.assertFalse(set(copies.values()) & set(parts.values()))
         for ob in copies.values():
-            for modifier in ob.modifiers:
-                if modifier.type == "NODES":
-                    for item in modifier.node_group.interface.items_tree:
-                        if item.item_type != "SOCKET" or item.socket_type != "NodeSocketObject":
-                            continue
-                        value = getattr(modifier.properties.inputs, item.identifier).value
-                        if isinstance(value, bpy.types.Object):
-                            self.assertIn(value, copies.values(), f"{ob.name}: {item.name}")
+            self.assert_inputs_inside(ob, copies.values())
         self.assert_moved(root, copy)
         self.assertEqual(Trees.edit(root, seed=7), {"FINISHED"})
-        self.assertEqual(sorted(ob[Trees.record().ROLE] for ob in Trees.record().owned(copy)), sorted(parts))
+        self.assertEqual(sorted(ob[record.ROLE] for ob in record.owned(copy)), sorted(parts))
         self.assertGreater(len(Evaluated.vertices(copy.name)), 0)
+
+    def assert_inputs_inside(self, ob, copies):
+        """Every object input of the part's node modifiers names a part of the copy."""
+        for modifier in ob.modifiers:
+            if modifier.type != "NODES":
+                continue
+            for name, value in self.object_inputs(modifier).items():
+                self.assertIn(value, copies, f"{ob.name}: {name}")
+
+    @staticmethod
+    def object_inputs(modifier):
+        """The node modifier's object inputs that hold an object, by input name."""
+        out = {}
+        for item in modifier.node_group.interface.items_tree:
+            if item.item_type != "SOCKET" or item.socket_type != "NodeSocketObject":
+                continue
+            value = getattr(modifier.properties.inputs, item.identifier).value
+            if isinstance(value, bpy.types.Object):
+                out[item.name] = value
+        return out
 
     def shift_d(self, selected):
         """Blender's Duplicate of the selected objects, then the depsgraph update that shows the copy."""
