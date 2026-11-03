@@ -5,6 +5,7 @@
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Any
 
 import bpy
 from bpy.types import ID, Object
@@ -43,26 +44,48 @@ class TreeCopy:
     def complete(self, target: Object) -> Object:
         """Make `target`, a copy of the original's root, a whole tree: the parts copied with it are kept (their
         tree id and role match), every other part is copied; then all are relinked under a new tree id."""
-        existing = {ob[TreeRecord.ROLE]: ob for ob in TreeRecord.owned(target)[1:]}
         owned = TreeRecord.owned(self.original)
+        self._copy_parts(target, owned)
+        self._copy_face_instances(owned)
+        self._relink_all()
+        self._retag(owned)
+        return target
+
+    def _copy_parts(self, target: Object, owned: list[Object]) -> None:
+        """Map every part of the original to its copy: the target for the root, the part Duplicate copied with it
+        (same role), or a new copy."""
+        existing = {ob[TreeRecord.ROLE]: ob for ob in TreeRecord.owned(target)[1:]}
         for ob in owned:
-            if ob is self.original:
-                self.copies[ob] = target
-            else:
-                role = ob[TreeRecord.ROLE]
-                self.copies[ob] = existing[role] if role in existing else self._duplicate(ob, own_data=True)
+            self.copies[ob] = self._copy_of_part(ob, target, existing)
+
+    def _copy_of_part(self, ob: Object, target: Object, existing: dict[str, Object]) -> Object:
+        """The copy of one part of the original."""
+        if ob is self.original:
+            return target
+        role = ob[TreeRecord.ROLE]
+        if role in existing:
+            return existing[role]
+        return self._duplicate(ob, own_data=True)
+
+    def _copy_face_instances(self, owned: list[Object]) -> None:
+        """A face-instancing part's children (the user's leaf object) are copied when its copy has none."""
         for ob in owned:
             if ob.instance_type == "FACES" and not self.copies[ob].children:
                 for child in ob.children:
                     self.copies[child] = self._duplicate(child, own_data=False)
+
+    def _relink_all(self) -> None:
+        """Parent every copy to the copy of its original's parent and point its modifiers at the copies."""
         for original, duplicate in self.copies.items():
             if original.parent in self.copies:
                 duplicate.parent = self.copies[original.parent]
             self._relink_modifiers(duplicate)
+
+    def _retag(self, owned: list[Object]) -> None:
+        """Give the copies of the tree's own parts a new tree id, so the copy is a tree of its own."""
         tree_id = uuid.uuid4().hex
         for ob in owned:
             self.copies[ob][TreeRecord.ID] = tree_id
-        return target
 
     @staticmethod
     def copied_roots(objects: Iterable[Object]) -> list[CopiedRoot]:
@@ -105,13 +128,22 @@ class TreeCopy:
     def _relink_modifiers(self, ob: Object) -> None:
         """Point ob's Armature modifiers and node group object inputs at the copies of the tree's parts."""
         for modifier in ob.modifiers:
-            if modifier.type == "ARMATURE" and modifier.object in self.copies:  # type: ignore[attr-defined]  # stub: Modifier base class
-                modifier.object = self.copies[modifier.object]  # type: ignore[attr-defined]  # stub: as above
-            elif modifier.type == "NODES" and modifier.node_group is not None:  # type: ignore[attr-defined]  # stub: as above
-                for item in modifier.node_group.interface.items_tree:  # type: ignore[attr-defined]  # stub: as above
-                    if item.item_type != "SOCKET" or item.socket_type != "NodeSocketObject":
-                        continue
-                    # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
-                    socket = getattr(modifier.properties.inputs, item.identifier)  # type: ignore[attr-defined]  # stub: as above
-                    if isinstance(socket.value, Object) and socket.value in self.copies:
-                        socket.value = self.copies[socket.value]
+            if modifier.type == "ARMATURE":
+                self._relink_armature(modifier)
+            elif modifier.type == "NODES" and modifier.node_group is not None:  # type: ignore[attr-defined]  # stub: Modifier base class
+                self._relink_node_inputs(modifier)
+
+    def _relink_armature(self, modifier: Any) -> None:
+        """An Armature modifier that deforms by a part of the tree deforms by that part's copy."""
+        if modifier.object in self.copies:
+            modifier.object = self.copies[modifier.object]
+
+    def _relink_node_inputs(self, modifier: Any) -> None:
+        """A node modifier's object inputs that name a part of the tree name that part's copy."""
+        for item in modifier.node_group.interface.items_tree:
+            if item.item_type != "SOCKET" or item.socket_type != "NodeSocketObject":
+                continue
+            # Blender 5.2: modifier inputs are typed sockets, no longer ID properties
+            socket = getattr(modifier.properties.inputs, item.identifier)
+            if isinstance(socket.value, Object) and socket.value in self.copies:
+                socket.value = self.copies[socket.value]

@@ -90,10 +90,14 @@ class TreeSettings:
         if isinstance(v["attractUp"], int | float):
             v["attractUp"] = [0, 0, v["attractUp"], v["attractUp"]]
         if "leafDownAngle" not in v:
-            last = min(v["levels"], 3)
+            last = self.angle_source_level()
             for leaf_key, branch_key in self.LEAF_ANGLE_SOURCES.items():
                 v[leaf_key] = v[branch_key][last]
         return self
+
+    def angle_source_level(self) -> int:
+        """The branch level an old preset's leaf angles come from: the last level, at most the fourth."""
+        return min(self.values["levels"], 3)
 
     def _check_migratable(self) -> None:
         """What migrate() reads must be there and have the right shape."""
@@ -106,12 +110,18 @@ class TreeSettings:
             raise SettingsError(f"Settings do not have {missing}; this version needs them to load the settings")
         if not isinstance(v["levels"], int):
             raise SettingsError(f"levels must be an integer, not {type(v['levels']).__name__}")
-        if "leafDownAngle" in v:
-            return
-        last = min(v["levels"], 3)
+        if "leafDownAngle" not in v:
+            self._check_angle_sources()
+
+    def _check_angle_sources(self) -> None:
+        """An old preset's per-level angles must reach the level its leaf angles come from."""
+        last = self.angle_source_level()
         for key in self.LEAF_ANGLE_SOURCES.values():
-            if not isinstance(v[key], list | tuple) or len(v[key]) <= last:
-                count = len(v[key]) if isinstance(v[key], list | tuple) else 0
+            values = self.values[key]
+            count = 0
+            if isinstance(values, list | tuple):
+                count = len(values)
+            if count <= last:
                 raise SettingsError(f"{key} has {count} values; {last + 1} are needed")
 
     @classmethod
@@ -192,7 +202,14 @@ class TreeSettings:
 
     @staticmethod
     def plain(value: Any) -> Any:
-        """A property value as plain Python: vectors (bpy arrays) become lists."""
+        """A property value as plain Python: a number, text or flag as it is; a vector (a bpy array, one level deep,
+        as Blender's array properties are) as a list. Raises SettingsError for anything else."""
         if isinstance(value, str | bool | int | float):
             return value
-        return [TreeSettings.plain(v) for v in value]
+        if not hasattr(value, "__iter__"):
+            raise SettingsError(f"a setting's value must be a number, text, flag or vector, not {type(value).__name__}")
+        items = list(value)
+        for item in items:
+            if not isinstance(item, str | bool | int | float):
+                raise SettingsError(f"a vector setting's items must be numbers or flags, not {type(item).__name__}")
+        return items

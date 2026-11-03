@@ -105,4 +105,12 @@ for the stdlib `Random` stream order.
 - **Q31** `build/node_groups.py` `set_input`: `getattr(i, "name", "")` became an explicit input-socket match.
 - **Q32** `model/params.py` `PlainParams`: `getattr(self, "_frozen", False)` became a class attribute.
   `model/randomness.py`: the remaining `errstate(over="ignore")` are the hash's defined uint64 wrap (commented).
+- **Q4 (source part)** `build/tree_copy.py` `complete` split into `_copy_parts`/`_copy_of_part`/`_copy_face_instances`/
+  `_relink_all`/`_retag`, `_relink_modifiers` into `_relink_armature`/`_relink_node_inputs`; `settings.py`
+  `_check_migratable` with `_check_angle_sources` and `angle_source_level` (the `min(levels, 3)` once). lizard -C 10 on
+  source/ now finds nothing. (Open: the tools and tests functions of Q4.)
+- **Q5 (source part)** `settings.py` `plain()`: one explicit level (Blender's array properties), a nested or unknown
+  value raises SettingsError. (Open: tests/support `FingerprintDiff`.)
+- **Q6** the loops over parent links are bounded: `joints.depths`, `joints.nearest_joint`, `tree_record._top`; a cycle
+  raises. Unit tests force each raise.
 

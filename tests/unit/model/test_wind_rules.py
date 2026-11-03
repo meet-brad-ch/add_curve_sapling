@@ -5,6 +5,7 @@
 import random
 import unittest
 
+import numpy as np
 from support.addon import Addon
 from support.model import Model
 
@@ -40,3 +41,30 @@ class JointRadius(unittest.TestCase):
         wind_model = Addon.module("model.wind_model").WindModel(joints.params, 24.0)
         with self.assertRaisesRegex(RuntimeError, "joint 0 has radius 0"):
             joints.sway(wind_model, random.Random(0))
+
+
+class ParentCycles(unittest.TestCase):
+    """The loops over parent links are bounded: a cycle raises instead of hanging."""
+
+    def joints(self):
+        settings = Addon.resolve_preset("quaking_aspen.py")
+        settings.update(windAnim=True)
+        model = Model.grow(settings)
+        return Model.joints(settings, model)
+
+    def test_a_cycle_in_the_depths_raises(self):
+        joints = self.joints()
+        joints.link_spline[0] = 1
+        joints.link_spline[1] = 0
+        with self.assertRaisesRegex(RuntimeError, "form a cycle"):
+            joints.depths()
+
+    def test_a_cycle_in_the_joint_search_raises(self):
+        joints = self.joints()
+        # two curves without joints that hang from each other: the climb never reaches a curve with joints
+        joints.eligible[1] = False
+        joints.eligible[2] = False
+        joints.link_spline[1] = 2
+        joints.link_spline[2] = 1
+        with self.assertRaisesRegex(RuntimeError, "form a cycle"):
+            joints.nearest_joint(np.array([1]), np.array([0]))

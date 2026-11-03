@@ -50,3 +50,17 @@ class RigDefault(unittest.TestCase):
         """TreeSettings.RIG_DEFAULT (what a left-out rig setting means for old settings) is useRig's default."""
         default = Addon.operator_defaults()["useRig"]
         self.assertEqual(default, Addon.module("settings").TreeSettings.RIG_DEFAULT)
+
+
+class PlainValues(unittest.TestCase):
+    def settings(self):
+        return Addon.module("settings")
+
+    def test_a_vector_becomes_a_list(self):
+        self.assertEqual(self.settings().TreeSettings.plain((1.0, 2.0)), [1.0, 2.0])
+
+    def test_a_nested_or_unknown_value_is_refused(self):
+        settings = self.settings()
+        for value in ([[1.0]], None, object()):
+            with self.subTest(value=value), self.assertRaises(settings.SettingsError):
+                settings.TreeSettings.plain(value)

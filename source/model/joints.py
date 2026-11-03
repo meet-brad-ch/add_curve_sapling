@@ -184,10 +184,13 @@ class Joints:
         parent = np.maximum(self.link_spline, 0)
         depth = np.zeros(len(self.sizes), dtype=np.int64)
         deeper = np.where(has_parent, depth[parent] + 1, 0)
-        while not np.array_equal(deeper, depth):  # one pass per level of nesting
+        # one pass per level of nesting; a chain of parents is at most as long as there are curves
+        for _ in range(len(self.sizes) + 1):
+            if np.array_equal(deeper, depth):
+                return depth.astype(np.int32)
             depth = deeper
             deeper = np.where(has_parent, depth[parent] + 1, 0)
-        return depth.astype(np.int32)
+        raise RuntimeError("the curves' parent links form a cycle: no depth below a trunk")
 
     def first_parent(self) -> np.ndarray:
         """Per curve, the joint its first joint hangs from: the nearest joint at or before the point of the parent
@@ -223,13 +226,18 @@ class Joints:
         spline = np.array(spline, dtype=np.int64)
         point = np.array(point, dtype=np.int64)
         found = self.eligible[spline]
-        while not found.all():  # climb to the parent's attach point until a curve with joints
+        # climb to the parent's attach point until a curve with joints; a climb is at most as long as there are curves
+        for _ in range(len(self.sizes) + 1):
+            if found.all():
+                break
             climb = np.flatnonzero(~found)
             if (self.link_spline[spline[climb]] < 0).any():
                 raise RuntimeError("a stem hangs from a stem without a joint below it")
             point[climb] = self.link_point[spline[climb]]
             spline[climb] = self.link_spline[spline[climb]]
             found = self.eligible[spline]
+        if not found.all():
+            raise RuntimeError("the curves' parent links form a cycle: no stem with joints below them")
         step = self.step[spline]
         n = np.minimum((point // step) * step, (self.count[spline] - 1) * step)
         return self.starts[spline] + n

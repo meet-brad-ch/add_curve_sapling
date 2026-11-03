@@ -82,9 +82,12 @@ class TreeRecord:
     @classmethod
     def _top(cls, ob: Object) -> Object:
         """The farthest ancestor carrying ob's tree id (the root, if the tree is intact)."""
-        while ob.parent is not None and ob.parent.get(cls.ID) == ob[cls.ID]:
+        # a chain of parents is at most as long as there are objects (Blender refuses parent loops)
+        for _ in range(len(bpy.data.objects) + 1):
+            if ob.parent is None or ob.parent.get(cls.ID) != ob[cls.ID]:
+                return ob
             ob = ob.parent
-        return ob
+        raise TreeRecordError(f"'{ob.name}': the chain of parents is longer than the objects in the file")
 
 
 @dataclass(frozen=True, slots=True)
