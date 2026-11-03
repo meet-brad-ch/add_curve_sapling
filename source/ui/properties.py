@@ -554,7 +554,8 @@ class TreeProperties:
         update=update_tree,
     )  # fmt: skip
     flutterSpeed: FloatProperty(
-        name="Flutter Speed", description="Multiplier for the leaves' noise frequency", default=1.0, update=update_tree,
+        name="Flutter Speed", description="Multiplier for the leaves' noise frequency (above 0)", default=1.0,
+        soft_min=0.001, update=update_tree,
     )  # fmt: skip
     flutterRandomness: FloatProperty(
         name="Flutter Randomness", description="Random offset in the leaves' noise", default=4.0, update=update_tree,
