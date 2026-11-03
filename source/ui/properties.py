@@ -95,7 +95,7 @@ class TreeProperties:
     # Refers to an object in the scene: stored with a tree, never in presets.
     SCENE_BOUND = ["leafDupliObj"]
     # UI state: never part of presets or stored tree settings.
-    UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "limitImport", "overwrite"})
+    UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "overwrite"})
 
     def update_tree(self, context: Context) -> None:
         """Update callback of a generation property: the next run regenerates the tree."""
@@ -563,10 +563,6 @@ class TreeProperties:
     # Presets (UI state)
     presetName: StringProperty(
         name="Preset Name", description="The name of the preset to save", default="", subtype="FILE_NAME",
-        update=no_update_tree,
-    )  # fmt: skip
-    limitImport: BoolProperty(
-        name="Limit Import", description="Limit loaded presets to 2 levels and no leaves, for speed", default=False,
         update=no_update_tree,
     )  # fmt: skip
     overwrite: BoolProperty(

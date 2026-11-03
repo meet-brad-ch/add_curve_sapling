@@ -109,7 +109,7 @@ class AddTreeOperator(TreeProperties, OldSettingNames, Operator):
         """What the service needs to choose the settings: the panel's, the defaults, a pending preset, an edit."""
         current = TreeSettings.from_properties(self, TreeProperties.stored_names())
         preset = self.preset if self.preset_pending else ""
-        return SettingsRequest(current, self.defaults(), preset, self.limitImport, self.replace, self.load_stored)
+        return SettingsRequest(current, self.defaults(), preset, self.replace, self.load_stored)
 
     def report_warnings(self, warnings: list[str]) -> None:
         """Show each warning in Blender's report area."""

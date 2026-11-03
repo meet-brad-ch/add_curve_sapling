@@ -34,13 +34,15 @@ def extension_id() -> str:
 # The installed add-on's module: bl_ext.<repository>.<extension id>
 MODULE = f"bl_ext.{REPO}.{extension_id()}"
 
-REQUIRED_VERSION = "Blender 5.2"
+# The Blender versions the extension supports (docs/requirements.md SWR-0001); the first is the default
+
+SUPPORTED_VERSIONS = ("Blender 5.2", "Blender 5.3")
 DEFAULT_BLENDER = Path(r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe")
 
 
 @functools.cache
 def blender_path() -> Path:
-    """Blender from $BLENDER, else the default 5.2 install, else PATH; it must be Blender 5.2."""
+    """Blender from $BLENDER, else the default 5.2 install, else PATH; it must be a supported version."""
     if "BLENDER" in os.environ:
         path = Path(os.environ["BLENDER"])
         if not path.is_file():
@@ -50,16 +52,17 @@ def blender_path() -> Path:
     elif shutil.which("blender"):
         path = Path(str(shutil.which("blender")))
     else:
-        sys.exit("Blender not found: set BLENDER to the Blender 5.2 executable")
+        sys.exit(f"Blender not found: set BLENDER to the executable of one of {SUPPORTED_VERSIONS}")
     require_version(path)
     return path
 
 
 def require_version(path: Path) -> None:
-    """The golden files hold exact float32 values, valid for one Blender version only."""
+    """The tests run on a supported Blender only (the golden files hold exact float32 values of each)."""
     version = subprocess.run([str(path), "--version"], capture_output=True, text=True).stdout.splitlines()
-    if not version or not version[0].startswith(REQUIRED_VERSION):
-        sys.exit(f"{path} is {version[0] if version else 'not Blender'}; the tests need {REQUIRED_VERSION}")
+    first = version[0] if version else "not Blender"
+    if not first.startswith(SUPPORTED_VERSIONS):
+        sys.exit(f"{path} is {first}; the tests need one of {SUPPORTED_VERSIONS}")
 
 
 def venv_python() -> Path:

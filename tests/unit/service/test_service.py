@@ -87,12 +87,12 @@ class LoadedSettings(unittest.TestCase):
     def test_nothing_to_load(self):
         self.assertEqual(Service.trees().loaded(self.request()), [])
 
-    def test_a_preset_is_completed_and_capped(self):
-        loads = Service.trees().loaded(self.request(preset="weeping_willow", limit_import=True))
+    def test_a_preset_is_loaded_complete(self):
+        loads = Service.trees().loaded(self.request(preset="weeping_willow"))
         self.assertEqual(len(loads), 1)
         settings = loads[0].settings.values
-        self.assertLessEqual(settings["levels"], 2)
-        self.assertFalse(settings["showLeaves"])
+        self.assertEqual(sorted(settings), sorted(Addon.operator_defaults()))
+        self.assertEqual(settings["levels"], Addon.resolve_preset("weeping_willow.py")["levels"])
         self.assertEqual(loads[0].warnings, [])
 
     def test_an_edit_loads_the_stored_settings(self):

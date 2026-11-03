@@ -27,7 +27,6 @@ class SettingsRequest:
     current: TreeSettings  # the panel's settings now (the generation settings and the leaf object)
     defaults: Mapping[str, Any]  # the default of every generation setting
     preset: str = ""  # a preset to load ("": none)
-    limit_import: bool = False  # cap a loaded preset to 2 levels and no leaves
     replace: str = ""  # the tree being edited ("": a new tree)
     load_stored: bool = False  # an edit starts from the settings stored on the tree
 
@@ -81,8 +80,6 @@ class TreeService:
         settings = PresetStore.for_addon().load(request.preset)
         missing = settings.missing(request.defaults)
         settings.complete(request.defaults)
-        if request.limit_import:
-            settings.limit_import()
         warnings = []
         if missing:
             warnings.append(

@@ -51,7 +51,6 @@ class SettingsPages:
         box.label(text="Presets:")
         row = box.row()
         row.prop(props, "preset", text="")
-        row.prop(props, "limitImport")
         row = box.row()
         row.prop(props, "presetName", text="")
         save = row.operator(SavePresetOperator.bl_idname, icon="FILE_TICK")

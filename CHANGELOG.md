@@ -47,6 +47,12 @@ this section and of 0.4.0 below.
   (seeds 1 to 5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees),
   bamboo 50 culms with 1,250 branches (1,197).
 
+### Removed
+
+- *Limit Import* (Geometry page). It loaded a preset with 2 levels and no leaves, for speed, and made trees with
+  more levels look bare. The presets generate in 0.01-1.9 s. Presets and trees never stored it; a script that
+  passes `limitImport` gets Blender's error that names the keyword.
+
 ### Fixed
 
 - A split trunk shares one branch per height among its pieces again, as before the array rewrite of the

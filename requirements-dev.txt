@@ -8,3 +8,4 @@ lizard==1.17.31
 mypy==1.19.1
 numpy==2.5.3
 ruff==0.11.7
+vulture==2.14

@@ -15,6 +15,8 @@ from blender_env import ROOT, SOURCE, install_fresh, run, run_script, venv_pytho
 # Coverage of the add-on the test suite must reach, in percent (the gate prints the measured values)
 LINE_COVERAGE_MIN = 99
 BRANCH_COVERAGE_MIN = 96
+# vulture: every folder of code (tools/vulture_whitelist.py holds the names used only by name)
+DEAD_CODE = ["source", "tools", "tests", "--exclude", "source/presets,build,.venv", "--min-confidence", "60"]
 
 
 def step(title: str, cmd: list[str]) -> bool:
@@ -37,6 +39,8 @@ def main() -> int:
         step("requirements", [python, "tools/requirements_check.py"]),
         # a thin UI: every function of source/ui/ at cyclomatic complexity 3 or less (the logic is in source/service/)
         step("thin UI", [python, "-m", "lizard", "-C", "3", "-w", "source/ui"]),
+        # no dead code: vulture with the checked whitelist of names Blender and unittest call by name
+        step("dead code", [python, "-m", "vulture", *DEAD_CODE]),
     ]
     print("== extension validate", flush=True)
     validate = run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)], check=False)

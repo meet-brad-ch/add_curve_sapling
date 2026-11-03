@@ -71,6 +71,6 @@ class Scene:
         if settings.get("showLeaves") and settings.get("leafShape") in ("dFace", "dVert"):
             extra["leafDupliObj"] = cls.add_leaf_card().name
         # Blender applies operator keywords in property-definition order and runs their update callbacks;
-        # the callbacks of UI-only properties (limitImport, chooseSet, ...) clear do_update, so only
+        # the callbacks of UI-only properties (chooseSet, overwrite, ...) clear do_update, so only
         # generation settings are passed.
         return bpy.ops.curve.tree_add(**settings, **extra, do_update=True)

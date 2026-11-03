@@ -65,8 +65,7 @@ Python 3.13 for the `.venv`. `requirements-dev.txt` pins ruff, mypy, coverage an
 - **Add a tree:** Select *Add > Curve > Sapling Tree Gen*. The tree appears at the 3D cursor. The
   settings are in the *Adjust Last Operation* panel (F9), on eight pages from Geometry to Animation.
 - **Presets:** On the Geometry page, select a preset from the list. The preset applies immediately.
-  *Limit Import* (off by default) loads a preset with 2 levels and no leaves. This is faster, but
-  trees with more levels look bare. To save your settings, type a name and click *Save Preset*. Your
+  To save your settings, type a name and click *Save Preset*. Your
   presets are in the user folder of the extension (`extensions/.user/<repo>/sapling_tree_gen/presets`).
   Eighteen built-in presets come from tree-gen: *Acer*, *Apple*, *Balsam Fir*, *Bamboo*, *Black Oak*,
   *Black Tupelo*, *Cambridge Oak*, *Douglas Fir*, *European Larch*, *Fan Palm*, *Hill Cherry*,

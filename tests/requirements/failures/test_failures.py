@@ -119,7 +119,7 @@ class ScriptCalls(unittest.TestCase):
     def test_ui_keywords_still_generate(self):
         Scene.reset()
         settings = Addon.resolve_preset("quaking_aspen.py")
-        result = bpy.ops.curve.tree_add(**settings, chooseSet="3", limitImport=False)
+        result = bpy.ops.curve.tree_add(**settings, chooseSet="3", overwrite=False)
         self.assertEqual(result, {"FINISHED"})
         self.assertIn("tree", bpy.data.objects)
 

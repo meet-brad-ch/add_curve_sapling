@@ -28,8 +28,6 @@ class TreeSettings:
         "leafRotate": "rotate",
         "leafRotateV": "rotateV",
     }
-    # Limit Import: the levels a preset loads with, and no leaves
-    LIMITED_LEVELS = 2
 
     # Setting ids renamed when the wind moved to Geometry Nodes; presets, stored trees and scripts may use the old
     # ids, which load under the new ones
@@ -67,12 +65,6 @@ class TreeSettings:
         """Fill in the settings an older preset does not have, from the defaults."""
         for name, value in defaults.items():
             self.values.setdefault(name, value)
-        return self
-
-    def limit_import(self) -> Self:
-        """Limit Import: at most LIMITED_LEVELS levels and no leaves, for a quick look at a preset."""
-        self.values["levels"] = min(self.values["levels"], self.LIMITED_LEVELS)
-        self.values["showLeaves"] = False
         return self
 
     def apply_to(self, props: Any, names: Sequence[str]) -> None:

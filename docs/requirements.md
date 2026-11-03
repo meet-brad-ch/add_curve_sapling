@@ -677,7 +677,6 @@ The settings that the user can change in the *Add Tree* panel (SWR-0014), from `
 | Animation | Flutter Speed | `flutterSpeed` | 1.0 |  |
 | Animation | Flutter Randomness | `flutterRandomness` | 4.0 |  |
 | Geometry | Preset Name | `presetName` |  |  |
-| Geometry | Limit Import | `limitImport` | False |  |
 | Geometry | Overwrite | `overwrite` | False |  |
 
 106 settings
@@ -691,7 +690,7 @@ row: keep (then a requirement is added) or retire (then the code, the setting an
 | --- | --- | --- | --- |
 | *Use Old Down Angle Variation* (`useOldDownAngle`) | - | keep | On in 26 of the 32 presets (every tree-gen port uses it). Needs a requirement. |
 | *Use Parent Angle* (`useParentAngle`) | - | keep | Off in *Japanese Maple*. Needs a requirement. |
-| *Limit Import* (`limitImport`) | - | retire? | Loads presets with 2 levels and no leaves, for speed. It made trees with more levels look bare (CHANGELOG). The presets generate in 0.01-1.9 s. No preset sets it. |
+| *Limit Import* (`limitImport`) | - | retired (owner 2026-11-03) | Loads presets with 2 levels and no leaves, for speed. It made trees with more levels look bare (CHANGELOG). The presets generate in 0.01-1.9 s. No preset sets it. |
 | *Horizontal Leaves* (`horzLeaves`) | - | keep? | Off in *Small Pine* and *Weeping Willow*. Overlap with *Leaf Face Up* (on in 6 presets) to check. |
 | *Leaf Angle* (`leafangle`) | - | keep? | Used by 5 presets (*Callistemon*, *Japanese Maple*, *Small Maple*, *Small Pine*, *White Birch*). Overlap with *Leaf Face Up* to check. |
 | *Handle Type* (`handleType`) | - | keep | Auto handles in *Weeping Willow*. Needs a requirement. |

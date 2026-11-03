@@ -50,7 +50,6 @@ class BlossomShape:
     # A petal's quads (counterclockwise seen from +z): 0 is the centre, then per ring its left, middle and right
     # point (1-3 base, 4-6 widest, 7-9 end)
     PETAL_FACES = [[0, 1, 2, 3], [1, 4, 5, 2], [2, 5, 6, 3], [4, 7, 8, 5], [5, 8, 9, 6]]
-    PETAL_POINTS = 9
 
     @classmethod
     def template(cls, shape: str) -> LeafTemplate:
