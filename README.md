@@ -33,8 +33,6 @@ git config core.hooksPath tools/hooks                   # one time: the fast che
 python tools/check.py            # all checks: ruff, format, mypy, manifest, tests with line and branch coverage
 python tools/check.py --fast     # all checks except the Blender tests (the pre-commit hook runs this)
 python tools/run_tests.py        # tests only (-k NAME selects tests, --record-golden writes new golden files)
-python tools/port_treegen.py <tree-gen clone> acer ...   # convert tree-gen species to presets
-python tools/render_ports.py <tree-gen clone> <out> acer  # render tree-gen's tree next to the preset
 blender -c extension build --source-dir source --output-dir build
 blender -c extension install-file -r user_default -e build/sapling_tree_gen-1.0.0.zip
 ```
@@ -175,8 +173,7 @@ the times depend on the machine.
   fingerprints of 70 generated trees. `test_fuzz` grows 100 trees from random settings.
   `test_architecture` checks the layers and the rule of no module-level state.
 - `tools/` — `check.py` (all checks), `run_tests.py`, `bench.py` (with `bench_in_blender.py` and
-  `bench_baseline.json`), `port_treegen.py` and `render_ports.py` (each with its `*_in_blender.py`),
-  `blender_env.py` and `hooks/pre-commit`
+  `bench_baseline.json`), `blender_env.py` and `hooks/pre-commit`
 
 ## Decisions
 
@@ -249,6 +246,6 @@ Eighteen presets are ported from tree-gen: `acer`, `apple`, `balsam_fir`, `bambo
 `black_tupelo`, `cambridge_oak`, `douglas_fir`, `european_larch`, `fan_palm`, `hill_cherry`,
 `lombardy_poplar`, `palm`, `quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and
 `willow` (tree-gen's weeping willow). They come from tree-gen (<https://github.com/friggog/tree-gen>)
-by Charlie Hewitt and contributors. `tools/port_treegen.py` maps their Weber–Penn values to the
-settings of Sapling and documents the mapping. These files are GPL-3.0-only, as tree-gen is. The
+by Charlie Hewitt and contributors. Their Weber–Penn values were converted to the settings of
+Sapling. These files are GPL-3.0-only, as tree-gen is. The
 blossom geometry is not from tree-gen. This extension makes its own flowers (GPL-3.0-or-later).

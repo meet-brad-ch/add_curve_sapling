@@ -12,23 +12,7 @@ for the stdlib `Random` stream order.
 
 ## Open
 
-### Owner decisions (change computed trees)
-
-### Complexity and control flow (no change to computed trees)
-- **Q4 (rest)** lizard CCN > 10 (bug S2): `tools/port_treegen_in_blender.py` `convert` (15, 86 lines),
-  `shape_points` (14), after the owner's decision on the port tools (Appendix B). Then lizard -C 10 in the gate.
-- **Q7 (rest)** a call inside `?:` in `tools/port_treegen_in_blender.py` (3 sites), after the owner's decision on the
-  port tools (Appendix B).
-
-### Fail fast
-- **Q10 (rest)** the port tools' bare `next()` and `args[...]` (`port_treegen_in_blender.py`,
-  `render_ports_in_blender.py`), after the owner's decision on the port tools (Appendix B).
-- **Q11** Silent fallbacks in the port tool: `port_treegen_in_blender.py:148` (leaf shape -> default), `:164`
-  (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
-
-### Records and structure
-
-### State, duplication, style
+None: every item is fixed (2026-11-03).
 
 ## Fixed
 
@@ -141,3 +125,7 @@ for the stdlib `Random` stream order.
 - **Q25** docstrings: the 44 constructors and magic methods of source/, the 8 tool functions, the test-support
   functions and the test classes (owner 2026-11-03: test methods keep their sentence names); ruff's D1 is on for
   tools/ and tests/ except the test methods.
+- **The port tools retired** (owner 2026-11-03, docs/requirements.md Appendix B): `tools/port_treegen*.py` and
+  `tools/render_ports*.py` removed, so their open parts of Q4 (complexity), Q7, Q10, Q11 (silent fallbacks), Q21 and
+  Q22 are gone with them. The gate's new step "complexity" (lizard -C 10 on source, tools and tests) keeps every
+  function at complexity 10 or less (bug S2).

@@ -17,18 +17,6 @@ that the validation finds broken (`docs/requirements.md`) is entered here with t
 - **Seen:** 2026-11-03. projects.blender.org does not run GitHub workflows. The workflow publishes a GitHub Release.
 - **Fix:** remove it when the code moves to the official repository (plan step 7); the release tool replaces it.
 
-### S2 Eleven functions are over complexity 10 (lizard)
-- **Where:** `source/build/tree_copy.py` `complete` (12), `_relink_modifiers` (11); `source/settings.py`
-  `_check_migratable` (11); `tools/port_treegen_in_blender.py` `shape_points` (14), `convert` (15);
-  `tests/helpers.py` `fingerprint` (12); `tests/run.py` `main` (16); `tests/test_features.py`
-  `test_every_trunk_base_stays_still` (11); `tests/test_fuzz.py` `features` (11), `check_tree` (12);
-  `tests/test_tree_record.py` `assert_whole_copy` (11).
-- **Seen:** 2026-11-03, `lizard -C 10 -w source tools tests -x "./source/presets/*"`. ruff's C901 passes them: it does
-  not count `and`/`or` and comprehensions as lizard does.
-- **Fix:** the quality pass (plan step 2b), then lizard in `tools/check.py`.
-- **Status:** source/ fixed in 71e75a6, tests/ in the Q4 tests commit (lizard -C 10 on both finds nothing). Open:
-  the port tool's `convert` and `shape_points`, after the owner's decision on the port tools (Appendix B).
-
 ### S1 Version 0.3.7 on the Extensions Platform fails on Blender 5.x
 - **Where:** extensions.blender.org, Sapling Tree Gen 0.3.7, Blender range "4.4 and newer".
 - **Seen:** 2026-11-03, two reviews on the listing: animation fails in Blender 5.2.1 with

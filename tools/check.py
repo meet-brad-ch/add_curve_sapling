@@ -123,6 +123,11 @@ def main() -> int:
         Gate.step("requirements", [python, "tools/requirements_check.py"]),
         # a thin UI: every function of source/ui/ at cyclomatic complexity 3 or less (the logic is in source/service/)
         Gate.step("thin UI", [python, "-m", "lizard", "-C", "3", "-w", "source/ui"]),
+        # every function at cyclomatic complexity 10 or less (lizard counts and/or and comprehensions, ruff's C901 not)
+        Gate.step(
+            "complexity",
+            [python, "-m", "lizard", "-C", "10", "-w", "source", "tools", "tests", "-x", "./source/presets/*"],
+        ),
         # no dead code: vulture with the checked whitelist of names Blender and unittest call by name
         Gate.step("dead code", [python, "-m", "vulture", *DEAD_CODE_PATHS, TestCaseNames.write(), *DEAD_CODE_OPTIONS]),
     ]

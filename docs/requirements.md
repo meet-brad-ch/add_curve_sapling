@@ -719,4 +719,4 @@ row: keep (then a requirement is added) or retire (then the code, the setting an
 | Preset *Sphere Tree* | SWR-0040 | review | A shape test from tree-gen, not a species. |
 | Old setting names (13 in `OldSettingNames`) | SWR-0048 | keep? | They load presets saved by 0.3.x. Retire only if 0.3.x presets need not load. |
 | `.github/workflows` | - | retire | They cannot run on projects.blender.org. |
-| The tree-gen port tools (`tools/port_treegen*.py`, `tools/render_ports*.py`) | - | keep? | Developer tools to port more tree-gen species. Not in the package. |
+| The tree-gen port tools (`tools/port_treegen*.py`, `tools/render_ports*.py`) | - | retired (owner 2026-11-03) | Developer tools to port more tree-gen species. Not in the package. |

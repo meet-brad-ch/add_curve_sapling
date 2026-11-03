@@ -42,8 +42,7 @@ this section and of 0.4.0 below.
 - 16 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*,
   *Bamboo*, *Black Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Fan Palm*, *Hill Cherry*,
   *Lombardy Poplar*, *Palm*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*.
-  `tools/port_treegen.py` maps their Weber–Penn values to the settings of Sapling, and
-  `tools/render_ports.py` renders each preset next to tree-gen's own tree. Measured against tree-gen
+  Their Weber–Penn values were converted to the settings of Sapling. Measured against tree-gen
   (seeds 1 to 5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees),
   bamboo 50 culms with 1,250 branches (1,197).
 

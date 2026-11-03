@@ -22,11 +22,9 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 # Docstrings and annotations are required in the add-on, not in tests and tools.
 # Test methods (D102) keep their sentence names as their documentation (owner 2026-11-03); every other test and
-# tool definition has a docstring. The port tools wait for the owner's decision (docs/requirements.md Appendix B).
+# tool definition has a docstring.
 "tests/*" = ["N802", "D102", "ANN"]
 "tools/*" = ["ANN"]
-"tools/port_treegen*.py" = ["D1", "ANN"]
-"tools/render_ports*.py" = ["D1", "ANN"]
 # Operator property names are the public operator API and the preset keys, so they stay camelCase.
 "source/ui/properties.py" = ["N815"]
 
@@ -54,7 +52,7 @@ disable_error_code = ["valid-type"]
 # Tests reach into generated objects: the stubs type context.scene as Optional and object.data as a
 # union of every data type; the operator bpy.ops.curve.tree_add only exists once the add-on runs.
 module = [
-    "bench_in_blender", "port_treegen_in_blender", "render_ports_in_blender", "run",
+    "bench_in_blender", "run",
     "support.*", "requirements.*", "unit.*",
 ]
 disable_error_code = ["union-attr", "attr-defined"]
