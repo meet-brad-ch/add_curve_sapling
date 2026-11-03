@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from random import Random
 
-from .branching import LevelStarter
+from .branching import LevelPlace, LevelStarter
 from .curve_data import CurveData, FlatCurve
 from .growth import LevelGrower
 from .level_grid import LevelGrid
@@ -17,18 +17,13 @@ from .sprouting import LevelSprouts, SproutArrays
 from .stem import BoneLink, BoneMap
 
 
+@dataclass(frozen=True, slots=True)
 class GrownTree:
-    """The result of growing: the curve splines are filled in; this holds what goes with them.
+    """The result of growing: the curve splines are filled in; this holds what goes with them."""
 
-    sprouts: sprout points of the last level (where the leaves go).
-    level_ends: for each level, the number of splines up to and including that level.
-    bone_map: for each spline, where it hangs in the armature.
-    """
-
-    def __init__(self, sprouts: SproutArrays, level_ends: list[int], bone_map: BoneMap) -> None:
-        self.sprouts = sprouts
-        self.level_ends = level_ends
-        self.bone_map = bone_map
+    sprouts: SproutArrays  # the sprout points of the last level (where the leaves go)
+    level_ends: list[int]  # for each level, the number of splines up to and including that level
+    bone_map: BoneMap  # for each spline, where it hangs in the armature
 
 
 class GrownLevels:
@@ -86,11 +81,12 @@ class TreeGrower:
             # Per-level parameters only exist for LEVELS levels; deeper levels reuse the last one
             level = TreeParams.level_index(depth)
             last_level = depth == p.levels - 1
-            grid = starter.children(result.sprouts, level, depth, base_size, scale, levels.ends[-1], result.grid)
+            place = LevelPlace(level=level, depth=depth, base_size=base_size, scale=scale)
+            grid = starter.children(result.sprouts, place, levels.ends[-1], result.grid)
             base_size = self._base_size(base_size, level, last_level)
             result = self._finish_level(grid, level, base_size, last_level, levels)
         curve.load(FlatCurve.concatenate(levels.chunks))
-        return GrownTree(result.sprouts, levels.ends, BoneMap(levels.links))
+        return GrownTree(sprouts=result.sprouts, level_ends=levels.ends, bone_map=BoneMap(levels.links))
 
     def _base_size(self, parent_base: float, level: int, last_level: bool) -> float:
         """The bare base of a level's stems: Branch Base when set; else its parent level's times Trunk Height Scale.

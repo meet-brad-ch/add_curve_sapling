@@ -69,17 +69,14 @@ class PositionCounts:
     starts: np.ndarray
 
 
+@dataclass(frozen=True, slots=True)
 class FamilyPositions:
-    """Where along each family (a root stem with its splits) the sprouts go: fractions of the family's length.
+    """Where along each family (a root stem with its splits) the sprouts go: fractions of the family's length,
+    sorted by root (P positions)."""
 
-    root (P,) the family's root row, t (P,) the fraction, index (P,) the position's number in its family; sorted
-    by root.
-    """
-
-    def __init__(self, root: np.ndarray, t: np.ndarray, index: np.ndarray) -> None:
-        self.root = root
-        self.t = t
-        self.index = index
+    root: np.ndarray  # (P,) the family's root row
+    t: np.ndarray  # (P,) the fraction
+    index: np.ndarray  # (P,) the position's number in its family
 
     def counts(self, rows: int) -> PositionCounts:
         """Positions per root row, and the first position of each root row."""
@@ -167,7 +164,7 @@ class LevelSprouts:
         repeated = np.repeat(count, count)
         t = np.where(np.repeat(children > 0, count), (index + 1) / repeated, 1.0)
         keep = index >= (base_size * (repeated + 1)).astype(np.int64)  # nothing sprouts on the bare base
-        return FamilyPositions(root[keep], t[keep], index[keep])
+        return FamilyPositions(root=root[keep], t=t[keep], index=index[keep])
 
     def _trunk_positions(
         self, grid: LevelGrid, flat: FlatCurve, roots: np.ndarray, base_size: float, counts: np.ndarray
@@ -197,7 +194,9 @@ class LevelSprouts:
             t_list += positions
             index_list += list(range(len(positions)))
         return FamilyPositions(
-            np.array(root_list, dtype=np.int64), np.array(t_list), np.array(index_list, dtype=np.int64)
+            root=np.array(root_list, dtype=np.int64),
+            t=np.array(t_list),
+            index=np.array(index_list, dtype=np.int64),
         )
 
     def _distribute(self, positions: list[float], base_size: float) -> list[float]:

@@ -27,9 +27,6 @@ for the stdlib `Random` stream order.
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
 
 ### Records and structure
-- **Q15** More than 6 parameters / records as plain classes: model `branching.py:149, 267`, `growth.py:251, 301`,
-  `level_grid.py:103`, `leaves.py:76`, `curve_data.py:57, 122`; `LeafSet`, `FlatCurve`, `FamilyPositions`, `GrownTree`.
-  Fix: frozen dataclasses and context records (`StepContext`, `TrunkGroups`, `LevelPlace`).
 - **Q16** Tuples instead of records: `requirements_check.py:257` `properties()`, `tests/support/timing.py:14`
   stages, `node_trees.py:36` counts, and the tuple returns of 10 test helpers. Fix: frozen dataclasses.
 - **Q17** OOD splits: `model/joints.py` `Joints` holds topology and sway (move sway to `JointSwayBuilder`);
@@ -125,3 +122,8 @@ for the stdlib `Random` stream order.
 - **Q14** `model/sprouting.py` `SproutArrays`: a frozen dataclass (one commented field per array), built with
   keywords in the same order; `take` and `concatenate` read the names from `fields()` (the `FIELDS` list of Q21 is
   gone). The golden trees do not change.
+- **Q15** at most 6 parameters besides self/cls in source/ (lizard -a 7 finds nothing): `FlatCurve` and `LeafSet`
+  are frozen dataclasses built with keywords; new records `GridStart` (`LevelGrid`), `LevelPlace`
+  (`LevelStarter.children`), `TrunkGroups` (`TrunkPick._rotate_choice`), `SplitStep` (`LevelGrower._split_rows`),
+  `HandleArrays` (`AutoHandles.recalculate_flat`). Every value is computed where it was, in the same order; the
+  golden trees do not change. `FamilyPositions` and `GrownTree` are frozen dataclasses too.

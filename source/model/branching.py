@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .geometry import Angles, CrownShape
-from .level_grid import LevelGrid, StemRows
+from .level_grid import GridStart, LevelGrid, StemRows
 from .params import BranchingMode, TreeParams
 from .randomness import Draw, KeyedRandom, Kind
 from .rotations import EulerXYZ, Rotation
@@ -60,6 +60,26 @@ class StemStart:
     is_end: np.ndarray
     children: np.ndarray
     roll: np.ndarray
+
+
+@dataclass(frozen=True, slots=True)
+class LevelPlace:
+    """Where a level of child stems is in the tree."""
+
+    level: int  # the parameter level (at most TreeParams.LEVELS - 1)
+    depth: int  # the real level, which may be deeper
+    base_size: float
+    scale: float
+
+
+@dataclass(frozen=True, slots=True)
+class TrunkGroups:
+    """The trunk sprouts grouped by height: the body sprouts (not at a tip), each one's group, and the trunk's
+    centre per sprout."""
+
+    body: np.ndarray
+    inverse: np.ndarray
+    centers: np.ndarray
 
 
 class TrunkClump:
@@ -135,7 +155,8 @@ class TrunkPick:
         keys = KeyedRandom.derive(self.root_key, Kind.PICK, trunk, rank)
         mode = self.params.rotate_mode
         if mode == BranchingMode.ROTATE:
-            picks = self._rotate_choice(sprouts, body, inverse, centers, keys, rank, base_size)
+            trunk_groups = TrunkGroups(body=body, inverse=inverse, centers=centers)
+            picks = self._rotate_choice(sprouts, trunk_groups, keys, rank, base_size)
         elif mode == BranchingMode.RANDOM:
             picks = TrunkPicks(self._random(body, inverse, keys, len(groups)), np.zeros(len(groups)))
         else:
@@ -147,18 +168,12 @@ class TrunkPick:
         return TrunkPicks(chosen[order], angles[order])
 
     def _rotate_choice(
-        self,
-        sprouts: "SproutArrays",
-        body: np.ndarray,
-        inverse: np.ndarray,
-        centers: np.ndarray,
-        keys: np.ndarray,
-        rank: np.ndarray,
-        base_size: float,
+        self, sprouts: "SproutArrays", groups: TrunkGroups, keys: np.ndarray, rank: np.ndarray, base_size: float
     ) -> TrunkPicks:
         """ROTATE: per group the candidate nearest the running rotate angle, aimed outward."""
+        centers = groups.centers
         rotate = self._rotations(keys, rank)
-        best = self._nearest(sprouts, body, inverse, centers, rotate)
+        best = self._nearest(sprouts, groups.body, groups.inverse, centers, rotate)
         return TrunkPicks(best, self._aim(sprouts, best, centers[best], rotate, base_size))
 
     def _rotations(self, keys: np.ndarray, rank: np.ndarray) -> np.ndarray:
@@ -260,26 +275,16 @@ class LevelStarter:
         keys = KeyedRandom.derive(self.root_key, Kind.TRUNK, np.arange(count), 0)
         rows = self._rows(keys, np.arange(count), start, 0, np.array(scales) * p.length[0], trunk_radii)
         up = np.tile([0.0, 0.0, 1.0], (count, 1))
-        return LevelGrid(
-            0, p.curve_res[0], p.handles, rows, np.array(positions), up, trunk_radii.start * p.root_flare, count
-        )
+        start_at = GridStart(co=np.array(positions), direction=up, radius=trunk_radii.start * p.root_flare)
+        return LevelGrid(0, p.curve_res[0], p.handles, rows, start_at, count)
 
-    def children(
-        self,
-        sprouts: "SproutArrays",
-        level: int,
-        depth: int,
-        base_size: float,
-        scale: float,
-        spline_base: int,
-        previous: LevelGrid,
-    ) -> LevelGrid:
-        """One new stem per sprout point of the level above.
-
-        level: the parameter level (at most TreeParams.LEVELS - 1); depth: the real level, which may be deeper.
-        """
+    def children(self, sprouts: "SproutArrays", place: LevelPlace, spline_base: int, previous: LevelGrid) -> LevelGrid:
+        """One new stem per sprout point of the level above."""
         p = self.params
-        base_size = min(LevelStarter.MAX_BASE_SIZE, base_size)
+        level = place.level
+        depth = place.depth
+        scale = place.scale
+        base_size = min(LevelStarter.MAX_BASE_SIZE, place.base_size)
         picked = self._trunk_pick(sprouts, level, base_size, previous)
         sprouts = picked.sprouts
         count = sprouts.count
@@ -298,9 +303,8 @@ class LevelStarter:
             roll=np.zeros(count),
         )
         rows = self._rows(keys, spline_base + np.arange(count), start, level, grown.length, radii)
-        return LevelGrid(
-            level, p.curve_res[level], p.handles, rows, sprouts.co, direction, radii.start, spline_base + count
-        )
+        start_at = GridStart(co=sprouts.co, direction=direction, radius=radii.start)
+        return LevelGrid(level, p.curve_res[level], p.handles, rows, start_at, spline_base + count)
 
     def _trunk_pick(self, sprouts: "SproutArrays", level: int, base_size: float, previous: LevelGrid) -> PickedSprouts:
         """At the first branch level, the Rotate and Random modes choose among the trunk's sprouts (Rotate also

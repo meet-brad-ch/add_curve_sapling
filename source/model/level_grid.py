@@ -14,7 +14,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from .curve_data import AutoHandles, FlatCurve, HandleType
+from .curve_data import AutoHandles, FlatCurve, HandleArrays, HandleType
 from .rotations import Rotation
 from .stem import BoneLink, BoneName
 
@@ -93,6 +93,15 @@ class FreeHandles:
     right: np.ndarray
 
 
+@dataclass(frozen=True, slots=True)
+class GridStart:
+    """Where a level's stems start (S stems): their first points, directions and radii."""
+
+    co: np.ndarray  # (S, 3)
+    direction: np.ndarray  # (S, 3)
+    radius: np.ndarray  # (S,)
+
+
 class LevelGrid:
     """A level's stems and their points while they grow.
 
@@ -106,9 +115,7 @@ class LevelGrid:
         segments: int,
         handles: int,
         stems: StemRows,
-        co0: np.ndarray,
-        dir0: np.ndarray,
-        radius0: np.ndarray,
+        start: GridStart,
         next_spline: int,
     ) -> None:
         count = len(stems)
@@ -117,13 +124,13 @@ class LevelGrid:
         self.handles = handles
         self.stems = stems
         self.co = np.zeros((count, segments + 1, 3), dtype=np.float64)
-        self.co[:, 0] = co0
+        self.co[:, 0] = start.co
         self.radius = np.zeros((count, segments + 1), dtype=np.float64)
-        self.radius[:, 0] = radius0
+        self.radius[:, 0] = start.radius
         self.h1 = np.full((count, segments + 1), handles, dtype=np.int8)
         self.h2 = np.full((count, segments + 1), handles, dtype=np.int8)
         self.h1[:, 0] = self.h2[:, 0] = HandleType.VECTOR
-        self.dir0 = np.asarray(dir0, dtype=np.float64)
+        self.dir0 = np.asarray(start.direction, dtype=np.float64)
         self.next_spline = next_spline  # the tree's spline index the next split gets
         self.free: FreeHandles | None = None  # set by a helix level: its points keep these handles
 
@@ -249,11 +256,12 @@ class LevelGrid:
         h1[at] = h2[at] = HandleType.FREE
         right[at] = (self.co[stems.removed, 0] + self.dir0[stems.removed]).astype(np.float32)
         grown = sizes >= 2
-        AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1][grown], (start[1:] - 1)[grown])
+        points = HandleArrays(co=co, left=left, right=right, h1=h1, h2=h2)
+        AutoHandles.recalculate_flat(points, start[:-1][grown], (start[1:] - 1)[grown])
         # radii within the float32 range, as Blender's RNA clamps a curve point's radius (absurd settings can
         # grow them past it; an infinite radius would give the swept bark NaN vertices)
         radius = np.clip(self.radius[valid], 0.0, np.finfo(np.float32).max).astype(np.float32)
-        return FlatCurve(co, left, right, h1, h2, radius, start)
+        return FlatCurve(co=co, left=left, right=right, h1=h1, h2=h2, radius=radius, start=start)
 
     def bone_links(self, bone_step: Sequence[int]) -> list[BoneLink]:
         """Where each row hangs in the armature, in row order (BoneMap entries)."""

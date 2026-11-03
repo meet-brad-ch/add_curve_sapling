@@ -51,6 +51,17 @@ class StepAngles:
     split: SplitAngles
 
 
+@dataclass(frozen=True, slots=True)
+class SplitStep:
+    """What a growth step computed that its splits need (one row per stem)."""
+
+    splits: np.ndarray  # how many stems split off each stem here
+    frames: np.ndarray  # (S, 3, 3) each stem's frame
+    angles: StepAngles
+    taper: np.ndarray
+    closes: bool  # this is the closed last segment
+
+
 class LevelGrower:
     """Grows every stem of a level at once, one segment per step, splits included.
 
@@ -108,7 +119,8 @@ class LevelGrower:
         direction = self._segment(grid, frames @ local, stems.segment_length, growth.taper)
 
         closes = close_tip and k == segments - 1
-        batch = self._split_rows(grid, k, splits, frames, angles, growth.taper, closes)
+        step = SplitStep(splits=splits, frames=frames, angles=angles, taper=growth.taper, closes=closes)
+        batch = self._split_rows(grid, k, step)
         grid.co[:, k + 1] = grid.co[:, k] + direction
         if closes:
             grid.radius[:, k + 1] = 0.0
@@ -254,18 +266,14 @@ class LevelGrower:
         stems.has_rotation = stems.has_rotation | has_split
         return SplitAngles(angle, spread, branch_rot)
 
-    def _split_rows(
-        self,
-        grid: LevelGrid,
-        k: int,
-        splits: np.ndarray,
-        frames: np.ndarray,
-        angles: StepAngles,
-        taper: np.ndarray,
-        closes: bool,
-    ) -> SplitBatch | None:
+    def _split_rows(self, grid: LevelGrid, k: int, step: SplitStep) -> SplitBatch | None:
         """The rows splitting off at this step, with their parents' rows and their second points (None without
-        splits); `closes` when this is the closed last segment."""
+        splits)."""
+        splits = step.splits
+        frames = step.frames
+        angles = step.angles
+        taper = step.taper
+        closes = step.closes
         p = self.params
         level = grid.level
         stems = grid.stems

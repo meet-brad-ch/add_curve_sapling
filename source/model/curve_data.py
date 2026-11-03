@@ -38,6 +38,17 @@ class Neighbours:
     length_from: np.ndarray
 
 
+@dataclass(frozen=True, slots=True)
+class HandleArrays:
+    """The points of splines and their handles, which a recalculation writes into (left and right in place)."""
+
+    co: np.ndarray  # (N, 3) float32
+    left: np.ndarray  # (N, 3) float32
+    right: np.ndarray  # (N, 3) float32
+    h1: np.ndarray  # (N,) int8, the left handle types
+    h2: np.ndarray  # (N,) int8, the right handle types
+
+
 class AutoHandles:
     """Blender's handle calculation for non-cyclic Bezier splines (AUTO and VECTOR sides), in float32."""
 
@@ -54,22 +65,17 @@ class AutoHandles:
         return np.sqrt((v[:, 0] * v[:, 0] + v[:, 1] * v[:, 1]) + v[:, 2] * v[:, 2])
 
     @classmethod
-    def recalculate_flat(
-        cls,
-        co: np.ndarray,
-        left: np.ndarray,
-        right: np.ndarray,
-        h1: np.ndarray,
-        h2: np.ndarray,
-        first: np.ndarray,
-        last: np.ndarray,
-    ) -> None:
+    def recalculate_flat(cls, points: HandleArrays, first: np.ndarray, last: np.ndarray) -> None:
         """Recalculate every spline of a flat point array at once (the arithmetic of calchandleNurb_intern).
 
-        co, left, right are (N, 3) float32 of all splines' points in order; first/last are the index of each
-        spline's first and last point. Every spline must have two or more points (one-point splines keep their
-        handles in Blender).
+        points holds all splines' points in order; first/last are the index of each spline's first and last
+        point. Every spline must have two or more points (one-point splines keep their handles in Blender).
         """
+        co = points.co
+        left = points.left
+        right = points.right
+        h1 = points.h1
+        h2 = points.h2
         if (first == last).any():
             raise ValueError("recalculate_flat needs splines of two or more points")
         # zeros, not empty: a one-point spline between others has no neighbours set here and must read nothing random
@@ -112,37 +118,33 @@ class AutoHandles:
         right[side2] = co[side2] + tvec[side2] * (limited_b / safe)[side2, None]
 
 
+@dataclass(frozen=True, slots=True)
 class FlatCurve:
-    """Every spline's points in one array per column, in spline order, with the splines' start offsets.
+    """Every spline's points in one array per column, in spline order, with the splines' start offsets. What
+    build/ writes to Blender in bulk (N points, S splines)."""
 
-    co, left, right: (N, 3) float32; h1, h2: (N,) int8 handle types; radius: (N,) float32;
-    start: (S + 1,) int64, spline i holds points start[i]:start[i + 1]. What build/ writes to Blender in bulk.
-    """
-
-    def __init__(
-        self,
-        co: np.ndarray,
-        left: np.ndarray,
-        right: np.ndarray,
-        h1: np.ndarray,
-        h2: np.ndarray,
-        radius: np.ndarray,
-        start: np.ndarray,
-    ) -> None:
-        self.co = co
-        self.left = left
-        self.right = right
-        self.h1 = h1
-        self.h2 = h2
-        self.radius = radius
-        self.start = start
+    co: np.ndarray  # (N, 3) float32
+    left: np.ndarray  # (N, 3) float32, the left handles
+    right: np.ndarray  # (N, 3) float32, the right handles
+    h1: np.ndarray  # (N,) int8, the left handle types
+    h2: np.ndarray  # (N,) int8, the right handle types
+    radius: np.ndarray  # (N,) float32
+    start: np.ndarray  # (S + 1,) int64: spline i holds points start[i]:start[i + 1]
 
     @classmethod
     def empty(cls) -> "FlatCurve":
         """A curve of no splines."""
         none = np.zeros((0, 3), dtype=np.float32)
         types = np.zeros(0, dtype=np.int8)
-        return cls(none, none.copy(), none.copy(), types, types.copy(), np.zeros(0, np.float32), np.zeros(1, np.int64))
+        return cls(
+            co=none,
+            left=none.copy(),
+            right=none.copy(),
+            h1=types,
+            h2=types.copy(),
+            radius=np.zeros(0, np.float32),
+            start=np.zeros(1, np.int64),
+        )
 
     @property
     def sizes(self) -> np.ndarray:
@@ -159,13 +161,13 @@ class FlatCurve:
             [parts[0].start[:1]] + [part.start[1:] + offset for part, offset in zip(parts, offsets, strict=True)]
         )
         return cls(
-            np.concatenate([part.co for part in parts]),
-            np.concatenate([part.left for part in parts]),
-            np.concatenate([part.right for part in parts]),
-            np.concatenate([part.h1 for part in parts]),
-            np.concatenate([part.h2 for part in parts]),
-            np.concatenate([part.radius for part in parts]),
-            start,
+            co=np.concatenate([part.co for part in parts]),
+            left=np.concatenate([part.left for part in parts]),
+            right=np.concatenate([part.right for part in parts]),
+            h1=np.concatenate([part.h1 for part in parts]),
+            h2=np.concatenate([part.h2 for part in parts]),
+            radius=np.concatenate([part.radius for part in parts]),
+            start=start,
         )
 
 

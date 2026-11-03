@@ -39,8 +39,10 @@ def flat_of(splines):
     start = np.concatenate([[0], np.cumsum(sizes)])
     left = np.zeros_like(co)
     right = np.zeros_like(co)
-    module.AutoHandles.recalculate_flat(co, left, right, h1, h2, start[:-1], start[1:] - 1)
-    return module.FlatCurve(co, left, right, h1, h2, np.ones(len(co), dtype=np.float32), start)
+    points = module.HandleArrays(co=co, left=left, right=right, h1=h1, h2=h2)
+    module.AutoHandles.recalculate_flat(points, start[:-1], start[1:] - 1)
+    radius = np.ones(len(co), dtype=np.float32)
+    return module.FlatCurve(co=co, left=left, right=right, h1=h1, h2=h2, radius=radius, start=start)
 
 
 def write_to_blender(curve, splines):
@@ -76,10 +78,10 @@ class HandlesMatchBlender(unittest.TestCase):
     def test_one_point_splines_rejected(self):
         auto = curve_data().AutoHandles
         co = np.zeros((1, 3), np.float32)
+        types = np.zeros(1, np.int8)
+        points = curve_data().HandleArrays(co=co, left=co.copy(), right=co.copy(), h1=types, h2=types.copy())
         with self.assertRaisesRegex(ValueError, "two or more points"):
-            auto.recalculate_flat(
-                co, co.copy(), co.copy(), np.zeros(1, np.int8), np.zeros(1, np.int8), np.array([0]), np.array([0])
-            )
+            auto.recalculate_flat(points, np.array([0]), np.array([0]))
 
 
 class FlatCurves(unittest.TestCase):

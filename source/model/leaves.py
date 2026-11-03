@@ -64,6 +64,7 @@ class LeafShape:
         return cls.VERTS_PER_LEAF[shape]
 
 
+@dataclass(frozen=True, slots=True)
 class LeafSet:
     """The generated leaves as arrays, and per leaf the parent stem and point it hangs from.
 
@@ -73,25 +74,14 @@ class LeafSet:
     repeats its sprout's); verts_per_leaf: how many vertices each leaf adds to `vertices`, for per-leaf indexing.
     """
 
-    def __init__(
-        self,
-        shape: str,
-        vertices: np.ndarray,
-        faces: np.ndarray,
-        normals: np.ndarray,
-        sprout_co: np.ndarray,
-        parent_spline: np.ndarray,
-        parent_point: np.ndarray,
-        verts_per_leaf: int,
-    ) -> None:
-        self.shape = shape
-        self.vertices = vertices
-        self.faces = faces
-        self.normals = normals
-        self.sprout_co = sprout_co
-        self.parent_spline = parent_spline
-        self.parent_point = parent_point
-        self.verts_per_leaf = verts_per_leaf
+    shape: str
+    vertices: np.ndarray
+    faces: np.ndarray
+    normals: np.ndarray
+    sprout_co: np.ndarray
+    parent_spline: np.ndarray
+    parent_point: np.ndarray
+    verts_per_leaf: int
 
     @property
     def count(self) -> int:
@@ -196,14 +186,14 @@ class LeafGenerator:
             normals = np.zeros((0, 3), dtype=np.float64)
             all_faces = self._faces(template, len(co))
         return LeafSet(
-            p.leaf_shape,
-            vertices.astype(np.float32),
-            all_faces,
-            normals.astype(np.float32),
-            co.astype(np.float32),
-            placement.parent_spline[rows],
-            placement.parent_point[rows],
-            LeafShape.verts_per_leaf(p.leaf_shape),
+            shape=p.leaf_shape,
+            vertices=vertices.astype(np.float32),
+            faces=all_faces,
+            normals=normals.astype(np.float32),
+            sprout_co=co.astype(np.float32),
+            parent_spline=placement.parent_spline[rows],
+            parent_point=placement.parent_point[rows],
+            verts_per_leaf=LeafShape.verts_per_leaf(p.leaf_shape),
         )
 
     def _blossoms(self, placement: LeafPlacement, matrices: np.ndarray, rows: np.ndarray) -> LeafSet:
@@ -214,14 +204,14 @@ class LeafGenerator:
         co = placement.co[rows]
         placed = np.einsum("lij,vj->lvi", matrices, template.vertices * p.blossom_scale)
         return LeafSet(
-            LeafShape.BLOSSOM,
-            (placed + co[:, None, :]).reshape(-1, 3).astype(np.float32),
-            self._faces(template, len(co)),
-            np.zeros((0, 3), dtype=np.float32),
-            co.astype(np.float32),
-            placement.parent_spline[rows],
-            placement.parent_point[rows],
-            len(template.vertices),
+            shape=LeafShape.BLOSSOM,
+            vertices=(placed + co[:, None, :]).reshape(-1, 3).astype(np.float32),
+            faces=self._faces(template, len(co)),
+            normals=np.zeros((0, 3), dtype=np.float32),
+            sprout_co=co.astype(np.float32),
+            parent_spline=placement.parent_spline[rows],
+            parent_point=placement.parent_point[rows],
+            verts_per_leaf=len(template.vertices),
         )
 
     @staticmethod
