@@ -85,7 +85,7 @@ class LevelPruning:
         distance = np.hypot(end[:, 0], end[:, 1])
         if p.wind_shear > 0:
             distance = distance * self._wind_reach(end, p.wind_dir, p.wind_shear, distance)
-        ratio = (scale - end[:, 2]) / (scale * max(1 - p.prune_base_clamped, 1e-6))
+        ratio = (scale - end[:, 2]) / (scale * (1 - p.prune_base_clamped))  # TreeParams: the base is below 1
         inside = distance / scale < p.prune_width * p.envelopes(ratio)
         if grid.level == 0:
             inside = inside | (end[:, 2] < p.prune_base_clamped * scale)

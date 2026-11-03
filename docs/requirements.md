@@ -109,7 +109,7 @@ requirement and the trace from each requirement to its tests.
 
 ### SWR-0016 Settings within range
 - **Statement:** When the settings are within their ranges and break no stated rule, the Sapling Tree Gen extension shall generate a tree without an error.
-- **Rationale:** A setting that the panel allows must not break the tree. The stated rules are the ones between settings that one range cannot hold (SWR-0063, SWR-0070, SWR-0076).
+- **Rationale:** A setting that the panel allows must not break the tree. The stated rules are the ones between settings that one range cannot hold (SWR-0063, SWR-0070, SWR-0076, SWR-0077, SWR-0125).
 - **Method:** test
 - **Criteria:** 100 trees with random settings within their ranges generate (the fuzz test).
 
@@ -348,6 +348,12 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** Scale 1 and Scale Variation 1 cancel with a message that names both settings and makes no objects. Scale 1 and Scale Variation 0.5 generate.
 
+### SWR-0077 Pruning envelope with a height
+- **Statement:** If *Prune* is on with *Prune Base Height* and *Trunk Height* at 1, then the Sapling Tree Gen extension shall refuse the tree.
+- **Rationale:** The envelope's base would be at the top of the tree: it has no height, and the pruning divides by it.
+- **Method:** test
+- **Criteria:** The operator cancels with a message that names both settings and makes no objects.
+
 ## Leaves and blossoms
 
 ### SWR-0080 Leaves
@@ -488,6 +494,12 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** The user plays the animation at a higher frame rate while working.
 - **Method:** test
 - **Criteria:** The display settings are as stated, and they return when *Fast Preview* is off.
+
+### SWR-0125 Flutter speed above zero
+- **Statement:** If *Leaf Flutter* is on with a *Flutter Speed* of 0 or less, then the Sapling Tree Gen extension shall refuse the tree.
+- **Rationale:** The leaves' noise divides by the speed. A speed of 0 or less is no flutter.
+- **Method:** test
+- **Criteria:** With Wind and Leaf Flutter on and Flutter Speed 0, the operator cancels with a message that names the setting. With Leaf Flutter off, the speed is not used and the tree generates.
 
 ## Failure behaviour
 

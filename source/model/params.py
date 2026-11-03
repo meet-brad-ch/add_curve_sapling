@@ -100,6 +100,7 @@ class TreeParams(PlainParams):
         self.bone_step = self._ints(s.jointStep)
         # The envelope's base cannot be above the bare trunk
         self.prune_base_clamped = min(self.prune_base, self.base_size)
+        self._check_prune_base()
         if s.autoTaper:
             self.taper = CrownShape.auto_taper(
                 self.length, self._floats(s.taper), self.shape, self.shape_s, self.levels, self.custom_shape
@@ -164,6 +165,15 @@ class TreeParams(PlainParams):
         self.attract_out = self._floats(s.attractOut)
         self.wind_dir = radians(float(s.windDir))
         self.wind_bend = self._floats(s.windBend)
+
+    def _check_prune_base(self) -> None:
+        """With Prune on, the envelope's base (Prune Base Height, at most the Trunk Height) must be below the top of
+        the tree: at 1 the envelope has no height and the pruning divides by it."""
+        if self.prune and self.prune_base_clamped >= 1:
+            raise InvalidSettingError(
+                f"Prune Base Height {self.prune_base:g} and Trunk Height {self.base_size:g} put the pruning "
+                "envelope's base at the top of the tree. Lower one of them below 1"
+            )
 
     def _check_scale(self) -> None:
         """The tree's size is Scale plus a random amount within +-Scale Variation. It must stay above 0: the model
@@ -253,4 +263,9 @@ class WindParams(PlainParams):
         self.animation_speed = float(s.animationSpeed)
         self.loop_frames = int(s.loopFrames)
         self.flutter = Flutter(float(s.flutterStrength), float(s.flutterSpeed), float(s.flutterRandomness))
+        if bool(s.windAnim) and bool(s.leafFlutter) and self.flutter.speed <= 0:
+            raise InvalidSettingError(
+                f"Flutter Speed {self.flutter.speed:g}: the leaves' flutter needs a speed above 0. Raise it, or turn "
+                "Leaf Flutter off"
+            )
         self._freeze()

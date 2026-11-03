@@ -13,10 +13,6 @@ for the stdlib `Random` stream order.
 ## Open
 
 ### Owner decisions (change computed trees)
-- **Q2 [N]** Silent clamps in the model: `wind_model.py:50, 64` (`max(x, 1e-6)`, `max(speed, 0.001)`),
-  `pruning.py:88`, `joints.py:276` (`np.maximum(radius, 1e-6)`). Fix: refuse the setting with
-  `InvalidSettingError`, or name on the line why the clamp is the original behaviour. Changes trees only for the
-  inputs that reach the clamp.
 - **Q3 [N]** `source/model/geometry.py:92-107`: the scalar `envelope` repeats the vector `envelopes` formula. Fix:
   the scalar calls the vector one. Python `**` and `np.power` may round differently.
 
@@ -96,3 +92,7 @@ for the stdlib `Random` stream order.
 - **Q1** (owner 2026-11-03: validate the input, remove the nudge) the zero-scale nudge removed; SWR-0076
   refuses Scale - Scale Variation <= 0. Measured: 14 of 77 golden cases change visibly (12 in element counts),
   the others by less than 0.1 %; golden data re-recorded. Commit: see git log for SWR-0076.
+- **Q2** (no fallbacks) the four clamps replaced by explicit rules: a pruned-away stem (length 0) has no wave;
+  a joint of radius 0 raises (a model defect); Prune Base Height and Trunk Height at 1 are refused (SWR-0077);
+  Flutter Speed <= 0 with Leaf Flutter is refused (SWR-0125). Measured: 7 golden cases have pruned-away stems,
+  none reaches the other three; the golden data does not change (the removed stems have no joints).

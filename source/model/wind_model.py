@@ -47,7 +47,10 @@ class WindModel:
     def branch_frequencies(self, spline_length: float) -> Frequencies:
         """The two wind frequencies of a branch: slower for long branches, whole cycles when looping."""
         p = self.params
-        multiplier = (1 / max(spline_length**0.5, 1e-6)) * (1 / 4)
+        if spline_length == 0:
+            # a stem that pruning removed has no length, so its sway amplitude is 0: it gets no wave either
+            return Frequencies(0.0, 0.0)
+        multiplier = (1 / spline_length**0.5) * (1 / 4)
         freq1 = multiplier * self.anim_speed
         freq2 = self.SECOND_WAVE_FREQUENCY * multiplier * self.anim_speed
         if p.loop_frames != 0:
@@ -61,4 +64,5 @@ class WindModel:
         p = self.params
         flutter = p.flutter
         strength = p.wind * self.LEAF_STRENGTH * flutter.strength
-        return FlutterStrength(strength, (1 / self.anim_speed) * 6 * (1 / max(flutter.speed, 0.001)))
+        noise_scale = (1 / self.anim_speed) * 6 * (1 / flutter.speed)  # WindParams: the speed is above 0
+        return FlutterStrength(strength, noise_scale)

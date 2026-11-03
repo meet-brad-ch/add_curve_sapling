@@ -12,6 +12,7 @@ into the one build/test-profile.
 """
 
 import argparse
+import ast
 import os
 import subprocess
 import sys
@@ -31,12 +32,44 @@ from blender_env import (
 # Coverage of the add-on the test suite must reach, in percent (the gate prints the measured values)
 LINE_COVERAGE_MIN = 99
 BRANCH_COVERAGE_MIN = 96
-# vulture: every folder of code (tools/vulture_whitelist.py holds the names used only by name)
-# (requirement tests carry @Verifies: unittest finds them by name, so vulture skips that decorator)
-DEAD_CODE = [
-    "source", "tools", "tests", "--exclude", "source/presets,build,.venv", "--min-confidence", "60",
-    "--ignore-decorators", "@Verifies",
-]  # fmt: skip
+# vulture: every folder of code (tools/vulture_whitelist.py holds the names Blender uses only by name; the test
+# classes, which unittest finds by name, are listed by TestCaseNames at each run)
+# (vulture takes its paths in one group, before the options)
+DEAD_CODE_PATHS = ["source", "tools", "tests"]
+# (no "build" pattern: it would also exclude source/build; the build/ folder is not among the paths)
+DEAD_CODE_OPTIONS = ["--exclude", "source/presets", "--min-confidence", "60"]
+
+
+class TestCaseNames:
+    """The names of the test classes (unittest.TestCase subclasses), as a vulture whitelist: unittest finds them by
+    name, so vulture sees no use. Written at every run, so a new test class needs no entry by hand."""
+
+    PATH = ROOT / "build" / "vulture_test_cases.py"
+
+    @classmethod
+    def write(cls) -> str:
+        """Write the whitelist of every test class under tests/ and return its path."""
+        names = set()
+        for path in sorted((ROOT / "tests").rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef) and cls.is_test_case(node):
+                    names.add(node.name)
+        cls.PATH.parent.mkdir(exist_ok=True)
+        lines = [f"{name}  # a unittest.TestCase: unittest finds it by name" for name in sorted(names)]
+        text = "\n".join(lines) + "\n"
+        cls.PATH.write_text(text, encoding="utf-8")
+        return str(cls.PATH)
+
+    @staticmethod
+    def is_test_case(node: ast.ClassDef) -> bool:
+        """Whether the class derives from unittest.TestCase (written `TestCase` or `unittest.TestCase`)."""
+        for base in node.bases:
+            if isinstance(base, ast.Attribute) and base.attr == "TestCase":
+                return True
+            if isinstance(base, ast.Name) and base.id == "TestCase":
+                return True
+        return False
 
 
 def step(title: str, cmd: list[str]) -> bool:
@@ -92,7 +125,7 @@ def main() -> int:
         # a thin UI: every function of source/ui/ at cyclomatic complexity 3 or less (the logic is in source/service/)
         step("thin UI", [python, "-m", "lizard", "-C", "3", "-w", "source/ui"]),
         # no dead code: vulture with the checked whitelist of names Blender and unittest call by name
-        step("dead code", [python, "-m", "vulture", *DEAD_CODE]),
+        step("dead code", [python, "-m", "vulture", *DEAD_CODE_PATHS, TestCaseNames.write(), *DEAD_CODE_OPTIONS]),
     ]
     print("== extension validate", flush=True)
     validate = run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)], check=False)

@@ -50,3 +50,31 @@ class TreeSizeAboveZero(unittest.TestCase):
 
     def test_a_size_range_above_zero_generates(self):
         self.assertEqual(Scene.generate(self.settings(1.0, 0.5)), {"FINISHED"})
+
+
+@Verifies("SWR-0077")
+class PruningEnvelopeHeight(unittest.TestCase):
+    def test_an_envelope_without_height_is_refused(self):
+        settings = Addon.resolve_preset("quaking_aspen.py")
+        settings.update(prune=True, pruneBase=1.0, baseSize=1.0)
+        Scene.reset()
+        with self.assertRaisesRegex(RuntimeError, "Prune Base Height 1 and Trunk Height 1"):
+            Scene.generate(settings)
+        self.assertEqual(len(bpy.data.objects), 0)
+
+
+@Verifies("SWR-0125")
+class FlutterSpeedAboveZero(unittest.TestCase):
+    def settings(self, flutter):
+        settings = Addon.resolve_preset("quaking_aspen.py")
+        settings.update(showLeaves=True, windAnim=True, leafFlutter=flutter, flutterSpeed=0.0)
+        return settings
+
+    def test_a_flutter_speed_of_zero_is_refused(self):
+        Scene.reset()
+        with self.assertRaisesRegex(RuntimeError, "Flutter Speed 0"):
+            Scene.generate(self.settings(flutter=True))
+        self.assertEqual(len(bpy.data.objects), 0)
+
+    def test_an_unused_speed_does_not_block(self):
+        self.assertEqual(Scene.generate(self.settings(flutter=False)), {"FINISHED"})

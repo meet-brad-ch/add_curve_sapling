@@ -273,7 +273,12 @@ class Joints:
         spline_length = (self.sizes - 1) * self._first_segment_lengths()
         per_curve = self._per_curve(model, rng, spline_length)
         direction = self._directions()
-        radius = np.maximum(self.flat.radius[self.joint_point].astype(np.float64), 1e-6)
+        radius = self.flat.radius[self.joint_point].astype(np.float64)
+        flat_joints = np.flatnonzero(radius <= 0)
+        if flat_joints.size:
+            # a joint is the start of its segments, never a closed tip: a radius of 0 here is a model defect
+            first = int(flat_joints[0])
+            raise RuntimeError(f"joint {first} has radius {radius[first]:g}: a joint needs a radius above 0")
         a0 = 2 * (spline_length[spline] / segments) * (1 - n / (segments + 1)) / radius
         a0 = a0 * np.minimum(self.step[spline], segments)
         a1 = (p.wind / 50) * a0
