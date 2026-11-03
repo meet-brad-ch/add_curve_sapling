@@ -50,7 +50,13 @@ class NodeMath:
         node.operation = op  # type: ignore[attr-defined]  # stub: new() returns the Node base class
         if not vector:
             node.use_clamp = clamp  # type: ignore[attr-defined]  # stub: as above
-        for socket, value in zip([s for s in node.inputs if s.enabled], (a, b), strict=False):
+        inputs = [s for s in node.inputs if s.enabled]
+        values = [a, b]
+        if b is None:
+            values = [a]
+        if len(values) > len(inputs):
+            raise ValueError(f"the {op} node has {len(inputs)} inputs, {len(values)} values were given")
+        for socket, value in zip(inputs[: len(values)], values, strict=True):
             if value is None:
                 continue
             if isinstance(value, int | float):

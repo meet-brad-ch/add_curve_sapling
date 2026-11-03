@@ -13,15 +13,14 @@ for the stdlib `Random` stream order.
 ## Open
 
 ### Owner decisions (change computed trees)
+
 ### Complexity and control flow (no change to computed trees)
 - **Q4 (rest)** lizard CCN > 10 (bug S2): `tools/port_treegen_in_blender.py` `convert` (15, 86 lines),
   `shape_points` (14), after the owner's decision on the port tools (Appendix B). Then lizard -C 10 in the gate.
 - **Q7 (rest)** a call inside `?:` in `tools/port_treegen_in_blender.py` (3 sites), after the owner's decision on the
   port tools (Appendix B).
-- **Q8** A branch on data inside an inner loop: `build/envelope.py:48` (`axis == 0`).
 
 ### Fail fast
-- **Q9** `build/node_math.py:53` `zip(..., strict=False)` drops values silently. Fix: check the count, raise.
 - **Q10** Unchecked `None`/bare errors: `service/trees.py:142` `view_layer() -> Any`, `service/copies.py:21`;
   `build/materials.py:89, 93` and tools `port_treegen_in_blender.py:89-90`, `render_ports_in_blender.py:74, 102`
   `next()` without a default (bare StopIteration); `requirements_check.py:184` `lines.index` (bare ValueError);
@@ -29,8 +28,6 @@ for the stdlib `Random` stream order.
   return code; `ui/duplicate.py:38` the translate result. Fix: raise with a message that names the item.
 - **Q11** Silent fallbacks in the port tool: `port_treegen_in_blender.py:148` (leaf shape -> default), `:164`
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
-- **Q12** `tests/support/coverage.py:20` an ImportError decides the coverage mode. Fix: run.py passes the mode.
-- **Q13** `model/randomness.py:107` `counts == 0` silently gives index -1; the clamp has no comment.
 
 ### Records and structure
 - **Q14** `model/sprouting.py:17-90` `SproutArrays`: 11 positional constructor arguments, names repeated in `FIELDS`.
@@ -117,3 +114,11 @@ for the stdlib `Random` stream order.
   source, 14 in tests and tools/check.py) became an `if` statement; each call stays in its own branch and the float
   expressions are unchanged. The nested `np.where` of `geometry._customs` names its inner segment. `evaluated.py` names an ID input by `isinstance(value, bpy.types.ID)`, not `hasattr`;
   `test_architecture.defined_name` matches Name and Attribute targets, not `getattr(..., "id", "")` (also Q19 there).
+- **Q8** `build/envelope.py`: the profile's axis is the index of the coordinate that holds the width; no branch in
+  the point loop.
+- **Q9** `build/node_math.py` `math`: more values than enabled inputs raises ValueError (it dropped them); unit test.
+- **Q12** `tests/support/coverage.py`: the imported `coverage` module (only `CoverageRun` imports it) tells whether
+  coverage is measured; no ImportError decides.
+- **Q13** `model/randomness.py` `pick`: a count below 1 raises (it gave index -1); the `np.minimum` clamp is removed:
+  `uniform` is k * 2**-53, so the floor stays below the count (checked for every count up to 2,000,000 and near each
+  power of two up to 2**52: the clamp acted on none). Unit tests.

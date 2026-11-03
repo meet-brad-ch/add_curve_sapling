@@ -26,6 +26,14 @@ class FailFast(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "1 bones for the geometry of 0"):
             Addon.module("build.armature").BoneGeometry(none, none).write(armature)
 
+    def test_a_math_node_refuses_more_values_than_inputs(self):
+        group = bpy.data.node_groups.new("probe", "GeometryNodeTree")
+        self.addCleanup(bpy.data.node_groups.remove, group)
+        maths = Addon.module("build.node_math").NodeMath(group)
+        maths.math("ADD", 1.0, 2.0)  # two inputs, two values
+        with self.assertRaisesRegex(ValueError, "the SQRT node has 1 inputs, 2 values were given"):
+            maths.math("SQRT", 1.0, 2.0)
+
     def test_foreign_node_group_with_the_instancer_name(self):
         Scene.reset()
         nodes = Addon.module("build.leaf_object").LeafInstancerNodes

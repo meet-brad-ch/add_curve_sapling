@@ -236,6 +236,19 @@ class KeyedDraws(unittest.TestCase):
     def keyed(self):
         return Addon.module("model.randomness").KeyedRandom
 
+    def test_pick_stays_below_the_count(self):
+        keyed = self.keyed()
+        keys = keyed.derive(keyed.root(7), 2, np.arange(100000), 0)
+        counts = np.arange(100000) % 7 + 1
+        picked = keyed.pick(keys, 0, 1, counts)
+        self.assertTrue(((picked >= 0) & (picked < counts)).all())
+
+    def test_pick_from_nothing_raises(self):
+        keyed = self.keyed()
+        keys = keyed.derive(keyed.root(7), 2, np.arange(3), 0)
+        with self.assertRaisesRegex(ValueError, "at least one item"):
+            keyed.pick(keys, 0, 1, np.array([2, 0, 1]))
+
     def test_uniform_in_range_and_well_spread(self):
         keyed = self.keyed()
         keys = keyed.derive(keyed.root(7), 2, np.arange(100000), 0)

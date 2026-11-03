@@ -45,7 +45,9 @@ class EnvelopeBuilder:
                 ratio = (c + 1) / self.POINTS
                 z = scale - scale * (1 - prune_base) * ratio
                 width = scale * p.prune_width * p.envelope(ratio)
-                points[c + 1].co = Vector((width, 0, z) if axis == 0 else (0, width, z))
+                co = [0.0, 0.0, z]
+                co[axis] = width
+                points[c + 1].co = Vector(co)
             for point in points:
                 point.handle_right_type = self.HANDLE
                 point.handle_left_type = self.HANDLE

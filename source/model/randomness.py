@@ -103,5 +103,11 @@ class KeyedRandom:
 
     @classmethod
     def pick(cls, keys: np.ndarray, step: int, draw: int, counts: np.ndarray) -> np.ndarray:
-        """An index in [0, counts) per key, as random.randint(0, counts - 1)."""
-        return np.minimum(np.floor(cls.uniform(keys, step, draw) * counts).astype(np.int64), counts - 1)
+        """An index in [0, counts) per key, as random.randint(0, counts - 1). Raises ValueError for a count below 1.
+
+        uniform is k * 2**-53 with k < 2**53, so uniform * count rounds below the count: the floor is at most
+        count - 1 (checked for every count up to 2,000,000 and near each power of two up to 2**52)."""
+        if (np.asarray(counts) < 1).any():
+            raise ValueError("pick needs at least one item to pick from for every key")
+        scaled = cls.uniform(keys, step, draw) * counts
+        return np.floor(scaled).astype(np.int64)
