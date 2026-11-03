@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 id = "sapling_tree_gen"
 name = "Sapling Tree Gen"
-version = "0.4.0"
+version = "1.0.0"
 tagline = "Adds a parametric tree with leaves, armature and wind"
-maintainer = "Community"
+maintainer = "Brad Chamberlain"
 type = "add-on"
 tags = ["Add Curve"]
 blender_version_min = "5.2.0"
@@ -13,6 +13,7 @@ copyright = [
     "2024 Andrew Hale (TrumanBlending)",
     "2024 Aaron Buchler",
     "2024 CansecoGPC",
+    "2026 Brad Chamberlain",
 ]
 
 [build]

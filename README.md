@@ -36,7 +36,7 @@ python tools/run_tests.py        # tests only (-k NAME selects tests, --record-g
 python tools/port_treegen.py <tree-gen clone> acer ...   # convert tree-gen species to presets
 python tools/render_ports.py <tree-gen clone> <out> acer  # render tree-gen's tree next to the preset
 blender -c extension build --source-dir source --output-dir build
-blender -c extension install-file -r user_default -e build/sapling_tree_gen-0.4.0.zip
+blender -c extension install-file -r user_default -e build/sapling_tree_gen-1.0.0.zip
 ```
 
 The tests build the extension zip and install it into a temporary profile in `build/test-profile`
@@ -158,7 +158,7 @@ In 0.4.0, stem growth was no longer O(n²). The old code counted the curve splin
 stem, and Blender counts them through a linked list. The old code also copied the bone map for each
 stem, also without pruning. In addition, the leaf rotations were calculated one time, not for each
 vertex. After 0.4.0, the model moved to NumPy arrays and the tree to Geometry Nodes. `CHANGELOG.md`
-(Unreleased) gives the measurements of each step. The benchmark is not part of the checks, because
+(1.0.0) gives the measurements of each step. The benchmark is not part of the checks, because
 the times depend on the machine.
 
 ## Layout

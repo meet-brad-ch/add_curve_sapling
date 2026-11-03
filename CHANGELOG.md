@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 (unreleased)
+
+Requires Blender 5.2 LTS. The first version on the Extensions Platform after 0.3.7: it holds the changes of
+this section and of 0.4.0 below.
 
 ### Added
 
@@ -170,7 +173,7 @@
 
 ## 0.4.0 — Blender 5.2 LTS revamp (2026-09-29)
 
-Requires Blender 5.2 LTS.
+Requires Blender 5.2 LTS. A pre-release, not on the Extensions Platform.
 
 ### Fixed
 
