@@ -5,6 +5,7 @@
 import json
 import random
 import unittest
+from types import MappingProxyType
 from typing import Any
 
 import numpy as np
@@ -16,17 +17,19 @@ from support.paths import Paths
 STATS = Paths.GOLDEN / "model_stats.json"
 
 
-CASES = {
-    "quaking_aspen": ("quaking_aspen", {}),
-    "callistemon_unpruned": ("callistemon", {"prune": False}),
-    "trunks_3": ("quaking_aspen", {"levels": 2, "trunks": 3}),
-    "rings": ("quaking_aspen", {"levels": 2, "nrings": 4}),
-    "rotate_mode": ("quaking_aspen", {"levels": 2, "rMode": "rotate"}),
-    "random_mode": ("quaking_aspen", {"levels": 2, "rMode": "random"}),
-    "levels_5": ("quaking_aspen", {"levels": 5, "branches": (0, 8, 3, 2), "closeTip": True}),
-    "palmate": ("quaking_aspen", {"levels": 2, "leaves": -5, "showLeaves": True}),
-    "attract_out": ("callistemon", {"prune": False, "attractOut": (0, 0.5, 0.5, 0)}),
-}
+CASES = MappingProxyType(
+    {
+        "quaking_aspen": ("quaking_aspen", {}),
+        "callistemon_unpruned": ("callistemon", {"prune": False}),
+        "trunks_3": ("quaking_aspen", {"levels": 2, "trunks": 3}),
+        "rings": ("quaking_aspen", {"levels": 2, "nrings": 4}),
+        "rotate_mode": ("quaking_aspen", {"levels": 2, "rMode": "rotate"}),
+        "random_mode": ("quaking_aspen", {"levels": 2, "rMode": "random"}),
+        "levels_5": ("quaking_aspen", {"levels": 5, "branches": (0, 8, 3, 2), "closeTip": True}),
+        "palmate": ("quaking_aspen", {"levels": 2, "leaves": -5, "showLeaves": True}),
+        "attract_out": ("callistemon", {"prune": False, "attractOut": (0, 0.5, 0.5, 0)}),
+    }
+)
 
 
 COUNT_TOLERANCE = 0.15

@@ -10,6 +10,7 @@ operation. The random draws stay per leaf, in leaf order (turn, down angle, scal
 from dataclasses import dataclass
 from math import copysign, pi, radians
 from random import Random
+from types import MappingProxyType
 
 import numpy as np
 
@@ -30,23 +31,27 @@ class LeafShape:
 
     BLOSSOM = "blossom"  # the shape of a blossom set (BlossomShape makes its geometry)
 
-    MESH = [HEX, RECT]
-    INSTANCED = [INSTANCE_FACES, INSTANCE_POINTS]
-    VERTS_PER_LEAF = {HEX: 6, RECT: 4, INSTANCE_FACES: 4, INSTANCE_POINTS: 1}
+    MESH = (HEX, RECT)
+    INSTANCED = (INSTANCE_FACES, INSTANCE_POINTS)
+    VERTS_PER_LEAF = MappingProxyType({HEX: 6, RECT: 4, INSTANCE_FACES: 4, INSTANCE_POINTS: 1})
     # Face instancing scales each instance by its face size times this; leaf faces are made this much smaller
     FACE_INSTANCE_SCALE = 10.0
-    _VERTICES = {
-        HEX: [[0, 0, 0], [0.5, 0, 1 / 3], [0.5, 0, 2 / 3], [0, 0, 1], [-0.5, 0, 2 / 3], [-0.5, 0, 1 / 3]],
-        RECT: [[0.5, 0, 0], [0.5, 0, 1], [-0.5, 0, 1], [-0.5, 0, 0]],
-        INSTANCE_FACES: [[0.5, 0.5, 0], [0.5, -0.5, 0], [-0.5, -0.5, 0], [-0.5, 0.5, 0]],
-        INSTANCE_POINTS: [[0, 0, 1]],
-    }
-    _FACES = {
-        HEX: [[0, 1, 2, 3], [0, 3, 4, 5]],
-        RECT: [[0, 1, 2, 3]],
-        INSTANCE_FACES: [[0, 3, 2, 1]],
-        INSTANCE_POINTS: [],
-    }
+    _VERTICES = MappingProxyType(
+        {
+            HEX: [[0, 0, 0], [0.5, 0, 1 / 3], [0.5, 0, 2 / 3], [0, 0, 1], [-0.5, 0, 2 / 3], [-0.5, 0, 1 / 3]],
+            RECT: [[0.5, 0, 0], [0.5, 0, 1], [-0.5, 0, 1], [-0.5, 0, 0]],
+            INSTANCE_FACES: [[0.5, 0.5, 0], [0.5, -0.5, 0], [-0.5, -0.5, 0], [-0.5, 0.5, 0]],
+            INSTANCE_POINTS: [[0, 0, 1]],
+        }
+    )
+    _FACES = MappingProxyType(
+        {
+            HEX: [[0, 1, 2, 3], [0, 3, 4, 5]],
+            RECT: [[0, 1, 2, 3]],
+            INSTANCE_FACES: [[0, 3, 2, 1]],
+            INSTANCE_POINTS: [],
+        }
+    )
 
     @classmethod
     def template(cls, shape: str) -> LeafTemplate:

@@ -41,7 +41,7 @@ class EnumItem:
 class Choices:
     """Enum items of the tree properties."""
 
-    SHAPES = [
+    SHAPES = (
         EnumItem("0", "Conical", ""),
         EnumItem("6", "Inverse Conical", ""),
         EnumItem("1", "Spherical", ""),
@@ -52,28 +52,28 @@ class Choices:
         EnumItem("5", "Flame", ""),
         EnumItem("7", "Tend Flame", ""),
         EnumItem(str(CrownShape.CUSTOM), "Custom Shape", ""),
-    ]
-    SECONDARY_SHAPES = [choice for choice in SHAPES if choice.identifier != str(CrownShape.CUSTOM)]
-    HANDLES = [EnumItem("0", "Auto", "Smooth automatic handles"), EnumItem("1", "Vector", "Straight segments")]
-    BRANCH_MODES = [
+    )
+    SECONDARY_SHAPES = tuple(choice for choice in SHAPES if choice.identifier != str(CrownShape.CUSTOM))
+    HANDLES = (EnumItem("0", "Auto", "Smooth automatic handles"), EnumItem("1", "Vector", "Straight segments"))
+    BRANCH_MODES = (
         EnumItem(BranchingMode.ORIGINAL, "Original", "Rotate around each branch"),
         EnumItem(
             BranchingMode.ROTATE, "Rotate", "Spread the branches evenly, pointing outward from the center of the tree"
         ),
         EnumItem(BranchingMode.RANDOM, "Random", "Choose a random point"),
-    ]
-    LEAF_SHAPES = [
+    )
+    LEAF_SHAPES = (
         EnumItem(LeafShape.HEX, "Hexagonal", "Hexagonal leaf mesh"),
         EnumItem(LeafShape.RECT, "Rectangular", "Rectangular leaf mesh, for image textures"),
         EnumItem(LeafShape.INSTANCE_FACES, "Instance Faces", "Instance the leaf object on one face per leaf"),
         EnumItem(LeafShape.INSTANCE_POINTS, "Instance Points", "Instance the leaf object on one point per leaf"),
-    ]
-    BLOSSOM_SHAPES = [
+    )
+    BLOSSOM_SHAPES = (
         EnumItem(BlossomShape.CHERRY, "Cherry", "Five round, slightly cupped petals"),
         EnumItem(BlossomShape.ORANGE, "Orange", "Five narrow petals that bend back"),
         EnumItem(BlossomShape.MAGNOLIA, "Magnolia", "Eight petals in a deep cup"),
-    ]
-    PAGES = [
+    )
+    PAGES = (
         EnumItem("0", "Geometry", "Tree shape, scale, curve settings and presets"),
         EnumItem("1", "Branch Radius", "Radius and taper of the branches"),
         EnumItem("2", "Branch Splitting", "Levels, splits and branch counts"),
@@ -82,7 +82,7 @@ class Choices:
         EnumItem("5", "Leaves", "Leaf shape and placement"),
         EnumItem("6", "Armature", "Armature rig and baked mesh"),
         EnumItem("7", "Animation", "Wind animation"),
-    ]
+    )
 
 
 class TreeProperties:
@@ -93,7 +93,7 @@ class TreeProperties:
     """
 
     # Refers to an object in the scene: stored with a tree, never in presets.
-    SCENE_BOUND = ["leafDupliObj"]
+    SCENE_BOUND = ("leafDupliObj",)
     # UI state: never part of presets or stored tree settings.
     UI_ONLY = frozenset({"do_update", "chooseSet", "presetName", "overwrite"})
 
@@ -588,6 +588,7 @@ class OldSettingNames:
     """The setting ids from before the rename (TreeSettings.RENAMED), so scripts calling the operator with them
     keep working. They are hidden and not saved; a value given under an old id moves to its new id."""
 
+    # a set, not a frozenset: Blender's property options accept only a set
     HIDDEN = {"HIDDEN", "SKIP_SAVE"}
 
     useArm: BoolProperty(name="useArm", options=HIDDEN)

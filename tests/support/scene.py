@@ -11,7 +11,7 @@ class Scene:
     """The test scene: reset, the generated objects, data-block counts, generation through the operator."""
 
     LEAF_CARD = "leaf_card"
-    DATA = ["objects", "curves", "hair_curves", "meshes", "armatures", "actions"]
+    DATA = ("objects", "curves", "hair_curves", "meshes", "armatures", "actions")
 
     @staticmethod
     def reset() -> None:

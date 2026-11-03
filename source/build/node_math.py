@@ -2,6 +2,7 @@
 
 """Small node-building helpers shared by the tree's Geometry Nodes groups."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -156,7 +157,7 @@ class NodeMath:
         self.link(if_true, node.inputs["True"])
         return node.outputs[0]
 
-    def interface(self, group: NodeTree, inputs: list[SocketSpec]) -> Any:
+    def interface(self, group: NodeTree, inputs: Sequence[SocketSpec]) -> Any:
         """The group's sockets: a Geometry input, the given inputs, a Geometry output; returns the Group Input
         node's outputs."""
         interface = group.interface

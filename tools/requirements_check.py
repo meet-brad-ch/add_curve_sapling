@@ -16,6 +16,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import MappingProxyType
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCUMENT = ROOT / "docs" / "requirements.md"
@@ -206,16 +207,18 @@ class RequirementsDocument:
 class CodeSettings:
     """The settings of the Add Tree panel as the code defines them: properties and their pages."""
 
-    PAGE_NAMES = {
-        "geometry": "Geometry",
-        "branch_radius": "Branch Radius",
-        "branch_splitting": "Branch Splitting",
-        "branch_growth": "Branch Growth",
-        "pruning": "Pruning",
-        "leaves": "Leaves",
-        "armature": "Armature",
-        "animation": "Animation",
-    }
+    PAGE_NAMES = MappingProxyType(
+        {
+            "geometry": "Geometry",
+            "branch_radius": "Branch Radius",
+            "branch_splitting": "Branch Splitting",
+            "branch_growth": "Branch Growth",
+            "pruning": "Pruning",
+            "leaves": "Leaves",
+            "armature": "Armature",
+            "animation": "Animation",
+        }
+    )
 
     def rows(self) -> list[SettingRow]:
         """Each property drawn on a page, in the order properties.py declares them."""

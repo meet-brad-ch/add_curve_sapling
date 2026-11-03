@@ -4,6 +4,7 @@
 
 import hashlib
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 import bpy
@@ -14,11 +15,22 @@ from support.evaluated import Evaluated
 class Fingerprint:
     """A compact, order-sensitive summary of every object in the scene and its data (the golden trees)."""
 
-    HANDLE_TYPE_NAMES = ["FREE", "AUTO", "VECTOR", "ALIGNED"]
-    MODIFIER_PARAMS = {
-        "FNGENERATOR": ("amplitude", "phase_offset", "phase_multiplier", "value_offset", "use_additive"),
-        "NOISE": ("scale", "strength", "offset", "phase", "use_restricted_range", "frame_end", "blend_in", "blend_out"),
-    }
+    HANDLE_TYPE_NAMES = ("FREE", "AUTO", "VECTOR", "ALIGNED")
+    MODIFIER_PARAMS = MappingProxyType(
+        {
+            "FNGENERATOR": ("amplitude", "phase_offset", "phase_multiplier", "value_offset", "use_additive"),
+            "NOISE": (
+                "scale",
+                "strength",
+                "offset",
+                "phase",
+                "use_restricted_range",
+                "frame_end",
+                "blend_in",
+                "blend_out",
+            ),
+        }
+    )
 
     @classmethod
     def scene(cls) -> dict:

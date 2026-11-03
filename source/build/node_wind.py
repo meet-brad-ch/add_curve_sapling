@@ -91,11 +91,11 @@ class WindNodes:
 
     GROUP = "Sapling Wind"
     VERSION = 2
-    INPUTS = [
+    INPUTS = (
         SocketSpec("Gust", "NodeSocketFloat"),
         SocketSpec("Scan Passes", "NodeSocketInt"),
         SocketSpec("Depth Passes", "NodeSocketInt"),
-    ]
+    )
 
     @classmethod
     def build(cls, group: NodeTree) -> None:
@@ -184,7 +184,7 @@ class FollowWindNodes:
     VERSION = 2
     MODIFIER = "Sapling Follow Wind"
     JOINT = "sapling_joint"
-    INPUTS = [SocketSpec("Curves", "NodeSocketObject")]
+    INPUTS = (SocketSpec("Curves", "NodeSocketObject"),)
 
     @classmethod
     def build(cls, group: NodeTree) -> None:

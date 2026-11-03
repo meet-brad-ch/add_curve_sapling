@@ -199,12 +199,12 @@ class LeafFlutterNodes:
     PIVOT = "leaf_pivot"
     OFFSET = "leaf_flutter_offset"
     FADE_FRAMES = 4.0
-    INPUTS = [
+    INPUTS = (
         SocketSpec("Strength", "NodeSocketFloat"),
         SocketSpec("Scale", "NodeSocketFloat"),
         SocketSpec("Loop", "NodeSocketBool"),
         SocketSpec("Loop End", "NodeSocketFloat"),
-    ]
+    )
 
     @classmethod
     def add_modifier(cls, leaves_ob: Object, strength: float, scale: float, loop_frames: int) -> None:

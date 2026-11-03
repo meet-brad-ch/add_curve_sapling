@@ -5,6 +5,7 @@
 import itertools
 import unittest
 import unittest.mock
+from types import MappingProxyType
 
 import bpy
 import numpy as np
@@ -118,17 +119,19 @@ class TrunkPlacementFailure(unittest.TestCase):
 class TrunksFaceOut(unittest.TestCase):
     """Trunks Face Out turns each further trunk of a clump so that a positive Curvature bends it outward."""
 
-    CLUMP = {
-        "levels": 1,
-        "trunks": 6,
-        "curve": (60.0, 0.0, 0.0, 0.0),
-        "curveV": (0.0, 0.0, 0.0, 0.0),
-        "curveBack": (0.0, 0.0, 0.0, 0.0),
-        "attractUp": (0.0, 0.0, 0.0, 0.0),
-        "segSplits": (0.0, 0.0, 0.0, 0.0),
-        "baseSplits": 0,
-        "showLeaves": False,
-    }
+    CLUMP = MappingProxyType(
+        {
+            "levels": 1,
+            "trunks": 6,
+            "curve": (60.0, 0.0, 0.0, 0.0),
+            "curveV": (0.0, 0.0, 0.0, 0.0),
+            "curveBack": (0.0, 0.0, 0.0, 0.0),
+            "attractUp": (0.0, 0.0, 0.0, 0.0),
+            "segSplits": (0.0, 0.0, 0.0, 0.0),
+            "baseSplits": 0,
+            "showLeaves": False,
+        }
+    )
 
     def outward(self, **changes):
         """Per further trunk, the cosine between its base's direction from the centre and its tip's sideways shift."""

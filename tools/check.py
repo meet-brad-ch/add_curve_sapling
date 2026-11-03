@@ -35,9 +35,9 @@ BRANCH_COVERAGE_MIN = 96
 # vulture: every folder of code (tools/vulture_whitelist.py holds the names Blender uses only by name; the test
 # classes, which unittest finds by name, are listed by TestCaseNames at each run)
 # (vulture takes its paths in one group, before the options)
-DEAD_CODE_PATHS = ["source", "tools", "tests"]
+DEAD_CODE_PATHS = ("source", "tools", "tests")
 # (no "build" pattern: it would also exclude source/build; the build/ folder is not among the paths)
-DEAD_CODE_OPTIONS = ["--exclude", "source/presets", "--min-confidence", "60"]
+DEAD_CODE_OPTIONS = ("--exclude", "source/presets", "--min-confidence", "60")
 
 
 class TestCaseNames:

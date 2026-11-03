@@ -160,7 +160,7 @@ class LeafInstancerNodes:
     VERSION = 1
     ROTATION = "leaf_rotation"
     OBJECT_INPUT = "Leaf Object"
-    INPUTS = [SocketSpec(OBJECT_INPUT, "NodeSocketObject")]
+    INPUTS = (SocketSpec(OBJECT_INPUT, "NodeSocketObject"),)
 
     @classmethod
     def add_modifier(cls, leaves_ob: Object, instance: Object) -> None:

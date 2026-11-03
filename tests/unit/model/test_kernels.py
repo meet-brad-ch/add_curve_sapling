@@ -296,11 +296,11 @@ class SwayMatchesTheScalarFormula(unittest.TestCase):
     are equal to the bit; the gust bends follow a bone's direction, whose last float32 bit mathutils' normalize
     rounds differently on a few bones (Joints._directions), so they agree to two float32 units."""
 
-    CASES = [
+    CASES = (
         {"levels": 2, "jointStep": (2, 2, 1, 1)},
         {"levels": 3, "branches": (0, 30, 10, 0), "windStrength": 3.0, "gustStrength": 2.0, "loopFrames": 48},
         {"levels": 3, "branches": (0, 30, 10, 0), "prune": True, "jointLevels": 2},
-    ]
+    )
 
     @staticmethod
     def reference(joints, model, rng):

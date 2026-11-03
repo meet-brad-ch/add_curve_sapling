@@ -35,11 +35,6 @@ for the stdlib `Random` stream order.
   `service/trees.py:122` `replaced(result: Any)`. Fix: named types.
 
 ### State, duplication, style
-- **Q21** Mutable class-level lists and dicts: model `params.py:43, 87`, `blossoms.py:37-52`, `leaves.py:33-49`,
-  `geometry.py:109`, `sprouting.py:28`; `__init__.py:20`, `settings.py:23, 25, 34`, the `INPUTS` lists of
-  `leaf_object.py`, `node_wind.py`, `tree_root.py`, `wind.py`, `ui/properties.py:96`; tests and tools module
-  constants (`test_settings.py` CAPS..., `test_architecture.py` LAYERS..., `check.py` DEAD_CODE, the port and render
-  tools). Fix: tuples, frozensets, MappingProxyType as class constants. (`PresetChoice._items` stays: Blender T83360.)
 - **Q22** Module-level functions (full OOD): 36 in tools (check.py, blender_env.py 9, port_treegen 6, render_ports 10,
   bench 2, the `main`s), 16 in tests (run.py 3, test_trunk `root_of` - a copy of `Trees.root_of`, test_architecture 3,
   test_curve_data 4, test_kernels 2, test_model_stats 1, test_requirements_check 2). Fix: classes, `main` stays.
@@ -135,3 +130,10 @@ for the stdlib `Random` stream order.
   `_write` takes them. `build/tree_root.py`: the closure is the method `_sampled` (the nodes made in the same order).
   `ui/pages.py` keeps its dispatch by name (a draw, not a hot loop); a new unit test checks that `ORDER` has one
   drawing method per entry of `Choices.PAGES`, and the page test takes the page count from `Choices.PAGES`.
+- **Q21** class and module constants are immutable (54, rewritten in place by an AST tool, only the brackets
+  change): lists became tuples, sets frozensets, dicts `MappingProxyType`. They stay sets where Blender wants a set:
+  `bl_options` and the property options `OldSettingNames.HIDDEN`; `PresetChoice._items` stays a list (Blender
+  T83360). The port tools wait for the owner's decision. Found on the way: Blender prints a property that fails to
+  register (a frozenset `options`) and registers the operator without it and every property after it, so the add-on
+  enabled half made; `Registration.check_properties` now raises after each class, naming the missing properties
+  (unit test with a probe operator).

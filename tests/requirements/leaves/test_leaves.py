@@ -4,6 +4,7 @@
 
 import unittest
 import unittest.mock
+from types import MappingProxyType
 
 import bpy
 import numpy as np
@@ -147,7 +148,7 @@ class LeafUp(unittest.TestCase):
 class PalmSettings(unittest.TestCase):
     """Count Above Base, Leaves Above Base and Fan Angles: tree-gen's palm, fan palm and bamboo need them."""
 
-    PALM = {"levels": 2, "baseSize": 0.95, "branches": (0, 25, 0, 0), "showLeaves": False}
+    PALM = MappingProxyType({"levels": 2, "baseSize": 0.95, "branches": (0, 25, 0, 0), "showLeaves": False})
 
     @staticmethod
     def first_level(model):

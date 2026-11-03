@@ -6,7 +6,7 @@ import math
 import unittest
 import unittest.mock
 from dataclasses import dataclass
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 import bpy
@@ -158,14 +158,16 @@ class HelixWind(unittest.TestCase):
 class BendVariation(unittest.TestCase):
     """Bend Variation turns each segment of a level sideways by a random part of the level's maximum."""
 
-    STRAIGHT = {
-        "levels": 2,
-        "curve": (0.0, 0.0, 0.0, 0.0),
-        "curveV": (0.0, 0.0, 0.0, 0.0),
-        "curveBack": (0.0, 0.0, 0.0, 0.0),
-        "attractUp": (0.0, 0.0, 0.0, 0.0),
-        "segSplits": (0.0, 0.0, 0.0, 0.0),
-    }
+    STRAIGHT = MappingProxyType(
+        {
+            "levels": 2,
+            "curve": (0.0, 0.0, 0.0, 0.0),
+            "curveV": (0.0, 0.0, 0.0, 0.0),
+            "curveBack": (0.0, 0.0, 0.0, 0.0),
+            "attractUp": (0.0, 0.0, 0.0, 0.0),
+            "segSplits": (0.0, 0.0, 0.0, 0.0),
+        }
+    )
 
     def draws(self, **changes):
         """The draw ids the growth asks KeyedRandom.between for."""
@@ -225,7 +227,7 @@ class BendVariation(unittest.TestCase):
 class PalmSettings(unittest.TestCase):
     """Count Above Base, Leaves Above Base and Fan Angles: tree-gen's palm, fan palm and bamboo need them."""
 
-    PALM = {"levels": 2, "baseSize": 0.95, "branches": (0, 25, 0, 0), "showLeaves": False}
+    PALM = MappingProxyType({"levels": 2, "baseSize": 0.95, "branches": (0, 25, 0, 0), "showLeaves": False})
 
     @staticmethod
     def first_level(model):

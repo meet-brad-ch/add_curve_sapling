@@ -2,9 +2,11 @@
 
 """Installation and compatibility: registration (the requirements each class or test names)."""
 
+import sys
 import unittest
 
 import bpy
+from bpy.props import BoolProperty, FloatProperty
 from support.addon import Addon
 from support.verifies import Verifies
 
@@ -45,6 +47,26 @@ class FailedRegistration(unittest.TestCase):
             bpy.ops.preferences.addon_enable(module=Addon.MODULE)
         self.assertIsNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
         bpy.utils.register_class = original
+
+    def test_a_property_that_does_not_register_is_an_error(self):
+        """Blender prints a property that fails to register and goes on without it and the ones after it."""
+
+        class ProbeOperator(bpy.types.Operator):
+            bl_idname = "sapling.probe"
+            bl_label = "Probe"
+
+            alpha: FloatProperty(name="alpha")  # type: ignore[valid-type]  # a Blender property annotation
+            # a frozenset does not register (Blender's options accept only a set)
+            beta: BoolProperty(name="beta", options=frozenset({"HIDDEN"}))  # type: ignore[valid-type]  # as above
+            gamma: FloatProperty(name="gamma")  # type: ignore[valid-type]  # as above
+
+        bpy.utils.register_class(ProbeOperator)
+        self.addCleanup(bpy.utils.unregister_class, ProbeOperator)
+        registration = sys.modules[Addon.MODULE].Registration
+        with self.assertRaisesRegex(
+            RuntimeError, r"sapling.probe: the properties \['beta', 'gamma'\] did not register"
+        ):
+            registration.check_properties(ProbeOperator)
 
 
 @Verifies("SWR-0005")

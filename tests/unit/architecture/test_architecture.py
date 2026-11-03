@@ -5,6 +5,7 @@
 import ast
 import tomllib
 import unittest
+from types import MappingProxyType
 
 from support.paths import Paths
 
@@ -14,29 +15,33 @@ ROOT = Paths.ROOT
 SOURCE = ROOT / "source"
 
 
-LAYERS = {
-    # package: project packages/modules it must not import
-    "model": {"build", "ui", "generator", "presets", "settings", "service"},
-    "build": {"ui", "generator", "presets", "service"},
-    # the backend's front door for the UI must not depend on the UI
-    "service": {"ui"},
-    # a thin UI: only the service and the settings (tools/check.py also keeps each UI function at complexity 3)
-    "ui": {"model", "build", "generator", "presets"},
-}
+LAYERS = MappingProxyType(
+    {
+        # package: project packages/modules it must not import
+        "model": {"build", "ui", "generator", "presets", "settings", "service"},
+        "build": {"ui", "generator", "presets", "service"},
+        # the backend's front door for the UI must not depend on the UI
+        "service": {"ui"},
+        # a thin UI: only the service and the settings (tools/check.py also keeps each UI function at complexity 3)
+        "ui": {"model", "build", "generator", "presets"},
+    }
+)
 
 
-BLENDER_ENTRY_POINTS = {"register", "unregister"}
+BLENDER_ENTRY_POINTS = frozenset({"register", "unregister"})
 
 
-BLENDER_MODULES = {"bpy", "mathutils", "bpy_extras", "bmesh", "gpu", "blf", "aud", "bl_math", "idprop"}
+BLENDER_MODULES = frozenset({"bpy", "mathutils", "bpy_extras", "bmesh", "gpu", "blf", "aud", "bl_math", "idprop"})
 
 
-TUPLE_BOUNDARIES = {
-    ("ui/properties.py", "item"),
-    ("ui/properties.py", "items"),
-    ("ui/operators.py", "items"),
-    ("ui/operators.py", "_items"),
-}
+TUPLE_BOUNDARIES = frozenset(
+    {
+        ("ui/properties.py", "item"),
+        ("ui/properties.py", "items"),
+        ("ui/operators.py", "items"),
+        ("ui/operators.py", "_items"),
+    }
+)
 
 
 def modules():

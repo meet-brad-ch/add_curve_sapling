@@ -41,10 +41,10 @@ class PlatformPackage(unittest.TestCase):
 class UserFiles(unittest.TestCase):
     # calls that write or remove a file or a folder: Path's writing methods, the builtin open with a mode, os and
     # shutil. Not unlink/rename/replace: Blender's collections unlink objects, and str.replace is everywhere.
-    WRITES = {"write_text", "write_bytes", "mkdir", "rmdir", "touch"}
-    MODULES = {"os", "shutil"}
+    WRITES = frozenset({"write_text", "write_bytes", "mkdir", "rmdir", "touch"})
+    MODULES = frozenset({"os", "shutil"})
     # the one place the package writes: the preset store's save, into the user folder
-    ALLOWED = {("presets.py", "save")}
+    ALLOWED = frozenset({("presets.py", "save")})
 
     def test_the_user_folder_is_the_extensions_user_path(self):
         store = Addon.preset_store()

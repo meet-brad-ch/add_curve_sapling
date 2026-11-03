@@ -4,6 +4,7 @@
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
+from types import MappingProxyType
 from typing import Any, Self
 
 
@@ -22,32 +23,36 @@ class TreeSettings:
     # The Armature Rig setting's default (ui/properties.py useRig): what a left-out rig setting means
     RIG_DEFAULT = False
     # Keys of the oldest preset format that no longer exist.
-    OBSOLETE_KEYS = ["startCurv", "windGust", "windSpeed"]
+    OBSOLETE_KEYS = ("startCurv", "windGust", "windSpeed")
     # Presets older than the leaf angles used the last branch level's angles for the leaves.
-    LEAF_ANGLE_SOURCES = {
-        "leafDownAngle": "downAngle",
-        "leafDownAngleV": "downAngleV",
-        "leafRotate": "rotate",
-        "leafRotateV": "rotateV",
-    }
+    LEAF_ANGLE_SOURCES = MappingProxyType(
+        {
+            "leafDownAngle": "downAngle",
+            "leafDownAngleV": "downAngleV",
+            "leafRotate": "rotate",
+            "leafRotateV": "rotateV",
+        }
+    )
 
     # Setting ids renamed when the wind moved to Geometry Nodes; presets, stored trees and scripts may use the old
     # ids, which load under the new ones
-    RENAMED = {
-        "useArm": "useRig",
-        "armAnim": "windAnim",
-        "previewArm": "fastPreview",
-        "armLevels": "jointLevels",
-        "boneStep": "jointStep",
-        "leafAnim": "leafFlutter",
-        "wind": "windStrength",
-        "gust": "gustStrength",
-        "gustF": "gustFrequency",
-        "frameRate": "animationSpeed",
-        "af1": "flutterStrength",
-        "af2": "flutterSpeed",
-        "af3": "flutterRandomness",
-    }
+    RENAMED = MappingProxyType(
+        {
+            "useArm": "useRig",
+            "armAnim": "windAnim",
+            "previewArm": "fastPreview",
+            "armLevels": "jointLevels",
+            "boneStep": "jointStep",
+            "leafAnim": "leafFlutter",
+            "wind": "windStrength",
+            "gust": "gustStrength",
+            "gustF": "gustFrequency",
+            "frameRate": "animationSpeed",
+            "af1": "flutterStrength",
+            "af2": "flutterSpeed",
+            "af3": "flutterRandomness",
+        }
+    )
 
     def __init__(self, values: object) -> None:
         if not isinstance(values, dict):

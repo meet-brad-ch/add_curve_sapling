@@ -11,6 +11,7 @@ would read freed memory when the tree is built or edited later.
 
 from dataclasses import dataclass
 from math import degrees, pi, radians
+from types import MappingProxyType
 from typing import Any
 
 import numpy as np
@@ -39,7 +40,7 @@ class BranchingMode:
     ORIGINAL = "original"  # rotate around each branch
     ROTATE = "rotate"  # spread evenly to point outward from the tree's center
     RANDOM = "random"  # a random point at each height
-    ALL = [ORIGINAL, ROTATE, RANDOM]
+    ALL = (ORIGINAL, ROTATE, RANDOM)
 
 
 class PlainParams:
@@ -63,7 +64,7 @@ class TreeParams(PlainParams):
     """
 
     LEVELS = 4
-    HANDLE_TYPES = {"0": HandleType.AUTO, "1": HandleType.VECTOR}
+    HANDLE_TYPES = MappingProxyType({"0": HandleType.AUTO, "1": HandleType.VECTOR})
 
     def __init__(self, settings: Any) -> None:
         s = settings

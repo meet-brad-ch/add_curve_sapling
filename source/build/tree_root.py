@@ -123,7 +123,7 @@ class TreeSweepNodes:
 
     GROUP = "Sapling Tree"
     VERSION = 6
-    INPUTS = [
+    INPUTS = (
         SocketSpec("Curves", "NodeSocketObject"),
         SocketSpec("Bevel Depth", "NodeSocketFloat"),
         SocketSpec("Bevel Resolution", "NodeSocketInt"),
@@ -135,7 +135,7 @@ class TreeSweepNodes:
         SocketSpec("Rig", "NodeSocketBool"),
         SocketSpec("Joints", "NodeSocketObject"),
         SocketSpec("Wind Joints", "NodeSocketObject"),
-    ]
+    )
 
     @classmethod
     def build(cls, group: NodeTree) -> None:

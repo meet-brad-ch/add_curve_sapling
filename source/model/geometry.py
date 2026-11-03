@@ -9,6 +9,7 @@ expression changes the trees.
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from math import pi, radians
+from types import MappingProxyType
 
 import numpy as np
 
@@ -108,17 +109,19 @@ class CrownShape:
         widths[falling] = ((1 - r[falling]) / peak) ** power_low
         return widths
 
-    _SHAPES = {
-        CONICAL: lambda ratio: 0.05 + 0.95 * ratio,
-        SPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(pi * ratio),
-        HEMISPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(0.5 * pi * ratio),
-        CYLINDRICAL: lambda ratio: np.ones_like(ratio),
-        TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * ratio,
-        FLAME: _flames,
-        INVERSE_CONICAL: lambda ratio: 1.0 - 0.8 * ratio,
-        TEND_FLAME: _tend_flames,
-        INVERSE_TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * (1 - ratio),
-    }
+    _SHAPES = MappingProxyType(
+        {
+            CONICAL: lambda ratio: 0.05 + 0.95 * ratio,
+            SPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(pi * ratio),
+            HEMISPHERICAL: lambda ratio: 0.2 + 0.8 * np.sin(0.5 * pi * ratio),
+            CYLINDRICAL: lambda ratio: np.ones_like(ratio),
+            TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * ratio,
+            FLAME: _flames,
+            INVERSE_CONICAL: lambda ratio: 1.0 - 0.8 * ratio,
+            TEND_FLAME: _tend_flames,
+            INVERSE_TAPERED_CYLINDRICAL: lambda ratio: 0.5 + 0.5 * (1 - ratio),
+        }
+    )
 
     @staticmethod
     def auto_taper(

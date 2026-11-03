@@ -83,3 +83,5 @@ _.diffuse_color  # unused attribute (tools\render_ports_in_blender.py:142)
 _.engine  # unused attribute (tools\render_ports_in_blender.py:173)
 _.light  # unused attribute (tools\render_ports_in_blender.py:174)
 _.color_type  # unused attribute (tools\render_ports_in_blender.py:175)
+beta  # unused variable (tests\requirements\installation\test_registration.py:60): the probe operator's property, read by Blender
+gamma  # unused variable (tests\requirements\installation\test_registration.py:61): as above

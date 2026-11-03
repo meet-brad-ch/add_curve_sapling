@@ -9,6 +9,7 @@ before Blossom Scale. Each petal is five quads over three rings of points: its b
 
 from dataclasses import dataclass
 from math import pi
+from types import MappingProxyType
 
 import numpy as np
 
@@ -34,12 +35,14 @@ class BlossomShape:
     CHERRY = "cherry"
     ORANGE = "orange"
     MAGNOLIA = "magnolia"
-    ALL = [CHERRY, ORANGE, MAGNOLIA]
-    FORMS = {
-        CHERRY: BlossomForm(petals=5, width=0.95, widest=0.65, cup=0.12),
-        ORANGE: BlossomForm(petals=5, width=0.5, widest=0.55, cup=-0.1),
-        MAGNOLIA: BlossomForm(petals=8, width=0.65, widest=0.6, cup=0.45),
-    }
+    ALL = (CHERRY, ORANGE, MAGNOLIA)
+    FORMS = MappingProxyType(
+        {
+            CHERRY: BlossomForm(petals=5, width=0.95, widest=0.65, cup=0.12),
+            ORANGE: BlossomForm(petals=5, width=0.5, widest=0.55, cup=-0.1),
+            MAGNOLIA: BlossomForm(petals=8, width=0.65, widest=0.6, cup=0.45),
+        }
+    )
     RADIUS = 0.5  # a template's diameter is 1
     # A petal's three rings of points, as fractions of the radius: its base, its widest, and its rounded end (the
     # end's sides; its middle point is at the full radius); the base and end widths are fractions of the widest
@@ -49,7 +52,7 @@ class BlossomShape:
     END_WIDTH = 0.55
     # A petal's quads (counterclockwise seen from +z): 0 is the centre, then per ring its left, middle and right
     # point (1-3 base, 4-6 widest, 7-9 end)
-    PETAL_FACES = [[0, 1, 2, 3], [1, 4, 5, 2], [2, 5, 6, 3], [4, 7, 8, 5], [5, 8, 9, 6]]
+    PETAL_FACES = ([0, 1, 2, 3], [1, 4, 5, 2], [2, 5, 6, 3], [4, 7, 8, 5], [5, 8, 9, 6])
 
     @classmethod
     def template(cls, shape: str) -> LeafTemplate:

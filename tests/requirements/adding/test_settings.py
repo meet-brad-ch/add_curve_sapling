@@ -9,7 +9,8 @@ import re
 import statistics
 import time
 import unittest
-from types import SimpleNamespace
+from collections.abc import Mapping
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 import bpy
@@ -33,46 +34,48 @@ SLOW_FACTOR = 8.0
 SLOW_FLOOR = 1.0
 
 
-CAPS: dict[str, Any] = {
-    "levels": (1, 4),
-    "branches": [(0, 40), (0, 20), (0, 8), (0, 6)],
-    "curveRes": [(1, 8), (1, 6), (1, 4), (1, 3)],
-    "leaves": (-6, 30),
-    "nrings": (0, 6),
-    "baseSplits": (0, 4),
-    "trunks": (1, 3),
-    # splits on every segment of every level grow tens of thousands of stems (13,000-23,000 seen); with an
-    # armature on every level that is 30,000+ bones, and Blender's own cost to create each bone, F-curve and
-    # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
-    "segSplits": [(0.0, 0.5)] * 4,
-    "bendV": [(0.0, 180.0)] * 4,
-    # below 0 means no blossoms (about a third of the cases), so the leaves-only path stays common
-    "blossomRate": (-0.5, 1.0),
-    "jointStep": [(1, 3)] * 4,
-    "jointLevels": (0, 4),
-    "loopFrames": (0, 60),
-    "bevelRes": (0, 3),
-    "resU": (1, 6),
-    "seed": (0, 10_000),
-}
+CAPS: Mapping[str, Any] = MappingProxyType(
+    {
+        "levels": (1, 4),
+        "branches": [(0, 40), (0, 20), (0, 8), (0, 6)],
+        "curveRes": [(1, 8), (1, 6), (1, 4), (1, 3)],
+        "leaves": (-6, 30),
+        "nrings": (0, 6),
+        "baseSplits": (0, 4),
+        "trunks": (1, 3),
+        # splits on every segment of every level grow tens of thousands of stems (13,000-23,000 seen); with an
+        # armature on every level that is 30,000+ bones, and Blender's own cost to create each bone, F-curve and
+        # vertex group grows with how many exist (case 8 of the uncapped run: 73 s)
+        "segSplits": [(0.0, 0.5)] * 4,
+        "bendV": [(0.0, 180.0)] * 4,
+        # below 0 means no blossoms (about a third of the cases), so the leaves-only path stays common
+        "blossomRate": (-0.5, 1.0),
+        "jointStep": [(1, 3)] * 4,
+        "jointLevels": (0, 4),
+        "loopFrames": (0, 60),
+        "bevelRes": (0, 3),
+        "resU": (1, 6),
+        "seed": (0, 10_000),
+    }
+)
 
 
-SPREAD = {"angle": 90.0, "other": 2.0}
+SPREAD = MappingProxyType({"angle": 90.0, "other": 2.0})
 
 
 ANGLES = re.compile(r"(?i)angle|rotate|curve(V|Back)?$|leafangle")
 
 
-SKIP = {"leafDupliObj"}  # set explicitly (instanced leaves need an object)
+SKIP = frozenset({"leafDupliObj"})  # set explicitly (instanced leaves need an object)
 
 
-BOOL_ODDS = {"helix": 0.15}
+BOOL_ODDS = MappingProxyType({"helix": 0.15})
 
 
 HELIX_ANGLE = 89.0
 
 
-FACES_PER_LEAF = {"hex": 2, "rect": 1, "dFace": 1, "dVert": 0}
+FACES_PER_LEAF = MappingProxyType({"hex": 2, "rect": 1, "dFace": 1, "dVert": 0})
 
 
 @Verifies("SWR-0014")
