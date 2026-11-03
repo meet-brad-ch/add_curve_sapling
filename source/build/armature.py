@@ -128,7 +128,9 @@ class ArmatureBuilder:
         # Both are at the origin with no rotation while the tree is built, so no parent inverse is needed
         armature_ob = self.objects.new(self.ROLE, armature, parent=root)
         armature.display_type = "STICK"
-        animator = WindAnimator(armature_ob) if wind is not None else None
+        animator = None
+        if wind is not None:
+            animator = WindAnimator(armature_ob)
 
         modifier = self.deform(joints_ob, armature_ob)
         if p.preview_armature:
@@ -226,7 +228,9 @@ class ArmatureBuilder:
         flutter = wind if p.leaf_animation else None
         groups = self._grouped(joints.leaf_joint(leaves), joints.names(), leaves.verts_per_leaf)
         # two noise offsets per leaf, after all the joints' draws
-        offsets = LeafFlutter.offsets(leaves, p.wind.flutter.randomness, self.rng) if flutter else []
+        offsets = []
+        if flutter:
+            offsets = LeafFlutter.offsets(leaves, p.wind.flutter.randomness, self.rng)
         VertexGroupWriter.assign(leaves_ob, groups)
         if flutter is not None:
             LeafFlutter.add(leaves_ob, leaves, offsets, flutter.model)

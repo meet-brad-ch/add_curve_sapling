@@ -77,7 +77,10 @@ class PresetStore:
             raise PresetError(f"Preset '{name}' not found")
         if entry.problem:
             raise PresetError(f"Preset file '{name}': {entry.problem}. Rename the file")
-        path = (self.builtin if entry.builtin else self.user_folder(create=False)) / (name + self.SUFFIX)
+        folder = self.builtin
+        if not entry.builtin:
+            folder = self.user_folder(create=False)
+        path = folder / (name + self.SUFFIX)
         values = self._read(path)
         if not isinstance(values, dict):
             raise PresetError(f"Preset {path.name} is not a settings dictionary")

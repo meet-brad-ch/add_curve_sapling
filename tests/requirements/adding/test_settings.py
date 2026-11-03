@@ -136,10 +136,13 @@ class SettingsFuzz(unittest.TestCase):
                 continue
             settings[name] = self.random_value(rna.properties[name])
         settings["blossomRate"] = max(settings["blossomRate"], 0.0)
-        settings["curveV"] = [
-            math.copysign(abs(v) % HELIX_ANGLE, v) if helix else v
-            for v, helix in zip(settings["curveV"], settings["helix"], strict=True)
-        ]
+        curves = []
+        for v, helix in zip(settings["curveV"], settings["helix"], strict=True):
+            curve = v
+            if helix:
+                curve = math.copysign(abs(v) % HELIX_ANGLE, v)
+            curves.append(curve)
+        settings["curveV"] = curves
         return settings
 
     def random_value(self, prop):
@@ -152,22 +155,38 @@ class SettingsFuzz(unittest.TestCase):
             return self.rng.choice([item.identifier for item in prop.enum_items])
         if prop.is_array:
             caps = CAPS.get(name)
-            return [
-                self.number(prop, caps[i] if caps else None, prop.default_array[i]) for i in range(prop.array_length)
-            ]
+            values = []
+            for i in range(prop.array_length):
+                cap = None
+                if caps:
+                    cap = caps[i]
+                values.append(self.number(prop, cap, prop.default_array[i]))
+            return values
         return self.number(prop, CAPS.get(name), prop.default)
 
     def number(self, prop, cap, default):
         if prop.type == "INT":
-            low, high = cap if cap else (max(prop.soft_min, -100), min(prop.soft_max, 100))
-            return self.rng.randint(low, high)
+            return self.integer(prop, cap)
         if cap:
             return self.rng.uniform(*cap)
-        low, high = prop.soft_min, prop.soft_max
+        low = prop.soft_min
+        high = prop.soft_max
         if not (math.isfinite(low) and math.isfinite(high)) or high - low > 1000:
-            spread = SPREAD["angle"] if ANGLES.search(prop.identifier) else SPREAD["other"]
-            low, high = max(low, default - spread), min(high, default + spread)
+            spread = SPREAD["other"]
+            if ANGLES.search(prop.identifier):
+                spread = SPREAD["angle"]
+            low = max(low, default - spread)
+            high = min(high, default + spread)
         return self.rng.uniform(low, high)
+
+    def integer(self, prop, cap):
+        """An integer in the cap, or in the soft range limited to -100..100."""
+        if cap:
+            low, high = cap
+        else:
+            low = max(prop.soft_min, -100)
+            high = min(prop.soft_max, 100)
+        return self.rng.randint(low, high)
 
     FEATURES = (
         "prune", "useRig", "windAnim", "leafFlutter", "makeMesh", "showLeaves", "levels_4",

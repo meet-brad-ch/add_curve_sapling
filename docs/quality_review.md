@@ -16,10 +16,8 @@ for the stdlib `Random` stream order.
 ### Complexity and control flow (no change to computed trees)
 - **Q4 (rest)** lizard CCN > 10 (bug S2): `tools/port_treegen_in_blender.py` `convert` (15, 86 lines),
   `shape_points` (14), after the owner's decision on the port tools (Appendix B). Then lizard -C 10 in the gate.
-- **Q7** Nested conditional expressions and calls inside `?:`: model `geometry.py:89, 107`, `growth.py:113, 129,
-  285`, `branching.py:287, 388`, `level_grid.py:221`, `leaves.py:157`, `joints.py:213`, `params.py:189`, `tree.py:46`;
-  `generator.py:179`, `armature.py:131, 229`, `presets.py:80`, `leaf_object.py:97-101`, `settings.py:168-169`,
-  `service/trees.py:110`; tools `timing.py:19-21`, `render_ports_in_blender.py:89-90`, `run.py:37, 50`.
+- **Q7 (rest)** a call inside `?:` in `tools/port_treegen_in_blender.py` (3 sites), after the owner's decision on the
+  port tools (Appendix B).
 - **Q8** A branch on data inside an inner loop: `build/envelope.py:48` (`axis == 0`).
 
 ### Fail fast
@@ -115,4 +113,7 @@ for the stdlib `Random` stream order.
 - **Q5** `FingerprintDiff`: an explicit work list (`DiffStep`), depth first in key order, the same report text;
   unit tests in tests/unit/support. `test_trunk.root_of` (Q22/Q26: a bone's parent chain, not a copy of
   `Trees.root_of`) is a bounded method of its test class.
-
+- **Q7** every conditional expression with a call or a nested one (found by an AST scan of every `IfExp`: 19 in
+  source, 14 in tests and tools/check.py) became an `if` statement; each call stays in its own branch and the float
+  expressions are unchanged. The nested `np.where` of `geometry._customs` names its inner segment. `evaluated.py` names an ID input by `isinstance(value, bpy.types.ID)`, not `hasattr`;
+  `test_architecture.defined_name` matches Name and Attribute targets, not `getattr(..., "id", "")` (also Q19 there).

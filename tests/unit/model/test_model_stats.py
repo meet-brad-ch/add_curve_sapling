@@ -65,7 +65,9 @@ def stats(preset, changes):
 
 class ModelStatistics(unittest.TestCase):
     def test_cases(self):
-        recorded = json.loads(STATS.read_text(encoding="utf-8")) if STATS.exists() else {}
+        recorded = {}  # none yet: every case then fails with "record it first"
+        if STATS.exists():
+            recorded = json.loads(STATS.read_text(encoding="utf-8"))
         current = {name: stats(*case) for name, case in CASES.items()}
         if Golden.record:
             STATS.write_text(json.dumps(current, indent=1, sort_keys=True) + "\n", encoding="utf-8")

@@ -86,7 +86,9 @@ class CrownShape:
         upper = upper * upper * (custom[3] - custom[1]) + custom[1]
         lower = r / custom[2]
         lower = (1 - (1 - lower) * (1 - lower)) * (custom[1] - custom[0]) + custom[0]
-        return np.where(r == 1.0, custom[3], np.where(r >= custom[2], upper, lower))
+        segment = np.where(r >= custom[2], upper, lower)
+        # at r = 1 the shape is custom[3] exactly
+        return np.where(r == 1.0, custom[3], segment)
 
     @staticmethod
     def envelope(ratio: float, peak: float, power_high: float, power_low: float) -> float:

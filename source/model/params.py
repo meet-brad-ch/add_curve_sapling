@@ -209,7 +209,9 @@ class TreeParams(PlainParams):
 
     def _leaves(self, s: Any) -> None:
         # a negative count grows palmate leaves from the stem tips
-        self.leaves = int(s.leaves) if s.showLeaves else 0
+        self.leaves = 0
+        if s.showLeaves:
+            self.leaves = int(s.leaves)
         self.leaf_down_angle = radians(s.leafDownAngle)
         self.leaf_down_angle_v = radians(s.leafDownAngleV)
         self.leaf_rotate = radians(s.leafRotate)

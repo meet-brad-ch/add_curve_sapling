@@ -107,7 +107,10 @@ class TreeService:
         edit = None
         if request.replace:
             edit = TreeEdit(request.replace, self.view_layer())
-        collections = edit.collections if edit is not None else [self.active_collection()]
+        if edit is not None:
+            collections = edit.collections
+        else:
+            collections = [self.active_collection()]
         properties = SimpleNamespace(**request.settings.values)
         generator = TreeGenerator(properties, self.context, collections)
         result = generator.generate(request.settings)

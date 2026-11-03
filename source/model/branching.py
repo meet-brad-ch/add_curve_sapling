@@ -284,7 +284,9 @@ class LevelStarter:
         sprouts = picked.sprouts
         count = sprouts.count
         keys = KeyedRandom.derive(sprouts.parent_key, Kind.CHILD, sprouts.position + 1, 0)
-        rotate = self._rotations(level, keys) if picked.aim is None else picked.aim
+        rotate = picked.aim
+        if rotate is None:
+            rotate = self._rotations(level, keys)
         direction = self._directions(sprouts, level, self._down_angles(sprouts, level, base_size, keys), rotate)
         grown = self._lengths_and_children(sprouts, level, depth, base_size, scale)
         radii = self._start_radii(sprouts, level, grown.length)
@@ -385,7 +387,10 @@ class LevelStarter:
             fixed = down_angle_v * (1 - 2 * (0.2 + 0.8 * ((1 - offset) / (1 - base_size))))
             down_v = fixed if down_angle_v < 0.0 else drawn
         else:
-            down_v = drawn if down_angle_v < 0.0 else self.down_taper(p, level, offset, base_size)
+            if down_angle_v < 0.0:
+                down_v = drawn
+            else:
+                down_v = self.down_taper(p, level, offset, base_size)
         return np.where(sprouts.is_end, 0.0, p.down_angle[level] + down_v)
 
     @staticmethod
@@ -394,7 +399,11 @@ class LevelStarter:
         sides), with its random variation."""
         rotate = params.rotate[level]
         rotate_v = params.rotate_v[level]
-        running = (-1.0) ** (ordinal + 1) * abs(rotate) if rotate < 0 else (ordinal + 1) * rotate
+        if rotate < 0:
+            # a negative Rotate alternates the side: +|rotate|, -|rotate|, ...
+            running = (-1.0) ** (ordinal + 1) * abs(rotate)
+        else:
+            running = (ordinal + 1) * rotate
         return running + KeyedRandom.between(keys, 0, Draw.ROTATE, -rotate_v, rotate_v)
 
     def _rotations(self, level: int, keys: np.ndarray) -> np.ndarray:

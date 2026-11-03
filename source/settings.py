@@ -185,7 +185,9 @@ class TreeSettings:
         except ValueError as error:
             raise SettingsError(f"Invalid settings JSON: {error}") from error
         if not isinstance(data, dict) or data.get("version") != cls.VERSION or "settings" not in data:
-            found = f"version {data.get('version')!r}" if isinstance(data, dict) else type(data).__name__
+            found = type(data).__name__
+            if isinstance(data, dict):
+                found = f"version {data.get('version')!r}"
             raise SettingsError(f"Settings JSON must be a version {cls.VERSION} settings object; got {found}")
         return cls(data["settings"])
 

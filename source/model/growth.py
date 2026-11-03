@@ -110,7 +110,10 @@ class LevelGrower:
         closes = close_tip and k == segments - 1
         batch = self._split_rows(grid, k, splits, frames, angles, growth.taper, closes)
         grid.co[:, k + 1] = grid.co[:, k] + direction
-        grid.radius[:, k + 1] = 0.0 if closes else grid.radius_at(k + 1)
+        if closes:
+            grid.radius[:, k + 1] = 0.0
+        else:
+            grid.radius[:, k + 1] = grid.radius_at(k + 1)
         stems.split_last = has_split.astype(np.int8)
         if batch is not None:
             grid.append_splits(batch)
@@ -126,7 +129,10 @@ class LevelGrower:
             # multiplied in only when present: a product with an identity turn can change signed zeros
             plain = plain @ Rotation.about(curve.bend, "Y")
         plain = plain @ Rotation.about(curve.angle, "X")
-        side = Rotation.about(split.branch_rot, "Z") if level == 0 else Rotation.about(-split.spread, "Y")
+        if level == 0:
+            side = Rotation.about(split.branch_rot, "Z")
+        else:
+            side = Rotation.about(-split.spread, "Y")
         continued = side @ bend @ Rotation.about(-split.angle + curve.angle, "X")
         return np.where(has_split[:, None, None], continued, plain)
 
@@ -282,7 +288,10 @@ class LevelGrower:
         segment_length = stems.base_length[rows] * length_scale
         direction = self._segment(grid, frames[rows] @ local, segment_length, taper[rows])
         radius_first = grid.radius_at(k)[rows] * radius_scale
-        radius_second = np.zeros(total) if closes else grid.radius_at(k + 1)[rows] * radius_scale
+        if closes:
+            radius_second = np.zeros(total)
+        else:
+            radius_second = grid.radius_at(k + 1)[rows] * radius_scale
         new = self._split_stem_rows(grid, k, rows, keys, segment_length, radius_scale, angles.split.branch_rot)
         grid.next_spline += total
         return SplitBatch(new, k, rows, grid.co[rows, k] + direction, radius_first, radius_second)

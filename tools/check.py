@@ -105,7 +105,8 @@ def all_blenders(python: str) -> int:
         results[version] = subprocess.run([python, "tools/check.py"], cwd=ROOT, env=environment).returncode == 0
     for version, ok in results.items():
         print(f"== {version}: {'ok' if ok else 'FAILED'}", flush=True)
-    return 0 if all(results.values()) else 1
+    passed = all(results.values())
+    return 0 if passed else 1
 
 
 def main() -> int:
@@ -142,7 +143,8 @@ def main() -> int:
         ]
         results.append(run_script(ROOT / "tests" / "run.py", coverage) == 0)
         print("== tests:", "ok" if results[-1] else "FAILED")
-    return 0 if all(results) else 1
+    passed = all(results)
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":

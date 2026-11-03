@@ -43,7 +43,8 @@ class RigLevels(unittest.TestCase):
         model = Trees.generated_model(self, settings)
         bone_name = Addon.module("model.stem").BoneName
         for bone in Scene.armature().data.bones:
-            step = 2 if bone_name.spline(bone.name) < model.grown.level_ends[0] else 3
+            spline = bone_name.spline(bone.name)
+            step = 2 if spline < model.grown.level_ends[0] else 3
             self.assertEqual(bone_name.point(bone.name) % step, 0, bone.name)
         self.assertEqual(len(Scene.armature().data.bones), self.rig_bones(settings, model))
 

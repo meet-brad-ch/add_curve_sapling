@@ -19,7 +19,8 @@ class RootSweep(unittest.TestCase):
         self.assertEqual(Scene.generate(NodeTrees.settings(fastPreview=True)), {"FINISHED"})
         root = bpy.data.objects["tree"].evaluated_get(bpy.context.evaluated_depsgraph_get())
         geometry = root.evaluated_geometry()
-        self.assertEqual(len(geometry.mesh.vertices) if geometry.mesh else 0, 0)  # the root's own, empty mesh
+        if geometry.mesh:  # the root's own, empty mesh
+            self.assertEqual(len(geometry.mesh.vertices), 0)
         self.assertGreater(len(geometry.curves.curves), 10)
         self.assertEqual(root.display_type, "TEXTURED")  # bounds are the rig's preview only
 

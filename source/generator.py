@@ -174,7 +174,9 @@ class TreeGenerator:
             return Movers(None, None, None)
         foliage = leaves.parts if leaves is not None else []
         if b.use_armature:
-            wind = self._wind(joints, rng) if b.armature_animation else None
+            wind = None
+            if b.armature_animation:
+                wind = self._wind(joints, rng)
             joints_ob = JointProxy(objects).build(root, joints)
             builder = ArmatureBuilder(b, rng, objects, self.context)
             return Movers(builder.build(root, joints_ob, joints, wind, foliage), joints_ob, None)

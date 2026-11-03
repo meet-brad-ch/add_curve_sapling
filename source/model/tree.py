@@ -76,7 +76,9 @@ class TreeGrower:
         root_key = KeyedRandom.root(p.seed)
         starter = LevelStarter(p, self.rng, root_key)
         self.grower = LevelGrower(p, scale)
-        self.pruning = LevelPruning(p, scale) if p.prune else None
+        self.pruning = None
+        if p.prune:
+            self.pruning = LevelPruning(p, scale)
         levels = GrownLevels()
         base_size = p.base_size if (p.levels > 1 or p.leaves_above_base) else 0.0
         result = self._finish_level(starter.trunks(scale), 0, base_size, p.levels == 1, levels)

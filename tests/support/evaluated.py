@@ -71,7 +71,10 @@ class Evaluated:
                 if getattr(item, "in_out", "") != "INPUT" or item.socket_type == "NodeSocketGeometry":
                     continue
                 value = getattr(modifier.properties.inputs, item.identifier).value
-                values[item.name] = value.name if hasattr(value, "name") else Addon.plain(value)
+                if isinstance(value, bpy.types.ID):  # an object or material input: by name
+                    values[item.name] = value.name
+                else:
+                    values[item.name] = Addon.plain(value)
             out[modifier.name] = {"group": modifier.node_group.name, "inputs": values}
         return out
 
@@ -86,5 +89,6 @@ class Evaluated:
         out = []
         for action, slot in slots:
             channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
-            out += list(channelbag.fcurves) if channelbag else []
+            if channelbag:
+                out += list(channelbag.fcurves)
         return out

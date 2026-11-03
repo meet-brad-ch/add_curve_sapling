@@ -218,7 +218,9 @@ class LevelGrid:
         old_spline = stems.spline
         new_spline = old_spline.copy()
         kept_splits = np.flatnonzero(stems.is_split[keep])
-        first_split = int(old_spline[stems.is_split].min()) if stems.is_split.any() else self.next_spline
+        first_split = self.next_spline
+        if stems.is_split.any():
+            first_split = int(old_spline[stems.is_split].min())
         new_spline[keep[kept_splits]] = first_split + np.arange(len(kept_splits))
         return RenumberedSplines(first_split, new_spline)
 

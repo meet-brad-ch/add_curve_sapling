@@ -142,8 +142,13 @@ class Joints:
         self.starts = self.flat.start[:-1]
         count = len(self.sizes)
         parent_bones = grown.bone_map.bones()
-        self.link_spline = np.array([BoneName.spline(b) if b else -1 for b in parent_bones], dtype=np.int64)
-        self.link_point = np.array([BoneName.point(b) if b else -1 for b in parent_bones], dtype=np.int64)
+        # -1: a curve without a parent bone (a trunk)
+        self.link_spline = np.full(len(parent_bones), -1, dtype=np.int64)
+        self.link_point = np.full(len(parent_bones), -1, dtype=np.int64)
+        for i, bone in enumerate(parent_bones):
+            if bone:
+                self.link_spline[i] = BoneName.spline(bone)
+                self.link_point[i] = BoneName.point(bone)
         depth = np.searchsorted(np.array(grown.level_ends), np.arange(count), side="right")
         self.step = np.array(params.bone_step, dtype=np.int64)[np.minimum(depth, TreeParams.LEVELS - 1)]
         segments = self.sizes - 1
@@ -213,7 +218,9 @@ class Joints:
     def passes(self) -> WindPasses:
         """The passes the wind group needs: log2 of the most joints on one curve, and the deepest hierarchy."""
         longest = int(self.count.max())
-        scan = max(0, int(np.ceil(np.log2(longest)))) if longest > 1 else 0
+        scan = 0
+        if longest > 1:
+            scan = int(np.ceil(np.log2(longest)))
         return WindPasses(scan, int(self.depths()[self.eligible].max()))
 
     def nearest_joint(self, spline: np.ndarray, point: np.ndarray) -> np.ndarray:

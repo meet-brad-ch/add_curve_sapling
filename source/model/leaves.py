@@ -154,7 +154,9 @@ class LeafGenerator:
         blossom = BlossomPick.chosen(
             p.blossom_rate, sprouts.parent_key[placement.index], sprouts.position[placement.index], slot
         )
-        blossoms = self._blossoms(placement, matrices[blossom], blossom) if blossom.any() else None
+        blossoms = None
+        if blossom.any():
+            blossoms = self._blossoms(placement, matrices[blossom], blossom)
         return Foliage(self._leaves(placement, matrices[~blossom], ~blossom), blossoms)
 
     @staticmethod

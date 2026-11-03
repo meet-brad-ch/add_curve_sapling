@@ -53,7 +53,10 @@ def project_imports(path, tree):
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.level:
             base = package[: len(package) - (node.level - 1)]
-            target = (*base, *(node.module.split(".") if node.module else ()))
+            module: tuple[str, ...] = ()
+            if node.module:
+                module = tuple(node.module.split("."))
+            target = (*base, *module)
             yield target, [alias.name for alias in node.names]
 
 
@@ -101,7 +104,11 @@ class Architecture(unittest.TestCase):
             return node.name
         if isinstance(node, ast.AnnAssign):
             target = node.target
-            return target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
+            if isinstance(target, ast.Attribute):
+                return target.attr
+            if isinstance(target, ast.Name):
+                return target.id
+            return ""  # a subscript target defines no name
         return ""
 
     @staticmethod
