@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""The gate: lint, format, types, manifest, then the test suite with line and branch coverage.
+"""The gate: lint, format, types, the requirements, manifest, then the test suite with line and branch coverage.
 
 python tools/check.py          # everything (run before merging)
 python tools/check.py --fast   # without the Blender test suite (the pre-commit hook)
@@ -34,6 +34,7 @@ def main() -> int:
         step("ruff check", [python, "-m", "ruff", "check", "."]),
         step("ruff format", [python, "-m", "ruff", "format", "--check", "."]),
         step("mypy", [python, "-m", "mypy"]),
+        step("requirements", [python, "tools/requirements_check.py"]),
     ]
     print("== extension validate", flush=True)
     validate = run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)], check=False)
