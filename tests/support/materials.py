@@ -16,4 +16,8 @@ class Materials:
 
     @staticmethod
     def principled(material):
-        return next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+        """The material's Principled BSDF node. Raises AssertionError when it has none."""
+        for node in material.node_tree.nodes:
+            if node.type == "BSDF_PRINCIPLED":
+                return node
+        raise AssertionError(f"material {material.name} has no Principled BSDF")

@@ -50,8 +50,11 @@ class Scene:
 
     @staticmethod
     def armature() -> Any:
-        """The scene's armature object (the rig of the one tree)."""
-        return next(ob for ob in bpy.data.objects if ob.type == "ARMATURE")
+        """The scene's armature object (the rig of the one tree). Raises AssertionError when there is none."""
+        for ob in bpy.data.objects:
+            if ob.type == "ARMATURE":
+                return ob
+        raise AssertionError("the scene has no armature")
 
     @classmethod
     def add_leaf_card(cls) -> Any:

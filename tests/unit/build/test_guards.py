@@ -26,6 +26,15 @@ class FailFast(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "1 bones for the geometry of 0"):
             Addon.module("build.armature").BoneGeometry(none, none).write(armature)
 
+    def test_a_material_without_its_bsdf_is_named(self):
+        material = bpy.data.materials.new("probe")
+        self.addCleanup(bpy.data.materials.remove, material)
+        nodes = material.node_tree.nodes
+        for node in list(nodes):
+            nodes.remove(node)
+        with self.assertRaisesRegex(RuntimeError, "Material 'probe' has no BSDF_PRINCIPLED node"):
+            Addon.module("build.materials").MaterialLibrary._bsdf(material)
+
     def test_a_math_node_refuses_more_values_than_inputs(self):
         group = bpy.data.node_groups.new("probe", "GeometryNodeTree")
         self.addCleanup(bpy.data.node_groups.remove, group)

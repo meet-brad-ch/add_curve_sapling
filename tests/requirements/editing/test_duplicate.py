@@ -138,7 +138,10 @@ class DuplicateTree(unittest.TestCase):
         leaves = bpy.data.objects["leaves"]
         self.select_only(leaves)
         self.assertEqual(bpy.ops.sapling.tree_duplicate(), {"FINISHED"})
-        copy_leaves = next(ob for ob in Trees.record().owned(Scene.active_object()) if ob.instance_type == "FACES")
+        owned = Trees.record().owned(Scene.active_object())
+        face_parts = [ob for ob in owned if ob.instance_type == "FACES"]
+        self.assertTrue(face_parts, "a face-instancing part in the copy")
+        copy_leaves = face_parts[0]
         (copy_card,) = copy_leaves.children
         self.assertIsNot(copy_card, card)
         self.assertIs(copy_card.data, card.data)

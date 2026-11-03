@@ -35,7 +35,9 @@ class DuplicateTreeOperator(Operator):
     @override
     def invoke(self, context: Context, event: Event) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         result = self.execute(context)
-        bpy.ops.transform.translate("INVOKE_DEFAULT")  # move the copy with the mouse, as Shift+D does
+        # move the copy with the mouse, as Shift+D does; a Move that does not start (no 3D view) or is cancelled
+        # leaves the copy where the tree stands, as Blender's own Duplicate does, so its result is not an error
+        bpy.ops.transform.translate("INVOKE_DEFAULT")
         return result
 
 

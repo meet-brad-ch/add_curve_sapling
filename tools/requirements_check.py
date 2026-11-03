@@ -181,7 +181,10 @@ class RequirementsDocument:
 
     def appendix_rows(self) -> list[SettingRow]:
         """The settings of the Appendix A table."""
-        start = self.lines.index("## Appendix A - settings")
+        heading = "## Appendix A - settings"
+        if heading not in self.lines:
+            raise SystemExit(f"FAILED: docs/requirements.md has no '{heading}' heading")
+        start = self.lines.index(heading)
         rows = []
         for text in self.lines[start:]:
             if text.startswith("## Appendix B"):

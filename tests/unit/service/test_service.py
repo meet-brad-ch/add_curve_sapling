@@ -25,6 +25,26 @@ class Service:
         return cls.module("trees").TreeService(bpy.context, names.generation_names(), names.stored_names())
 
 
+class MissingViewLayer(unittest.TestCase):
+    """A context without a view layer is an error, not a later AttributeError."""
+
+    def test_the_service_names_the_missing_view_layer(self):
+        names = Addon.module("ui.properties").TreeProperties
+        context = SimpleNamespace(view_layer=None)
+        service = Service.module("trees").TreeService(context, names.generation_names(), names.stored_names())
+        with self.assertRaisesRegex(RuntimeError, "no view layer"):
+            service.view_layer()
+
+    def test_a_duplicate_names_the_missing_view_layer(self):
+        Scene.reset()
+        root = Trees.add()
+        before = len(bpy.data.objects)
+        context = SimpleNamespace(view_layer=None, active_object=root)
+        with self.assertRaisesRegex(RuntimeError, "no view layer"):
+            Service.module("copies").TreeCopies.duplicate(context)
+        self.assertEqual(len(bpy.data.objects), before, "no copy was made")
+
+
 class PresetChoices(unittest.TestCase):
     def test_labels_by_kind(self):
         choice = Service.module("presets").PresetService.choice

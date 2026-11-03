@@ -59,8 +59,13 @@ def blender_path() -> Path:
 
 def require_version(path: Path) -> None:
     """The tests run on a supported Blender only (the golden files hold exact float32 values of each)."""
-    version = subprocess.run([str(path), "--version"], capture_output=True, text=True).stdout.splitlines()
-    first = version[0] if version else "not Blender"
+    answer = subprocess.run([str(path), "--version"], capture_output=True, text=True)
+    if answer.returncode != 0:
+        sys.exit(f"{path} --version failed with code {answer.returncode}: {answer.stderr.strip()}")
+    version = answer.stdout.splitlines()
+    first = "not Blender"
+    if version:
+        first = version[0]
     if not first.startswith(SUPPORTED_VERSIONS):
         sys.exit(f"{path} is {first}; the tests need one of {SUPPORTED_VERSIONS}")
 

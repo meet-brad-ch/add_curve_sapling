@@ -85,13 +85,23 @@ class MaterialLibrary:
         bsdf.inputs["Roughness"].default_value = roughness  # type: ignore[attr-defined]  # stub: NodeSocket base class
         return material
 
-    @staticmethod
-    def _bsdf(material: Material) -> Node:
-        return next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED")  # type: ignore[union-attr]  # new materials have a node tree
+    @classmethod
+    def _bsdf(cls, material: Material) -> Node:
+        """The material's Principled BSDF node. Raises RuntimeError when it has none."""
+        return cls._node(material, "BSDF_PRINCIPLED")
+
+    @classmethod
+    def _output(cls, material: Material) -> Node:
+        """The material's output node. Raises RuntimeError when it has none."""
+        return cls._node(material, "OUTPUT_MATERIAL")
 
     @staticmethod
-    def _output(material: Material) -> Node:
-        return next(n for n in material.node_tree.nodes if n.type == "OUTPUT_MATERIAL")  # type: ignore[union-attr]  # new materials have a node tree
+    def _node(material: Material, node_type: str) -> Node:
+        """The first node of the type in the material's node tree. Raises RuntimeError when it has none."""
+        for node in material.node_tree.nodes:  # type: ignore[union-attr]  # new materials have a node tree
+            if node.type == node_type:
+                return node
+        raise RuntimeError(f"Material '{material.name}' has no {node_type} node")
 
     @classmethod
     def assign(cls, result: TreeParts, params: BuildParams) -> None:

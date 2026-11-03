@@ -101,7 +101,9 @@ class SecondTree(unittest.TestCase):
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         for root_name, arm_name in (("tree", "treeArm"), ("tree.001", "treeArm.001")):
             root = bpy.data.objects[root_name]
-            modifier = next(m for m in root.modifiers if m.type == "ARMATURE")
+            armatures = [m for m in root.modifiers if m.type == "ARMATURE"]
+            self.assertTrue(armatures, "an Armature modifier on the root")
+            modifier = armatures[0]
             self.assertEqual(modifier.object.name, arm_name, root_name)
             self.assertEqual(bpy.data.objects[arm_name].parent, root, root_name)
 

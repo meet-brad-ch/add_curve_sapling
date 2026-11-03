@@ -21,11 +21,8 @@ for the stdlib `Random` stream order.
   port tools (Appendix B).
 
 ### Fail fast
-- **Q10** Unchecked `None`/bare errors: `service/trees.py:142` `view_layer() -> Any`, `service/copies.py:21`;
-  `build/materials.py:89, 93` and tools `port_treegen_in_blender.py:89-90`, `render_ports_in_blender.py:74, 102`
-  `next()` without a default (bare StopIteration); `requirements_check.py:184` `lines.index` (bare ValueError);
-  tools `args[0..4]` without a length check; `bench.py:84` `baseline[preset]`; `blender_env.py:62` `--version`
-  return code; `ui/duplicate.py:38` the translate result. Fix: raise with a message that names the item.
+- **Q10 (rest)** the port tools' bare `next()` and `args[...]` (`port_treegen_in_blender.py`,
+  `render_ports_in_blender.py`), after the owner's decision on the port tools (Appendix B).
 - **Q11** Silent fallbacks in the port tool: `port_treegen_in_blender.py:148` (leaf shape -> default), `:164`
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
 
@@ -122,3 +119,8 @@ for the stdlib `Random` stream order.
 - **Q13** `model/randomness.py` `pick`: a count below 1 raises (it gave index -1); the `np.minimum` clamp is removed:
   `uniform` is k * 2**-53, so the floor stays below the count (checked for every count up to 2,000,000 and near each
   power of two up to 2**52: the clamp acted on none). Unit tests.
+- **Q10** a missing view layer raises before any work (`TreeService.view_layer`, `TreeCopies.duplicate`); a material
+  without its node names it (`MaterialLibrary._node`); `requirements_check` names a missing Appendix A heading,
+  `bench` a preset without a baseline time, `blender_env` a failed `--version`; the test helpers name what they did
+  not find. `ui/duplicate.py`: a Move that does not start leaves the copy in place, as Blender's Duplicate does
+  (commented, not an error). Unit tests for the new raises.

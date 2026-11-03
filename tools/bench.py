@@ -35,6 +35,10 @@ def main() -> int:
         return 0
 
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    missing = sorted(set(result) - set(baseline))
+    if missing:
+        print(f"FAILED: the baseline has no time for {', '.join(missing)}; run --save-baseline")
+        return 1
     slower = []
     print(f"{'preset':16s} {'baseline ms':>12s} {'now ms':>9s} {'change':>8s}")
     for preset, ms in sorted(result.items()):

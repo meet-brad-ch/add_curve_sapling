@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
-from bpy.types import Collection, Context, Object
+from bpy.types import Collection, Context, Object, ViewLayer
 
 from ..build.tree_record import TreeEdit
 from ..generator import TreeGenerator
@@ -142,6 +142,9 @@ class TreeService:
             raise SettingsError("No active collection to add the tree to")
         return self.context.collection
 
-    def view_layer(self) -> Any:
-        """The context's view layer (an operator's context always has one)."""
-        return self.context.view_layer
+    def view_layer(self) -> ViewLayer:
+        """The context's view layer. Raises RuntimeError when the context has none (an operator's always has one)."""
+        view_layer = self.context.view_layer
+        if view_layer is None:
+            raise RuntimeError("The context has no view layer")
+        return view_layer
