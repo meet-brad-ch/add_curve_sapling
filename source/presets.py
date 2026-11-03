@@ -98,13 +98,7 @@ class PresetStore:
             text = path.read_text(encoding="utf-8")
             body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
             return ast.literal_eval(body.strip())
-        except OSError as error:
-            raise PresetStore._unreadable(path, error) from error
-        except ValueError as error:
-            raise PresetStore._unreadable(path, error) from error
-        except SyntaxError as error:
-            raise PresetStore._unreadable(path, error) from error
-        except TypeError as error:
+        except (OSError, ValueError, SyntaxError, TypeError) as error:
             raise PresetStore._unreadable(path, error) from error
 
     @staticmethod

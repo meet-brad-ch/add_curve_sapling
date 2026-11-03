@@ -28,11 +28,9 @@ class Trees:
 
     @staticmethod
     def add_with_leaves():
+        """A quaking aspen with leaves in an empty scene."""
         Scene.reset()
-        settings = {**Addon.resolve_preset("quaking_aspen.py"), "showLeaves": True}
-        if bpy.ops.curve.tree_add(**settings, do_update=True) != {"FINISHED"}:
-            raise AssertionError("tree_add failed")
-        return Scene.active_object()
+        return Trees.add(showLeaves=True)
 
     @staticmethod
     def edit(root, **changes):

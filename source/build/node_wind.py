@@ -106,8 +106,13 @@ class WindNodes:
         geometry = cls._scan(m, geometry, inputs["Scan Passes"])
         geometry = m.store(geometry, "fk_a", m.identity())
         geometry = cls._ancestors(m, geometry, inputs["Depth Passes"])
-        geometry = m.store(geometry, "fk_incl", m.multiply(m.attr("fk_a", "FLOAT4X4"), m.attr("fk_s", "FLOAT4X4")))
+        geometry = m.store(geometry, "fk_incl", cls._inclusive(m))
         m.link(geometry, m.nodes.new("NodeGroupOutput").inputs["Geometry"])
+
+    @staticmethod
+    def _inclusive(m: NodeMath) -> NodeSocket:
+        """fk_incl = fk_a @ fk_s: the joint's whole transform, its ancestors' and its own curve's."""
+        return m.multiply(m.attr("fk_a", "FLOAT4X4"), m.attr("fk_s", "FLOAT4X4"))
 
     @staticmethod
     def _scan(m: NodeMath, geometry: Any, passes: Any) -> NodeSocket:
@@ -123,7 +128,7 @@ class WindNodes:
     def _ancestors(m: NodeMath, geometry: Any, passes: Any) -> NodeSocket:
         zone = m.repeat(geometry, passes)
         level = m.math("ADD", zone.iteration, 1.0)
-        inclusive = m.multiply(m.attr("fk_a", "FLOAT4X4"), m.attr("fk_s", "FLOAT4X4"))
+        inclusive = WindNodes._inclusive(m)
         sampled = m.sample(zone.inside, inclusive, m.attr("attach", "INT"))
         selection = m.math("COMPARE", m.attr("depth", "INT"), level)
         m.link(m.store(zone.inside, "fk_a", sampled, selection=selection), zone.end.inputs["Geometry"])
@@ -183,7 +188,7 @@ class FollowWindNodes:
     GROUP = "Sapling Follow Wind"
     VERSION = 2
     MODIFIER = "Sapling Follow Wind"
-    JOINT = "sapling_joint"
+    JOINT = NodeWind.JOINT  # the attribute NodeWind numbers the curve points with
     INPUTS = (SocketSpec("Curves", "NodeSocketObject"),)
 
     @classmethod

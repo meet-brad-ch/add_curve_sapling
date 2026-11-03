@@ -38,9 +38,6 @@ for the stdlib `Random` stream order.
 - **Q22** Module-level functions (full OOD): 36 in tools (check.py, blender_env.py 9, port_treegen 6, render_ports 10,
   bench 2, the `main`s), 16 in tests (run.py 3, test_trunk `root_of` - a copy of `Trees.root_of`, test_architecture 3,
   test_curve_data 4, test_kernels 2, test_model_stats 1, test_requirements_check 2). Fix: classes, `main` stays.
-- **Q23** Duplication: `node_wind.py:32, 186` `JOINT` twice, the `fk_a @ fk_s` subgraph twice; `ui/properties.py`
-  repeats `TreeSettings.RENAMED`, `ui/pages.py` `ORDER` repeats `Choices.PAGES`; `growth.py:205-225`
-  `_attract_out/_attract_wind`; `Trees.add_with_leaves` vs `Trees.add`; `presets.py:94-105` four equal `except`s.
 - **Q24** One idea per line, named locals: model (branching, growth, helix, leaves, curve_data, joints, sprouting,
   wind_model; keep left-to-right order: [N] if regrouped), build (joint_proxy, objects, tree_record, tree_copy,
   settings, leaf_object, node_wind, tree_root: keep the node creation order), tools (render/port multi-assignments),
@@ -137,3 +134,9 @@ for the stdlib `Random` stream order.
   register (a frozenset `options`) and registers the operator without it and every property after it, so the add-on
   enabled half made; `Registration.check_properties` now raises after each class, naming the missing properties
   (unit test with a probe operator).
+- **Q23** one `except` for the four preset read errors; `FollowWindNodes.JOINT` is `NodeWind.JOINT`; the
+  `fk_a @ fk_s` chain is `WindNodes._inclusive` (the nodes made in the same order); Attract Out and Wind Bend share
+  `LevelGrower._turned` (the same float operations; the golden trees do not change); `Trees.add_with_leaves` calls
+  `Trees.add`. Checked and kept: `OldSettingNames` declares each old id (Blender needs a declared property per
+  name; `TreeSettings.RENAMED` maps them); `SettingsPages.ORDER` is checked against `Choices.PAGES` by a unit test
+  (Q20). The test-helper duplicates were Q16.
