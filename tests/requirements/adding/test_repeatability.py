@@ -18,19 +18,18 @@ from support.paths import Paths
 from support.scene import Scene
 from support.verifies import Verifies
 
-GOLDEN = Paths.GOLDEN
-
 
 @Verifies("SWR-0013")
 class GoldenTrees(unittest.TestCase):
     def test_golden(self):
         # the fingerprints hash exact float32 values: they hold for the Blender build and platform they came from
         self.assertEqual(sys.platform, "win32", "the golden files are valid on Windows only (README, Decisions)")
+        golden = Paths.GOLDEN
         if Golden.record:
-            GOLDEN.mkdir(exist_ok=True)
+            golden.mkdir(parents=True, exist_ok=True)
         for name, preset, overrides in CASES:
             with self.subTest(case=name):
-                path = GOLDEN / f"{name}.json"
+                path = golden / f"{name}.json"
                 # The settings a case stands for: the preset as loaded today, with the case's overrides
                 current = Addon.resolve_preset(f"{preset}.py")
                 current.update({k: Addon.plain(v) for k, v in overrides.items()})
@@ -39,11 +38,8 @@ class GoldenTrees(unittest.TestCase):
                 else:
                     self.assertTrue(path.exists(), f"no golden file {path.name}; record it first")
                     recorded = json.loads(path.read_text(encoding="utf-8"))
-                    self.assertEqual(
-                        recorded["blender"],
-                        bpy.app.version_string,
-                        f"{name} was recorded with Blender {recorded['blender']}: run the tests on that version",
-                    )
+                    # one data set for every supported version (support/golden.py): the comparison proves it
+                    self.assertTrue(Golden.running_supported(), f"Blender {bpy.app.version_string} is not supported")
                     settings = recorded["settings"]
                     difference = FingerprintDiff.first(settings, current)
                     self.assertEqual(difference, "", f"{name}: settings drifted from the recording at {difference}")
