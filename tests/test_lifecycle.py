@@ -5,12 +5,13 @@
 import unittest
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.scene import Scene
 
 
 def full_tree_settings(rig=True):
     """Everything on, with the armature rig or with the node wind."""
-    settings = helpers.resolve_preset("quaking_aspen.py")
+    settings = Addon.resolve_preset("quaking_aspen.py")
     settings.update(showLeaves=True, useRig=rig, windAnim=True, leafFlutter=True, makeMesh=True, prune=True)
     return settings
 
@@ -19,12 +20,12 @@ class DataLifecycle(unittest.TestCase):
     def test_remove_leaves_no_data(self):
         for rig in (True, False):
             with self.subTest(rig=rig):
-                helpers.reset_scene()
-                empty = helpers.counts()
+                Scene.reset()
+                empty = Scene.counts()
                 self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(rig), do_update=True), {"FINISHED"})
-                root = helpers.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
-                helpers.module("build.tree_record").TreeRecord.remove(root)
-                self.assertEqual(helpers.counts(), empty)
+                root = Addon.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
+                Addon.module("build.tree_record").TreeRecord.remove(root)
+                self.assertEqual(Scene.counts(), empty)
 
     def test_regenerate_leaves_no_orphans(self):
         for rig in (True, False):
@@ -32,17 +33,17 @@ class DataLifecycle(unittest.TestCase):
                 self.regenerate_three_times(full_tree_settings(rig))
 
     def regenerate_three_times(self, settings):
-        helpers.reset_scene()
+        Scene.reset()
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        kinds = [*helpers.DATA, "materials", "node_groups"]  # materials and node groups are shared, made once
-        after_first = helpers.counts(kinds)
-        root = helpers.active_object()
-        stored = helpers.stored_settings(root)
+        kinds = [*Scene.DATA, "materials", "node_groups"]  # materials and node groups are shared, made once
+        after_first = Scene.counts(kinds)
+        root = Scene.active_object()
+        stored = Addon.stored_settings(root)
         for _ in range(3):
             result = bpy.ops.curve.tree_add(replace=root.name, load_stored=False, **stored, do_update=True)
             self.assertEqual(result, {"FINISHED"})
-            root = helpers.active_object()
-        self.assertEqual(helpers.counts(kinds), after_first)
+            root = Scene.active_object()
+        self.assertEqual(Scene.counts(kinds), after_first)
 
 
 class Registration(unittest.TestCase):
@@ -53,10 +54,10 @@ class Registration(unittest.TestCase):
 
     def test_disable_enable_leaves_no_menu_entries(self):
         enabled = self.menu_entries()
-        bpy.ops.preferences.addon_disable(module=helpers.MODULE)
-        self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
+        bpy.ops.preferences.addon_disable(module=Addon.MODULE)
+        self.addCleanup(bpy.ops.preferences.addon_enable, module=Addon.MODULE)
         self.assertEqual(self.menu_entries(), enabled - 1)
-        bpy.ops.preferences.addon_enable(module=helpers.MODULE)
+        bpy.ops.preferences.addon_enable(module=Addon.MODULE)
         self.assertEqual(self.menu_entries(), enabled)
 
 
@@ -64,8 +65,8 @@ class FailedRegistration(unittest.TestCase):
     """A class that fails to register leaves nothing registered behind it."""
 
     def test_failed_register_leaves_nothing(self):
-        self.addCleanup(bpy.ops.preferences.addon_enable, module=helpers.MODULE)
-        bpy.ops.preferences.addon_disable(module=helpers.MODULE)
+        self.addCleanup(bpy.ops.preferences.addon_enable, module=Addon.MODULE)
+        bpy.ops.preferences.addon_disable(module=Addon.MODULE)
         original = bpy.utils.register_class
 
         def failing(klass):
@@ -76,6 +77,6 @@ class FailedRegistration(unittest.TestCase):
         bpy.utils.register_class = failing
         self.addCleanup(setattr, bpy.utils, "register_class", original)
         with self.assertRaises(RuntimeError):
-            bpy.ops.preferences.addon_enable(module=helpers.MODULE)
+            bpy.ops.preferences.addon_enable(module=Addon.MODULE)
         self.assertIsNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
         bpy.utils.register_class = original

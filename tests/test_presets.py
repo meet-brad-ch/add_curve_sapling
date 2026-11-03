@@ -6,14 +6,16 @@ import unittest
 from types import SimpleNamespace
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.console import Console
+from support.scene import Scene
 
-store = helpers.preset_store
+store = Addon.preset_store
 
 
 class PresetApplication(unittest.TestCase):
     def apply(self, props, name, defaults):
-        names = helpers.generation_names()
+        names = Addon.generation_names()
         store().load(name).complete(defaults).apply_to(props, names)
 
     # The settings the old willow preset (0.3.7) did not have: a real preset from an older version
@@ -29,7 +31,7 @@ class PresetApplication(unittest.TestCase):
     def test_order_independent(self):
         """A preset sets every setting: before, an older preset (willow lacked 39) kept the values of the one loaded
         before it."""
-        defaults = helpers.operator_defaults()
+        defaults = Addon.operator_defaults()
         callistemon = store().load("callistemon").values
         partial = {k: v for k, v in callistemon.items() if k not in self.OLD_PRESET_LACKS}
         path = store().user_folder(create=True) / "old tree.py"
@@ -44,10 +46,10 @@ class PresetApplication(unittest.TestCase):
         self.assertEqual(vars(after_other), vars(fresh))
 
     def test_unknown_key_rejected(self):
-        settings = store().load("willow").complete(helpers.operator_defaults())
+        settings = store().load("willow").complete(Addon.operator_defaults())
         settings.values["bogus"] = 1
-        with self.assertRaisesRegex(helpers.module("settings").SettingsError, r"unknown \['bogus'\]"):
-            settings.apply_to(SimpleNamespace(), helpers.generation_names())
+        with self.assertRaisesRegex(Addon.module("settings").SettingsError, r"unknown \['bogus'\]"):
+            settings.apply_to(SimpleNamespace(), Addon.generation_names())
 
 
 class PresetErrors(unittest.TestCase):
@@ -59,7 +61,7 @@ class PresetErrors(unittest.TestCase):
         self.addCleanup(path.unlink)
 
     def assert_add_fails(self, preset, message):
-        helpers.reset_scene()
+        Scene.reset()
         with self.assertRaisesRegex(RuntimeError, message):
             bpy.ops.curve.tree_add(preset=preset, do_update=True)
         self.assertEqual(len(bpy.data.objects), 0)
@@ -100,7 +102,7 @@ class PresetErrors(unittest.TestCase):
         self.assertEqual(
             bpy.ops.sapling.preset_save(name="saved tree", overwrite=True, settings=settings.to_json()), {"FINISHED"}
         )
-        normalized = helpers.module("settings").TreeSettings.from_json
+        normalized = Addon.module("settings").TreeSettings.from_json
         self.assertEqual(normalized(store().load("saved tree").to_json()).values, normalized(settings.to_json()).values)
 
 
@@ -110,7 +112,7 @@ class BuiltinPresets(unittest.TestCase):
     def test_complete_and_current(self):
         import ast
 
-        defaults = helpers.operator_defaults()
+        defaults = Addon.operator_defaults()
         for entry in store().entries():
             if not entry.builtin:
                 continue
@@ -121,7 +123,7 @@ class BuiltinPresets(unittest.TestCase):
                     line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("#")
                 )
                 values = ast.literal_eval(body.strip())
-                migrated = helpers.module("settings").TreeSettings(dict(values)).migrate().values
+                migrated = Addon.module("settings").TreeSettings(dict(values)).migrate().values
                 self.assertEqual(migrated, values)
 
 
@@ -135,8 +137,8 @@ class PresetDefaults(unittest.TestCase):
         path = store().user_folder(create=True) / "lacking.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_text(repr(values), encoding="utf-8")
-        helpers.reset_scene()
-        with helpers.console_output() as console:
+        Scene.reset()
+        with Console.capture() as console:
             self.assertEqual(bpy.ops.curve.tree_add(preset="lacking", do_update=True), {"FINISHED"})
         warnings = console.lines("Warning")
         self.assertEqual(len(warnings), 1, console.text)
@@ -162,12 +164,12 @@ class PresetFileErrors(unittest.TestCase):
         self.write(
             "short", "{'levels': 3, 'attractUp': 1, 'downAngle': [1], 'downAngleV': [1], 'rotate': [1], 'rotateV': [1]}"
         )
-        with self.assertRaisesRegex(helpers.module("presets").PresetError, "downAngle has 1 values; 4 are needed"):
+        with self.assertRaisesRegex(Addon.module("presets").PresetError, "downAngle has 1 values; 4 are needed"):
             store().load("short")
 
     def test_unhashable_key(self):
         self.write("unhashable", "{[1]: 2}")
-        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Cannot read preset unhashable.py"):
+        with self.assertRaisesRegex(Addon.module("presets").PresetError, "Cannot read preset unhashable.py"):
             store().load("unhashable")
 
 
@@ -175,15 +177,15 @@ class SettingsShape(unittest.TestCase):
     """Settings of the wrong shape are SettingsErrors naming the problem; older shapes are brought up to date."""
 
     def settings(self):
-        return helpers.module("settings").TreeSettings
+        return Addon.module("settings").TreeSettings
 
     def test_not_a_dictionary(self):
-        with self.assertRaisesRegex(helpers.module("settings").SettingsError, "must be a dictionary, not list"):
+        with self.assertRaisesRegex(Addon.module("settings").SettingsError, "must be a dictionary, not list"):
             self.settings()([1])
 
     def test_levels_must_be_an_integer(self):
         values = {"levels": "3", "attractUp": [0, 0, 0, 0], "leafDownAngle": 45}
-        with self.assertRaisesRegex(helpers.module("settings").SettingsError, "levels must be an integer, not str"):
+        with self.assertRaisesRegex(Addon.module("settings").SettingsError, "levels must be an integer, not str"):
             self.settings()(values).migrate()
 
     def test_one_vertical_attraction_for_all_levels(self):
@@ -191,12 +193,12 @@ class SettingsShape(unittest.TestCase):
         self.assertEqual(self.settings()(values).migrate().values["attractUp"], [0, 0, 0.5, 0.5])
 
     def test_preset_not_found(self):
-        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Preset 'nowhere' not found"):
+        with self.assertRaisesRegex(Addon.module("presets").PresetError, "Preset 'nowhere' not found"):
             store().load("nowhere")
 
     def test_preset_that_is_not_utf8(self):
         path = store().user_folder(create=True) / "latin.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_bytes("{'name': 'caf\xe9'}".encode("latin-1"))
-        with self.assertRaisesRegex(helpers.module("presets").PresetError, "Cannot read preset latin.py"):
+        with self.assertRaisesRegex(Addon.module("presets").PresetError, "Cannot read preset latin.py"):
             store().load("latin")

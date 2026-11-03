@@ -6,14 +6,15 @@ import json
 import unittest
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.scene import Scene
 
 
 def settings_class():
-    return helpers.module("settings").TreeSettings
+    return Addon.module("settings").TreeSettings
 
 
-store = helpers.preset_store
+store = Addon.preset_store
 
 
 def with_old_names(values):
@@ -35,7 +36,7 @@ class RenameKeys(unittest.TestCase):
         )
 
     def test_old_and_new_key_disagree(self):
-        with self.assertRaisesRegex(helpers.module("settings").SettingsError, "wind .*windStrength"):
+        with self.assertRaisesRegex(Addon.module("settings").SettingsError, "wind .*windStrength"):
             settings_class()({"wind": 2.0, "windStrength": 1.0}).rename_keys()
 
     def test_old_wind_without_armature_stays_still(self):
@@ -55,18 +56,18 @@ class OldTrees(unittest.TestCase):
     """A tree generated before the rename stores the old ids; Edit loads them under the new ones."""
 
     def test_edit_a_tree_stored_with_old_ids(self):
-        helpers.reset_scene()
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        Scene.reset()
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, windAnim=True, windStrength=2.5, jointStep=(1, 2, 1, 1), makeMesh=True)
-        self.assertEqual(helpers.generate(settings), {"FINISHED"})
-        root = helpers.active_object()
-        record = helpers.module("build.tree_record").TreeRecord
+        self.assertEqual(Scene.generate(settings), {"FINISHED"})
+        root = Scene.active_object()
+        record = Addon.module("build.tree_record").TreeRecord
         stored = json.loads(root[record.SETTINGS])
         stored["settings"] = with_old_names(stored["settings"])
         root[record.SETTINGS] = json.dumps(stored)
 
         self.assertEqual(bpy.ops.curve.tree_add(replace=root.name, do_update=True), {"FINISHED"})
-        edited = helpers.stored_settings(helpers.active_object())
+        edited = Addon.stored_settings(Scene.active_object())
         self.assertEqual((edited["useRig"], edited["windAnim"], edited["windStrength"]), (True, True, 2.5))
         self.assertEqual(edited["jointStep"], [1, 2, 1, 1])
         self.assertNotIn("wind", edited)
@@ -74,7 +75,7 @@ class OldTrees(unittest.TestCase):
 
 class OldUserPresets(unittest.TestCase):
     def test_user_preset_with_old_ids_loads(self):
-        values = with_old_names(helpers.resolve_preset("quaking_aspen.py"))
+        values = with_old_names(Addon.resolve_preset("quaking_aspen.py"))
         values["wind"] = 3.0
         path = store().user_folder(create=True) / "old names.py"
         path.write_text(repr(values), encoding="utf-8")
@@ -88,26 +89,26 @@ class OldScriptCalls(unittest.TestCase):
     """bpy.ops.curve.tree_add(useArm=True, ...) as scripts wrote it before the rename."""
 
     def test_old_keywords_generate_under_the_new_ids(self):
-        helpers.reset_scene()
-        settings = with_old_names(helpers.resolve_preset("quaking_aspen.py"))
+        Scene.reset()
+        settings = with_old_names(Addon.resolve_preset("quaking_aspen.py"))
         settings.update(useArm=True, armAnim=True, wind=2.0, boneStep=(1, 1, 2, 1))
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        stored = helpers.stored_settings(helpers.active_object())
+        stored = Addon.stored_settings(Scene.active_object())
         self.assertEqual((stored["useRig"], stored["windAnim"], stored["windStrength"]), (True, True, 2.0))
         self.assertEqual(stored["jointStep"], [1, 1, 2, 1])
 
     def test_old_wind_keyword_without_armature_stays_still(self):
-        helpers.reset_scene()
-        settings = with_old_names(helpers.resolve_preset("quaking_aspen.py"))
+        Scene.reset()
+        settings = with_old_names(Addon.resolve_preset("quaking_aspen.py"))
         settings.update(armAnim=True)  # useArm stays off: the old wind needed the armature
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        stored = helpers.stored_settings(helpers.active_object())
+        stored = Addon.stored_settings(Scene.active_object())
         self.assertEqual((stored["useRig"], stored["windAnim"]), (False, False))
         self.assertNotIn("tree_wind", bpy.data.objects, "no node wind")
 
     def test_old_and_new_keyword_disagree(self):
-        helpers.reset_scene()
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        Scene.reset()
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(windStrength=1.0)
         with self.assertRaisesRegex(RuntimeError, "wind .*windStrength"):
             bpy.ops.curve.tree_add(**settings, wind=2.0, do_update=True)

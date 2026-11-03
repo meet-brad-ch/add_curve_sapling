@@ -18,13 +18,14 @@ BUILD = TESTS.parent / "build"
 sys.path.insert(0, str(TESTS))
 sys.path.insert(0, str(TESTS.parent / "tools"))  # blender_env: the add-on's module name
 
-import helpers  # noqa: E402  (needs the sys.path entries above)
+from support.addon import Addon  # noqa: E402  (needs the sys.path entries above)
+from support.golden import Golden  # noqa: E402
 
 
 def main() -> int:
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     patterns = [a.removeprefix("-k=") for a in argv if a.startswith("-k=")]
-    helpers.Golden.record = "--record-golden" in argv
+    Golden.record = "--record-golden" in argv
     options = {}
     for argument in argv:
         if argument.startswith(("--line-min=", "--branch-min=", "--site=")):
@@ -34,9 +35,9 @@ def main() -> int:
         raise SystemExit("--site, --line-min and --branch-min go together")
     coverage = start_coverage(options["site"]) if "site" in options else None
 
-    bpy.ops.preferences.addon_enable(module=helpers.MODULE)
-    if helpers.MODULE not in sys.modules:
-        raise SystemExit(f"the add-on {helpers.MODULE} did not enable")
+    bpy.ops.preferences.addon_enable(module=Addon.MODULE)
+    if Addon.MODULE not in sys.modules:
+        raise SystemExit(f"the add-on {Addon.MODULE} did not enable")
 
     loader = unittest.TestLoader()
     if patterns:
@@ -57,7 +58,7 @@ def start_coverage(site_packages):
     sys.path.append(site_packages)
     import coverage
 
-    measure = coverage.Coverage(branch=True, source_pkgs=[helpers.MODULE], data_file=str(BUILD / ".coverage"))
+    measure = coverage.Coverage(branch=True, source_pkgs=[Addon.MODULE], data_file=str(BUILD / ".coverage"))
     measure.start()
     return measure
 

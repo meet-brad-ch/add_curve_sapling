@@ -6,13 +6,14 @@ flat, as a Monterey cypress's foliage pads do."""
 import unittest
 
 import bpy
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.scene import Scene
 
 
 def leaf_normals(settings: dict) -> np.ndarray:
     """The unit face normal of every leaf of the generated tree."""
-    helpers.generate(settings)
+    Scene.generate(settings)
     mesh = bpy.data.objects["leaves"].data
     normals = np.zeros(len(mesh.polygons) * 3)
     mesh.polygons.foreach_get("normal", normals)
@@ -22,7 +23,7 @@ def leaf_normals(settings: dict) -> np.ndarray:
 class LeafUp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        settings = helpers.resolve_preset("cambridge_oak.py")
+        settings = Addon.resolve_preset("cambridge_oak.py")
         settings.update(levels=3, seed=5, leafShape="rect", leaves=12, showLeaves=True)
         cls.base = settings
 

@@ -13,7 +13,11 @@ import time
 import unittest
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.coverage import Coverage
+from support.evaluated import Evaluated
+from support.model import Model
+from support.scene import Scene
 
 # Leaf stages at 80 leaves per sprout over the stages at 40: 2 if linear, 4 if quadratic
 MAX_RATIO = 2.6
@@ -25,7 +29,7 @@ class StageTimer:
     def __init__(self, test: unittest.TestCase, stages: tuple[tuple[str, str, str], ...]) -> None:
         self.total = 0.0
         for module_name, class_name, method_name in stages:
-            owner = getattr(helpers.module(module_name), class_name)
+            owner = getattr(Addon.module(module_name), class_name)
             raw = owner.__dict__[method_name]
             function = raw.__func__ if isinstance(raw, staticmethod | classmethod) else raw
             timed = self._timed(function)
@@ -53,15 +57,15 @@ class LeafScaling(unittest.TestCase):
     )
 
     def leaf_time(self, leaves):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(
             levels=3, branches=(0, 50, 30, 10), leaves=leaves, showLeaves=True,
             useRig=True, windAnim=True, leafFlutter=True,
         )  # fmt: skip
         times = []
-        with helpers.untraced():
+        with Coverage.untraced():
             for _ in range(self.RUNS):
-                helpers.reset_scene()
+                Scene.reset()
                 timer = StageTimer(self, self.STAGES)
                 self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
                 times.append(timer.total)
@@ -84,13 +88,13 @@ class ModelSpeed(unittest.TestCase):
     def test_quaking_aspen_model(self):
         import random
 
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=3, branches=(0, 100, 30, 10))
-        params = helpers.model_params(settings)
-        grower = helpers.module("model.tree").TreeGrower
-        curve_class = helpers.module("model.curve_data").CurveData
+        params = Model.params(settings)
+        grower = Addon.module("model.tree").TreeGrower
+        curve_class = Addon.module("model.curve_data").CurveData
         times = []
-        with helpers.untraced():
+        with Coverage.untraced():
             for _ in range(self.RUNS):
                 started = time.perf_counter()
                 grown = grower(params, random.Random(params.seed)).grow(curve_class(), params.scale)
@@ -111,19 +115,19 @@ class BuildScaling(unittest.TestCase):
     RUNS = 2
 
     def build(self, branches):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(
             levels=3, branches=(0, branches, 30, 10), showLeaves=True,
             windAnim=True, leafFlutter=True, makeMesh=True,
         )  # fmt: skip
         times = []
-        with helpers.untraced():
+        with Coverage.untraced():
             for _ in range(self.RUNS):
-                helpers.reset_scene()
+                Scene.reset()
                 started = time.perf_counter()
                 self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
                 times.append(time.perf_counter() - started)
-        return len(helpers.spline_points()), min(times)
+        return len(Evaluated.spline_points()), min(times)
 
     def test_build_is_linear(self):
         small_stems, small = self.build(25)

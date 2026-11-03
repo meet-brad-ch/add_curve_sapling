@@ -5,20 +5,21 @@
 import unittest
 
 import bpy
-import helpers
 from golden_cases import PRESETS
+from support.addon import Addon
+from support.scene import Scene
 
 
 class Registration(unittest.TestCase):
     def test_operator_registered(self):
         self.assertIsNotNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
-        self.assertIn("seed", helpers.operator_property_names())
+        self.assertIn("seed", Addon.operator_property_names())
 
 
 class Presets(unittest.TestCase):
     def test_every_preset_generates(self):
         for name in PRESETS:
             with self.subTest(preset=name):
-                settings = helpers.resolve_preset(f"{name}.py")
-                self.assertEqual(helpers.generate(settings), {"FINISHED"})
+                settings = Addon.resolve_preset(f"{name}.py")
+                self.assertEqual(Scene.generate(settings), {"FINISHED"})
                 self.assertIn("tree", bpy.data.objects)

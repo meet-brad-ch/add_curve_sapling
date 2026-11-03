@@ -6,13 +6,14 @@ import random
 import unittest
 
 import bpy
-import helpers
 import numpy as np
 from mathutils import Vector
+from support.addon import Addon
+from support.evaluated import Evaluated
 
 
 def curve_data():
-    return helpers.module("model.curve_data")
+    return Addon.module("model.curve_data")
 
 
 def random_splines(rng, count):
@@ -64,7 +65,7 @@ class HandlesMatchBlender(unittest.TestCase):
         write_to_blender(blender, splines)
         flat = flat_of(splines)
         for name, column in (("co", flat.co), ("handle_left", flat.left), ("handle_right", flat.right)):
-            expected = np.concatenate([helpers.floats(s.bezier_points, name, 3) for s in blender.splines]).reshape(
+            expected = np.concatenate([Evaluated.floats(s.bezier_points, name, 3) for s in blender.splines]).reshape(
                 -1, 3
             )
             # FREE handles are whatever was stored (zero here, Blender's own value there): compare the rest

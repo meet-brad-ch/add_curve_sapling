@@ -13,8 +13,10 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.golden import Golden
+from support.model import Model
 
 STATS = Path(__file__).resolve().parent / "golden" / "model_stats.json"
 CASES = {
@@ -34,9 +36,9 @@ BOX_TOLERANCE = 0.10
 
 
 def stats(preset, changes):
-    settings = helpers.resolve_preset(f"{preset}.py")
+    settings = Addon.resolve_preset(f"{preset}.py")
     settings.update(changes)
-    model = helpers.grow_model(settings)
+    model = Model.grow(settings)
     params = model.params
     grown = model.grown
     flat = model.curve.flatten()
@@ -53,7 +55,7 @@ def stats(preset, changes):
         )
     out["box"] = (flat.co.max(axis=0) - flat.co.min(axis=0)).tolist()
     out["leaves"] = int(
-        helpers.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).leaves.count
+        Addon.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).leaves.count
     )
     return out
 
@@ -62,7 +64,7 @@ class ModelStatistics(unittest.TestCase):
     def test_cases(self):
         recorded = json.loads(STATS.read_text(encoding="utf-8")) if STATS.exists() else {}
         current = {name: stats(*case) for name, case in CASES.items()}
-        if helpers.Golden.record:
+        if Golden.record:
             STATS.write_text(json.dumps(current, indent=1, sort_keys=True) + "\n", encoding="utf-8")
             self.fail("model statistics recorded: review the diff, then run without --record-golden")
         for name, now in current.items():

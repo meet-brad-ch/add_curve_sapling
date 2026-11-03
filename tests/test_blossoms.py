@@ -8,23 +8,26 @@ import unittest
 import unittest.mock
 
 import bpy
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.evaluated import Evaluated
+from support.model import Model
+from support.scene import Scene
 
 
 def blossoms_module():
-    return helpers.module("model.blossoms")
+    return Addon.module("model.blossoms")
 
 
 def foliage(**changes):
     """The leaves and blossoms of a quaking aspen with leaves, grown in the model alone."""
-    settings = helpers.resolve_preset("quaking_aspen.py")
+    settings = Addon.resolve_preset("quaking_aspen.py")
     settings.update(levels=2, showLeaves=True, **changes)
-    params = helpers.model_params(settings)
-    curve = helpers.module("model.curve_data").CurveData()
+    params = Model.params(settings)
+    curve = Addon.module("model.curve_data").CurveData()
     rng = random.Random(params.seed)
-    grown = helpers.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-    return helpers.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts)
+    grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
+    return Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts)
 
 
 def leaf_blocks(leaf_set):
@@ -91,15 +94,15 @@ class BlossomTemplates(unittest.TestCase):
     def test_unknown_shapes(self):
         with self.assertRaisesRegex(ValueError, "unknown blossom shape rose"):
             self.template("rose")
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(blossomShape="rose")
         with self.assertRaisesRegex(ValueError, "Blossom Shape 'rose' is not one of"):
-            helpers.model_params(settings)
+            Model.params(settings)
 
 
 class BlossomPositions(unittest.TestCase):
     def test_rate_zero_draws_nothing(self):
-        randomness = helpers.module("model.randomness")
+        randomness = Addon.module("model.randomness")
         original = randomness.KeyedRandom.uniform
         seen = set()
 
@@ -152,14 +155,14 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
-        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assertEqual(Scene.generate(settings), {"FINISHED"})
         return bpy.data.objects["blossoms"]
 
     def test_object_material_and_uvs(self):
         blossoms = self.generate()
-        record = helpers.module("build.tree_record").TreeRecord
+        record = Addon.module("build.tree_record").TreeRecord
         self.assertEqual(blossoms.parent, bpy.data.objects["tree"])
         self.assertEqual(blossoms[record.ROLE], "blossoms")
         mesh = blossoms.data
@@ -181,7 +184,7 @@ class BlossomObjects(unittest.TestCase):
     def test_rig_moves_the_blossoms(self):
         blossoms = self.generate(useRig=True)
         self.assertIn("Armature", [m.type.title() for m in blossoms.modifiers])
-        bones = {bone.name for bone in helpers.armature().data.bones}
+        bones = {bone.name for bone in Scene.armature().data.bones}
         self.assertTrue(blossoms.vertex_groups and {g.name for g in blossoms.vertex_groups} <= bones)
         weights = [len(v.groups) for v in blossoms.data.vertices]
         self.assertEqual(set(weights), {1}, "every vertex follows one bone")
@@ -189,9 +192,9 @@ class BlossomObjects(unittest.TestCase):
     def test_node_wind_and_flutter_move_the_blossoms(self):
         blossoms = self.generate(windAnim=True, leafFlutter=True)
         self.assertEqual([m.name for m in blossoms.modifiers], ["Leaf Flutter", "Sapling Follow Wind"])
-        rest = helpers.evaluated_vertices("blossoms")
+        rest = Evaluated.vertices("blossoms")
         bpy.context.scene.frame_set(17)
-        self.assertGreater(np.abs(helpers.evaluated_vertices("blossoms") - rest).max(), 1e-4)
+        self.assertGreater(np.abs(Evaluated.vertices("blossoms") - rest).max(), 1e-4)
 
     def test_make_mesh_keeps_the_blossoms(self):
         blossoms = self.generate(windAnim=True, makeMesh=True)

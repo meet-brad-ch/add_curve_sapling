@@ -5,7 +5,8 @@
 import unittest
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.scene import Scene
 
 
 def evaluated_materials(name):
@@ -20,9 +21,9 @@ def principled(material):
 
 class LeafMaterial(unittest.TestCase):
     def generate(self, **overrides):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, **overrides)
-        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assertEqual(Scene.generate(settings), {"FINISHED"})
 
     def test_thin_wall_leaves(self):
         self.generate()
@@ -52,7 +53,7 @@ class LeafMaterial(unittest.TestCase):
     def test_existing_material_is_reused_not_reset(self):
         self.generate()
         principled(bpy.data.materials["Sapling Leaf"]).inputs["Subsurface Weight"].default_value = 0.25
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True)
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         self.assertEqual(len([m for m in bpy.data.materials if m.name.startswith("Sapling Leaf")]), 1)

@@ -8,21 +8,23 @@ import unittest
 import unittest.mock
 from types import SimpleNamespace
 
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.model import Model
+from support.scene import Scene
 
 
 def grow(**changes):
     """Grow a tree in the model alone (no Blender objects)."""
-    settings = helpers.resolve_preset(changes.pop("preset", "quaking_aspen") + ".py")
+    settings = Addon.resolve_preset(changes.pop("preset", "quaking_aspen") + ".py")
     settings.update(changes)
-    return helpers.grow_model(settings)
+    return Model.grow(settings)
 
 
 def level_index(grown, spline):
     """The parameter level of a spline: its depth below the trunk, deeper levels reusing the last."""
     depth = int(np.searchsorted(np.array(grown.level_ends), spline, side="right"))
-    return helpers.module("model.params").TreeParams.level_index(depth)
+    return Addon.module("model.params").TreeParams.level_index(depth)
 
 
 class TreeStructure(unittest.TestCase):
@@ -39,7 +41,7 @@ class TreeStructure(unittest.TestCase):
     def test_parents_come_before_their_children(self):
         model = grow(levels=3)
         grown = model.grown
-        bone_name = helpers.module("model.stem").BoneName
+        bone_name = Addon.module("model.stem").BoneName
         for index, link in enumerate(grown.bone_map):
             if link.bone:
                 self.assertLess(bone_name.spline(link.bone), index, link.bone)
@@ -57,7 +59,7 @@ class TreeStructure(unittest.TestCase):
             segments = params.curve_res[level_index(grown, index)]
             if link.is_split:
                 self.assertTrue(2 <= size <= segments, f"split {index}: {size} points")
-                parent = helpers.module("model.stem").BoneName.spline(link.bone)
+                parent = Addon.module("model.stem").BoneName.spline(link.bone)
                 self.assertEqual(size, sizes[parent] - (link.split_point + 1), "a split keeps its parent's segments")
             else:
                 self.assertEqual(size, segments + 1)
@@ -104,7 +106,7 @@ class TreeStructure(unittest.TestCase):
         grown = model.grown
         flat = curve.flatten()
         sprouts = grown.sprouts
-        bezier = helpers.module("model.rotations").BezierBatch
+        bezier = Addon.module("model.rotations").BezierBatch
         t = np.arange(65) / 64
         for i in range(0, sprouts.count, max(1, sprouts.count // 200)):
             spline, point = int(sprouts.parent_spline[i]), int(sprouts.parent_point[i])
@@ -142,10 +144,10 @@ class RadiusRange(unittest.TestCase):
 class FailFast(unittest.TestCase):
     def test_stem_rows_need_every_field(self):
         with self.assertRaisesRegex(TypeError, "missing"):
-            helpers.module("model.level_grid").StemRows(key=np.zeros(1, np.uint64))
+            Addon.module("model.level_grid").StemRows(key=np.zeros(1, np.uint64))
 
     def test_bone_map_starts_with_a_trunk(self):
-        stem = helpers.module("model.stem")
+        stem = Addon.module("model.stem")
         with self.assertRaisesRegex(ValueError, "trunk"):
             stem.BoneMap([stem.BoneLink("bone000.000")])
         with self.assertRaisesRegex(ValueError, "trunk"):
@@ -159,7 +161,7 @@ class FailFast(unittest.TestCase):
     def test_non_finite_sprouts_are_an_error(self):
         """Sprouts without a finite position stop the model instead of reaching Blender as NaN."""
         params = grow(levels=1).params
-        module = helpers.module
+        module = Addon.module
         root_key = module("model.randomness").KeyedRandom.root(params.seed)
         grid = module("model.branching").LevelStarter(params, random.Random(1), root_key).trunks(params.scale)
         module("model.growth").LevelGrower(params, params.scale).grow(grid, False)
@@ -168,7 +170,7 @@ class FailFast(unittest.TestCase):
             module("model.sprouting").LevelSprouts(params, root_key).plan(grid, grid.flatten(), 0, 0.0, 1.0)
 
     def test_pruning_that_does_not_settle_is_an_error(self):
-        pruning = helpers.module("model.pruning").LevelPruning
+        pruning = Addon.module("model.pruning").LevelPruning
         passes = pruning.MAX_PASSES
         pruning.MAX_PASSES = 0
         self.addCleanup(setattr, pruning, "MAX_PASSES", passes)
@@ -177,7 +179,7 @@ class FailFast(unittest.TestCase):
 
     def test_a_grown_level_cannot_be_subset(self):
         params = grow(levels=1, baseSplits=2).params  # Base Splits split the trunk at its first step
-        module = helpers.module
+        module = Addon.module
         root_key = module("model.randomness").KeyedRandom.root(params.seed)
         grid = module("model.branching").LevelStarter(params, random.Random(1), root_key).trunks(params.scale)
         self.assertEqual(grid.subset(np.array([0])).rows, 1)
@@ -187,13 +189,13 @@ class FailFast(unittest.TestCase):
             grid.subset(np.array([0]))
 
     def test_unknown_shapes(self):
-        geometry = helpers.module("model.geometry")
+        geometry = Addon.module("model.geometry")
         with self.assertRaisesRegex(ValueError, "crown shape"):
             geometry.CrownShape.ratios(99, np.array([0.5]))
         with self.assertRaisesRegex(ValueError, "crown shape"):
             geometry.CrownShape.ratio(99, 0.5)
         with self.assertRaisesRegex(ValueError, "leaf shape"):
-            helpers.module("model.leaves").LeafShape.template("star")
+            Addon.module("model.leaves").LeafShape.template("star")
 
 
 class CrownShapes(unittest.TestCase):
@@ -225,7 +227,7 @@ class CrownShapes(unittest.TestCase):
         return pos * (custom[1] - custom[0]) + custom[0]
 
     def test_ratios_equal_the_per_stem_formulas(self):
-        geometry = helpers.module("model.geometry")
+        geometry = Addon.module("model.geometry")
         ratios = np.linspace(0.0, 1.0, 41)
         custom = [0.3, 1.0, 0.4, 0.6]
         for shape in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10):
@@ -235,7 +237,7 @@ class CrownShapes(unittest.TestCase):
                 self.assertEqual(geometry.CrownShape.ratio(shape, r, custom), value)
 
     def test_angle_means(self):
-        geometry = helpers.module("model.geometry")
+        geometry = Addon.module("model.geometry")
         a1 = np.array([0.1, 3.0, -2.0])
         a2 = np.array([1.5, -3.0, 2.5])
         ours = geometry.Angles.means(a1, a2, 0.3)
@@ -290,11 +292,11 @@ class PrunedTrees(unittest.TestCase):
         flat = curve.flatten()
         removed = [i for i in range(1, len(flat.sizes)) if flat.sizes[i] == 1]
         self.assertGreater(len(removed), 10)
-        bone_name = helpers.module("model.stem").BoneName
+        bone_name = Addon.module("model.stem").BoneName
         parents = {bone_name.spline(link.bone) for link in grown.bone_map if link.bone}
         self.assertFalse(set(removed) & parents, "no stem hangs from a removed stem")
         self.assertFalse(set(removed) & set(grown.sprouts.parent_spline.tolist()), "no leaf sprouts on a removed stem")
-        free = helpers.module("model.curve_data").HandleType.FREE
+        free = Addon.module("model.curve_data").HandleType.FREE
         for i in removed:
             point = int(flat.start[i])
             self.assertEqual(int(flat.h1[point]), free)
@@ -324,19 +326,19 @@ class ExplicitChoices(unittest.TestCase):
     """Enum settings a script or preset gives with an unknown value are errors, never a silent other choice."""
 
     def test_unknown_handle_type(self):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(handleType="7")
         with self.assertRaisesRegex(ValueError, r"Handle Type '7' is not one of \['0', '1'\]"):
-            helpers.model_params(settings)
+            Model.params(settings)
 
     def test_unknown_branching_mode(self):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(rMode="spiral")
         with self.assertRaisesRegex(ValueError, "Branching Mode 'spiral' is not one of"):
-            helpers.model_params(settings)
+            Model.params(settings)
 
     def test_custom_shape_needs_its_values(self):
-        geometry = helpers.module("model.geometry")
+        geometry = Addon.module("model.geometry")
         with self.assertRaisesRegex(ValueError, "Custom Shape needs its four values"):
             geometry.CrownShape.ratios(geometry.CrownShape.CUSTOM, np.array([0.5]))
 
@@ -366,11 +368,11 @@ class PlainParams(unittest.TestCase):
             with self.subTest(name=name):
                 if isinstance(value, list):
                     self.assertTrue(all(isinstance(v, int | float) for v in value), f"{name}: {value!r}")
-                elif not isinstance(value, helpers.module("model.params").PlainParams):
+                elif not isinstance(value, Addon.module("model.params").PlainParams):
                     self.assertTrue(isinstance(value, self.PLAIN) or hasattr(value, "__dataclass_fields__"), name)
 
     def test_params_after_the_operator_are_plain(self):
-        generator = helpers.module("generator").TreeGenerator
+        generator = Addon.module("generator").TreeGenerator
         original = generator.__init__
         captured = []
 
@@ -380,18 +382,18 @@ class PlainParams(unittest.TestCase):
 
         generator.__init__ = recording
         self.addCleanup(setattr, generator, "__init__", original)
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, windAnim=True, showLeaves=True)
-        self.assertEqual(helpers.generate(settings), {"FINISHED"})
+        self.assertEqual(Scene.generate(settings), {"FINISHED"})
         made = captured[-1]
         for params in (made.params, made.wind_params, made.build_params):
             self.assert_plain(params)
         np.asarray(made.params.branches)  # what crashed when it was the operator's array
 
     def test_a_changed_source_leaves_the_params_unchanged(self):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         source = SimpleNamespace(**settings, leafDupliObj="")
-        params = helpers.module("model.params").TreeParams(source)
+        params = Addon.module("model.params").TreeParams(source)
         lengths = list(params.length)
         branches = list(params.branches)
         steps = list(params.bone_step)
@@ -415,10 +417,10 @@ class JointParents(unittest.TestCase):
         ]
         for case in cases:
             with self.subTest(case=case):
-                settings = helpers.resolve_preset("quaking_aspen.py")
+                settings = Addon.resolve_preset("quaking_aspen.py")
                 settings.update(case)
-                model = helpers.grow_model(settings)
-                joints = helpers.joints_of(settings, model)
+                model = Model.grow(settings)
+                joints = Model.joints(settings, model)
                 names = joints.names()
                 parents = joints.first_parent()
                 linked = np.flatnonzero(joints.eligible & (joints.link_spline >= 0))
@@ -441,7 +443,7 @@ class BendVariation(unittest.TestCase):
 
     def draws(self, **changes):
         """The draw ids the growth asks KeyedRandom.between for."""
-        randomness = helpers.module("model.randomness").KeyedRandom
+        randomness = Addon.module("model.randomness").KeyedRandom
         original = randomness.between
         seen = set()
 
@@ -467,7 +469,7 @@ class BendVariation(unittest.TestCase):
         return np.concatenate(turns), model.params.curve_res[1]
 
     def test_bend_off_draws_nothing(self):
-        bend = helpers.module("model.randomness").Draw.BEND
+        bend = Addon.module("model.randomness").Draw.BEND
         self.assertNotIn(bend, self.draws(levels=2, bendV=(0.0, 0.0, 0.0, 0.0)))
         self.assertIn(bend, self.draws(levels=2, bendV=(0.0, 30.0, 0.0, 0.0)))
 
@@ -479,7 +481,7 @@ class BendVariation(unittest.TestCase):
         self.assertLessEqual(bent.max(), 60.0 / segments + 1e-3)
 
     def test_split_step_does_not_bend(self):
-        growth = helpers.module("model.growth")
+        growth = Addon.module("model.growth")
         stems = SimpleNamespace(roll=np.array([0.2, 0.2]))
         split = growth.SplitAngles(np.full(2, 0.3), np.full(2, 0.1), np.full(2, 0.5))
         has_split = np.array([True, False])
@@ -529,14 +531,14 @@ class HelixStems(unittest.TestCase):
 
     def test_helix_points_have_free_handles(self):
         _, flat, rows, _ = self.helix(1, levels=2)
-        free = helpers.module("model.curve_data").HandleType.FREE
+        free = Addon.module("model.curve_data").HandleType.FREE
         at = np.concatenate([np.arange(flat.start[i], flat.start[i + 1]) for i in rows])
         self.assertTrue((flat.h1[at] == free).all() and (flat.h2[at] == free).all())
         trunk = np.arange(flat.start[0] + 1, flat.start[1])
         self.assertFalse((flat.h1[trunk] == free).any())
 
     def test_helix_off_draws_nothing(self):
-        draw = helpers.module("model.randomness").Draw.HELIX_PITCH
+        draw = Addon.module("model.randomness").Draw.HELIX_PITCH
         self.assertNotIn(draw, BendVariation().draws(levels=2))
         self.assertIn(draw, BendVariation().draws(levels=2, helix=(False, True, False, False)))
 
@@ -553,13 +555,13 @@ class HelixStems(unittest.TestCase):
             self.assert_helix(co)
 
     def test_helix_angle_of_90_degrees_is_an_error(self):
-        error = helpers.module("model.params").InvalidSettingError
+        error = Addon.module("model.params").InvalidSettingError
         with self.assertRaisesRegex(error, "Helix on level 2: .* It is 90 degrees"):
             grow(levels=2, helix=(False, True, False, False), curveV=(20.0, 90.0, 0.0, 0.0))
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, helix=(False, True, False, False), curveV=(20.0, -95.0, 0.0, 0.0))
         with self.assertRaisesRegex(RuntimeError, "Helix on level 2: .* It is 95 degrees"):
-            helpers.generate(settings)
+            Scene.generate(settings)
 
 
 class PalmSettings(unittest.TestCase):
@@ -574,13 +576,13 @@ class PalmSettings(unittest.TestCase):
 
     @staticmethod
     def foliage(**changes):
-        settings = helpers.resolve_preset("quaking_aspen.py")
+        settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=True, **changes)
-        params = helpers.model_params(settings)
-        curve = helpers.module("model.curve_data").CurveData()
+        params = Model.params(settings)
+        curve = Addon.module("model.curve_data").CurveData()
         rng = random.Random(params.seed)
-        grown = helpers.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-        return grown, helpers.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
+        grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
+        return grown, Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
 
     def test_count_above_base_fills_the_crown(self):
         self.assertLessEqual(len(self.first_level(grow(**self.PALM))), 2)

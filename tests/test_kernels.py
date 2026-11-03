@@ -6,13 +6,14 @@ import random
 import unittest
 from math import acos, atan2, cos, pi, sin
 
-import helpers
 import numpy as np
 from mathutils import Euler, Matrix, Quaternion, Vector
+from support.addon import Addon
+from support.model import Model
 
 
 def rotations():
-    return helpers.module("model.rotations")
+    return Addon.module("model.rotations")
 
 
 def random_directions(rng, count):
@@ -233,7 +234,7 @@ class BezierBatches(unittest.TestCase):
 
 class KeyedDraws(unittest.TestCase):
     def keyed(self):
-        return helpers.module("model.randomness").KeyedRandom
+        return Addon.module("model.randomness").KeyedRandom
 
     def test_uniform_in_range_and_well_spread(self):
         keyed = self.keyed()
@@ -320,14 +321,14 @@ class SwayMatchesTheScalarFormula(unittest.TestCase):
         return np.array(rows)
 
     def test_sway_equals_the_per_bone_formula(self):
-        wind_model = helpers.module("model.wind_model").WindModel
+        wind_model = Addon.module("model.wind_model").WindModel
         for case in self.CASES:
             with self.subTest(case=case):
-                settings = helpers.resolve_preset("quaking_aspen.py")
+                settings = Addon.resolve_preset("quaking_aspen.py")
                 settings.update(case)
-                model = helpers.grow_model(settings)
-                joints = helpers.joints_of(settings, model)
-                wind = wind_model(helpers.wind_params(settings, model.params), 24.0)
+                model = Model.grow(settings)
+                joints = Model.joints(settings, model)
+                wind = wind_model(Model.wind_params(settings, model.params), 24.0)
                 sway = joints.sway(wind, random.Random(5))
                 expected = self.reference(joints, wind, random.Random(5))
                 ours = np.stack(
@@ -363,11 +364,11 @@ class TrunkClumpMatchesMathutils(unittest.TestCase):
         return [[point.x, point.y, point.z] for point in placed[1:]]
 
     def test_positions_equal_the_vector_loop(self):
-        clump = helpers.module("model.branching").TrunkClump
+        clump = Addon.module("model.branching").TrunkClump
         for seed in range(200):
-            settings = helpers.resolve_preset("quaking_aspen.py")
+            settings = Addon.resolve_preset("quaking_aspen.py")
             settings.update(trunks=2 + seed % 5, ratio=0.02 + 0.01 * (seed % 7), seed=seed)
-            params = helpers.model_params(settings)
+            params = Model.params(settings)
             ours = [position.tolist() for position in clump(params, random.Random(seed)).positions()]
             expected = self.reference(params, random.Random(seed), clump.TRIES)
             self.assertEqual(ours, expected, f"seed {seed}")

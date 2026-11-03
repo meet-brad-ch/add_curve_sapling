@@ -5,14 +5,16 @@ downwind, Wind Direction says where downwind is (0: toward -Y, 90: toward +X). A
 
 import unittest
 
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.evaluated import Evaluated
+from support.scene import Scene
 
 
 def crown_points(settings: dict) -> np.ndarray:
     """Every point of the tree's branches (all splines but the first, the trunk), as (x, y, z)."""
-    helpers.generate(settings)
-    splines = helpers.spline_points()
+    Scene.generate(settings)
+    splines = Evaluated.spline_points()
     return np.array([point for spline in splines[1:] for point, _radius in spline])
 
 
@@ -21,7 +23,7 @@ class WindShape(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        settings = helpers.resolve_preset("black_oak.py")
+        settings = Addon.resolve_preset("black_oak.py")
         settings.update(levels=3, prune=True, pruneWidth=0.5, pruneRatio=1.0, seed=3)
         cls.base = settings
         cls.still = crown_points(settings)

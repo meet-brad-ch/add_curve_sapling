@@ -9,7 +9,8 @@ import unittest
 from types import SimpleNamespace
 
 import bpy
-import helpers
+from support.addon import Addon
+from support.scene import Scene
 
 
 class RecordingLayout:
@@ -51,11 +52,11 @@ class RecordingLayout:
 
 
 def add_tree():
-    helpers.reset_scene()
-    settings = {**helpers.resolve_preset("quaking_aspen.py"), "showLeaves": True}
+    Scene.reset()
+    settings = {**Addon.resolve_preset("quaking_aspen.py"), "showLeaves": True}
     if bpy.ops.curve.tree_add(**settings, do_update=True) != {"FINISHED"}:
         raise AssertionError("tree_add failed")
-    return helpers.active_object()
+    return Scene.active_object()
 
 
 class SettingsPages(unittest.TestCase):
@@ -63,10 +64,10 @@ class SettingsPages(unittest.TestCase):
 
     def draw(self, **changes):
         """The properties drawn on every page, with the operator's defaults plus `changes`."""
-        pages = helpers.module("ui.pages").SettingsPages
+        pages = Addon.module("ui.pages").SettingsPages
         drawn_per_page = []
         for page in range(self.PAGES):
-            values = {**helpers.operator_defaults(), "leafDupliObj": "", "presetName": "", "overwrite": False}
+            values = {**Addon.operator_defaults(), "leafDupliObj": "", "presetName": "", "overwrite": False}
             props = SimpleNamespace(**{**values, "chooseSet": str(page), **changes})
             layout = RecordingLayout()
             pages.draw(props, layout)
@@ -74,7 +75,7 @@ class SettingsPages(unittest.TestCase):
         return drawn_per_page
 
     def test_every_page_draws_existing_properties(self):
-        properties = set(helpers.operator_property_names())
+        properties = set(Addon.operator_property_names())
         for page, drawn in enumerate(self.draw()):
             with self.subTest(page=page):
                 self.assertEqual(drawn[0], "chooseSet")
@@ -87,7 +88,7 @@ class SettingsPages(unittest.TestCase):
             for page in self.draw(**changes):
                 drawn.update(page)
         hidden = {"bend"}  # Leaf Bend has no control, as in earlier versions
-        self.assertEqual(set(helpers.generation_names()) - drawn - hidden, set())
+        self.assertEqual(set(Addon.generation_names()) - drawn - hidden, set())
 
     def test_conditional_fields(self):
         geometry, leaves = 0, 5
@@ -108,7 +109,7 @@ class TreeUi(unittest.TestCase):
     """The sidebar panel and the menu entries, on a generated tree."""
 
     def panels(self):
-        return helpers.module("ui.panels")
+        return Addon.module("ui.panels")
 
     def test_panel_shows_for_tree_parts_only(self):
         root = add_tree()
@@ -116,7 +117,7 @@ class TreeUi(unittest.TestCase):
         self.assertTrue(panel.poll(SimpleNamespace(mode="OBJECT", active_object=root)))
         self.assertFalse(panel.poll(SimpleNamespace(mode="EDIT_CURVE", active_object=root)))
         self.assertFalse(panel.poll(SimpleNamespace(mode="OBJECT", active_object=None)))
-        card = helpers.add_leaf_card()
+        card = Scene.add_leaf_card()
         self.assertFalse(panel.poll(SimpleNamespace(mode="OBJECT", active_object=card)))
 
     def test_panel_draws_the_edit_button_for_the_root(self):
@@ -124,7 +125,7 @@ class TreeUi(unittest.TestCase):
         child = root.children[0]
         layout = RecordingLayout()
         self.panels().TreePanel.draw(SimpleNamespace(layout=layout), SimpleNamespace(active_object=child))
-        settings = helpers.stored_settings(root)
+        settings = Addon.stored_settings(root)
         self.assertEqual(layout.labels[0], f"Root: {root.name}")
         self.assertIn(f"Seed: {settings['seed']}", layout.labels[1])
         edit, duplicate = layout.buttons
@@ -139,7 +140,7 @@ class TreeUi(unittest.TestCase):
     def test_panel_shows_a_broken_record(self):
         """A draw method cannot report: a record that cannot be read shows its reason, and no Edit button."""
         root = add_tree()
-        root[helpers.module("build.tree_record").TreeRecord.SETTINGS] = "{"
+        root[Addon.module("build.tree_record").TreeRecord.SETTINGS] = "{"
         layout = RecordingLayout()
         self.panels().TreePanel.draw(SimpleNamespace(layout=layout), SimpleNamespace(active_object=root))
         self.assertEqual(layout.labels[0], f"Root: {root.name}")
@@ -159,5 +160,5 @@ class TreeUi(unittest.TestCase):
         self.assertEqual(object_menu.buttons[0].replace, root.name)
 
         not_a_tree = RecordingLayout()
-        menus.object_menu(SimpleNamespace(layout=not_a_tree), SimpleNamespace(active_object=helpers.add_leaf_card()))
+        menus.object_menu(SimpleNamespace(layout=not_a_tree), SimpleNamespace(active_object=Scene.add_leaf_card()))
         self.assertEqual(not_a_tree.buttons, [])

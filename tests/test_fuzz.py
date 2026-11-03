@@ -15,8 +15,11 @@ import unittest
 from typing import Any
 
 import bpy
-import helpers
 from mathutils import Vector
+from support.addon import Addon
+from support.evaluated import Evaluated
+from support.model import BoneIndex, Model
+from support.scene import Scene
 
 CASES = 100
 SEED = 20260929
@@ -64,12 +67,12 @@ FACES_PER_LEAF = {"hex": 2, "rect": 1, "dFace": 1, "dVert": 0}
 class SettingsFuzz(unittest.TestCase):
     def setUp(self):
         self.rng = random.Random(SEED)
-        self.grown = helpers.record_growth(self)
+        self.grown = Model.record_growth(self)
 
     def random_settings(self):
         rna = bpy.ops.curve.tree_add.get_rna_type()
         settings = {}
-        for name in helpers.generation_names():
+        for name in Addon.generation_names():
             if name in SKIP:
                 continue
             settings[name] = self.random_value(rna.properties[name])
@@ -144,8 +147,8 @@ class SettingsFuzz(unittest.TestCase):
             cases.append(settings)
             for feature in self.features(settings):
                 seen[feature] = seen.get(feature, 0) + 1
-            helpers.reset_scene()
-            leaf = helpers.add_leaf_card()
+            Scene.reset()
+            leaf = Scene.add_leaf_card()
             started = time.perf_counter()
             try:
                 result = bpy.ops.curve.tree_add(**settings, leafDupliObj=leaf.name, do_update=True)
@@ -178,7 +181,7 @@ class SettingsFuzz(unittest.TestCase):
     def check_tree(self, settings):
         model = self.grown[-1]
         self.assertEqual(len(model.grown.bone_map), model.curve.spline_count, "one bone link per spline")
-        self.assert_finite("tree_curves", [c for points in helpers.spline_points() for co, _r in points for c in co])
+        self.assert_finite("tree_curves", [c for points in Evaluated.spline_points() for co, _r in points for c in co])
         for ob in bpy.data.objects:
             if ob.type == "MESH" and ob.name != "leaf_card":
                 self.assert_finite(ob.name, [c for v in ob.data.vertices for c in v.co])
@@ -193,9 +196,9 @@ class SettingsFuzz(unittest.TestCase):
         self.assertTrue(all(math.isfinite(v) for v in values), f"{name} has NaN or inf coordinates")
 
     def assert_bones_on_splines(self):
-        splines = helpers.spline_points()
-        for bone in helpers.armature().data.bones:
-            index = helpers.bone_index(bone.name)
+        splines = Evaluated.spline_points()
+        for bone in Scene.armature().data.bones:
+            index = BoneIndex.of(bone.name)
             if index is not None:
                 co = Vector(splines[index.spline][index.point][0])
                 self.assertLess((bone.head_local - co).length, 1e-4, bone.name)

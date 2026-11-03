@@ -5,23 +5,26 @@ leaves) grow only on the outer part: a Monterey cypress's foliage pads at its li
 
 import unittest
 
-import helpers
 import numpy as np
+from support.addon import Addon
+from support.evaluated import Evaluated
+from support.model import Model
+from support.scene import Scene
 
 
 def spray_starts(settings: dict) -> np.ndarray:
     """The first point of every third-level stem (the sprays on the limbs), as (x, y, z)."""
-    model = helpers.grow_model(settings)
+    model = Model.grow(settings)
     ends = model.grown.level_ends
-    helpers.generate(settings)
-    splines = helpers.spline_points()
+    Scene.generate(settings)
+    splines = Evaluated.spline_points()
     return np.array([spline[0][0] for spline in splines[ends[1] : ends[2]]])
 
 
 class BranchBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        settings = helpers.resolve_preset("cambridge_oak.py")
+        settings = Addon.resolve_preset("cambridge_oak.py")
         # no splits: every spline is one stem, starting where it sprouts (a split piece starts mid-stem)
         settings.update(levels=3, seed=5, prune=False, baseSplits=0, segSplits=[0.0, 0.0, 0.0, 0.0])
         cls.base = settings

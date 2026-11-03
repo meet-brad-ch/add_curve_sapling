@@ -13,8 +13,11 @@ import unittest
 from pathlib import Path
 
 import bpy
-import helpers
 from golden_cases import CASES
+from support.addon import Addon
+from support.fingerprint import Fingerprint
+from support.golden import Golden
+from support.scene import Scene
 
 GOLDEN = Path(__file__).resolve().parent / "golden"
 
@@ -54,15 +57,15 @@ class GoldenTrees(unittest.TestCase):
     def test_golden(self):
         # the fingerprints hash exact float32 values: they hold for the Blender build and platform they came from
         self.assertEqual(sys.platform, "win32", "the golden files are valid on Windows only (README, Decisions)")
-        if helpers.Golden.record:
+        if Golden.record:
             GOLDEN.mkdir(exist_ok=True)
         for name, preset, overrides in CASES:
             with self.subTest(case=name):
                 path = GOLDEN / f"{name}.json"
                 # The settings a case stands for: the preset as loaded today, with the case's overrides
-                current = helpers.resolve_preset(f"{preset}.py")
-                current.update({k: helpers.plain(v) for k, v in overrides.items()})
-                if helpers.Golden.record:
+                current = Addon.resolve_preset(f"{preset}.py")
+                current.update({k: Addon.plain(v) for k, v in overrides.items()})
+                if Golden.record:
                     settings = current
                 else:
                     self.assertTrue(path.exists(), f"no golden file {path.name}; record it first")
@@ -76,15 +79,15 @@ class GoldenTrees(unittest.TestCase):
                     difference = first_difference(settings, current)
                     self.assertEqual(difference, "", f"{name}: settings drifted from the recording at {difference}")
 
-                result = helpers.generate(settings)
+                result = Scene.generate(settings)
                 self.assertEqual(result, {"FINISHED"})
-                actual = helpers.fingerprint()
+                actual = Fingerprint.scene()
 
-                if helpers.Golden.record:
+                if Golden.record:
                     record = {"blender": bpy.app.version_string, "settings": settings, "fingerprint": actual}
                     path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n", encoding="utf-8")
                 else:
                     difference = first_difference(recorded["fingerprint"], actual)
                     self.assertEqual(difference, "", f"{name} differs at {difference}")
-        if helpers.Golden.record:
+        if Golden.record:
             self.fail("golden files recorded: review the diff, then run the tests without --record-golden")
