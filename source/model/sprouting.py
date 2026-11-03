@@ -2,7 +2,7 @@
 
 """Where child stems and leaves sprout along the grown stems of a level."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from math import floor
 
 import numpy as np
@@ -14,56 +14,21 @@ from .randomness import Draw, KeyedRandom, Kind
 from .rotations import BezierBatch, TrackFrame
 
 
+@dataclass(frozen=True, slots=True)
 class SproutArrays:
-    """The sprout points of a level, one row each: where child stems or leaves grow next.
+    """The sprout points of a level, one row each (M rows): where child stems or leaves grow next."""
 
-    co (M, 3); frame (M, 3, 3) the stem direction's TrackFrame there; radius_parent (M, 2) the parent's start
-    radius and its radius at the sprout; offset and stem_offset (M,) the position along the parent (offset as
-    the children see it, stem_offset the raw fraction of the family's length); length_parent (M,); parent_spline
-    and parent_point (M,) the parent's spline and the segment the sprout is on; parent_key (M,) the parent's
-    lineage key; position (M,) the sprout's index among its family's positions (-1 for a tip); family (M,) the
-    row of the parent's family root in its level.
-    """
-
-    FIELDS = [
-        "co",
-        "frame",
-        "radius_parent",
-        "offset",
-        "stem_offset",
-        "length_parent",
-        "parent_spline",
-        "parent_point",
-        "parent_key",
-        "position",
-        "family",
-    ]
-
-    def __init__(
-        self,
-        co: np.ndarray,
-        frame: np.ndarray,
-        radius_parent: np.ndarray,
-        offset: np.ndarray,
-        stem_offset: np.ndarray,
-        length_parent: np.ndarray,
-        parent_spline: np.ndarray,
-        parent_point: np.ndarray,
-        parent_key: np.ndarray,
-        position: np.ndarray,
-        family: np.ndarray,
-    ) -> None:
-        self.co = co
-        self.frame = frame
-        self.radius_parent = radius_parent
-        self.offset = offset
-        self.stem_offset = stem_offset
-        self.length_parent = length_parent
-        self.parent_spline = parent_spline
-        self.parent_point = parent_point
-        self.parent_key = parent_key
-        self.position = position
-        self.family = family
+    co: np.ndarray  # (M, 3)
+    frame: np.ndarray  # (M, 3, 3) the stem direction's TrackFrame there
+    radius_parent: np.ndarray  # (M, 2) the parent's start radius and its radius at the sprout
+    offset: np.ndarray  # (M,) the position along the parent, as the children see it
+    stem_offset: np.ndarray  # (M,) the raw fraction of the family's length
+    length_parent: np.ndarray  # (M,)
+    parent_spline: np.ndarray  # (M,) the parent's spline
+    parent_point: np.ndarray  # (M,) the parent's segment the sprout is on
+    parent_key: np.ndarray  # (M,) the parent's lineage key
+    position: np.ndarray  # (M,) the sprout's index among its family's positions (-1 for a tip)
+    family: np.ndarray  # (M,) the row of the parent's family root in its level
 
     @property
     def count(self) -> int:
@@ -82,12 +47,18 @@ class SproutArrays:
 
     def take(self, order: np.ndarray) -> "SproutArrays":
         """The sprouts at `order`, in that order."""
-        return SproutArrays(*(getattr(self, name)[order] for name in self.FIELDS))
+        taken = {}
+        for field in fields(self):
+            taken[field.name] = getattr(self, field.name)[order]
+        return SproutArrays(**taken)
 
     @classmethod
     def concatenate(cls, a: "SproutArrays", b: "SproutArrays") -> "SproutArrays":
         """a's sprouts, then b's."""
-        return cls(*(np.concatenate([getattr(a, name), getattr(b, name)]) for name in cls.FIELDS))
+        joined = {}
+        for field in fields(cls):
+            joined[field.name] = np.concatenate([getattr(a, field.name), getattr(b, field.name)])
+        return cls(**joined)
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,17 +243,17 @@ class LevelSprouts:
         p2 = co[first + 1]
         radius = (1 - local_t) * flat.radius[first] + local_t * flat.radius[first + 1]
         sprouts = SproutArrays(
-            BezierBatch.points(p1, h1, h2, p2, local_t),
-            TrackFrame.matrices(BezierBatch.tangents(p1, h1, h2, p2, local_t)),
-            np.stack([stems.radius_start[rows], radius], axis=1),
-            offset,
-            on.t,
-            grid.segments * stems.segment_length[rows],
-            stems.spline[rows],
-            segment,
-            stems.key[rows],
-            on.index,
-            stems.root[rows],
+            co=BezierBatch.points(p1, h1, h2, p2, local_t),
+            frame=TrackFrame.matrices(BezierBatch.tangents(p1, h1, h2, p2, local_t)),
+            radius_parent=np.stack([stems.radius_start[rows], radius], axis=1),
+            offset=offset,
+            stem_offset=on.t,
+            length_parent=grid.segments * stems.segment_length[rows],
+            parent_spline=stems.spline[rows],
+            parent_point=segment,
+            parent_key=stems.key[rows],
+            position=on.index,
+            family=stems.root[rows],
         )
         return PlacedSprouts(rows, sprouts)
 
@@ -315,16 +286,16 @@ class LevelSprouts:
         co = flat.co[last].astype(np.float64)
         ones = np.ones(len(rows))
         sprouts = SproutArrays(
-            co,
-            TrackFrame.matrices(flat.right[last].astype(np.float64) - co),
-            np.stack([stems.radius_start[rows], flat.radius[last].astype(np.float64)], axis=1),
-            ones,
-            ones,
-            grid.segments * stems.segment_length[rows],
-            stems.spline[rows],
-            flat.sizes[rows] - 2,
-            stems.key[rows],
-            np.full(len(rows), -1, dtype=np.int64),
-            stems.root[rows],
+            co=co,
+            frame=TrackFrame.matrices(flat.right[last].astype(np.float64) - co),
+            radius_parent=np.stack([stems.radius_start[rows], flat.radius[last].astype(np.float64)], axis=1),
+            offset=ones,  # a tip sprout sits at the end of its stem
+            stem_offset=ones,
+            length_parent=grid.segments * stems.segment_length[rows],
+            parent_spline=stems.spline[rows],
+            parent_point=flat.sizes[rows] - 2,
+            parent_key=stems.key[rows],
+            position=np.full(len(rows), -1, dtype=np.int64),  # -1: a tip, not one of the family's positions
+            family=stems.root[rows],
         )
         return PlacedSprouts(rows, sprouts)

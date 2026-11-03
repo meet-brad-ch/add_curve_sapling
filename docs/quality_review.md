@@ -27,8 +27,6 @@ for the stdlib `Random` stream order.
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
 
 ### Records and structure
-- **Q14** `model/sprouting.py:17-90` `SproutArrays`: 11 positional constructor arguments, names repeated in `FIELDS`.
-  Fix: a dataclass built with keywords, names from `fields()`.
 - **Q15** More than 6 parameters / records as plain classes: model `branching.py:149, 267`, `growth.py:251, 301`,
   `level_grid.py:103`, `leaves.py:76`, `curve_data.py:57, 122`; `LeafSet`, `FlatCurve`, `FamilyPositions`, `GrownTree`.
   Fix: frozen dataclasses and context records (`StepContext`, `TrunkGroups`, `LevelPlace`).
@@ -124,3 +122,6 @@ for the stdlib `Random` stream order.
   `bench` a preset without a baseline time, `blender_env` a failed `--version`; the test helpers name what they did
   not find. `ui/duplicate.py`: a Move that does not start leaves the copy in place, as Blender's Duplicate does
   (commented, not an error). Unit tests for the new raises.
+- **Q14** `model/sprouting.py` `SproutArrays`: a frozen dataclass (one commented field per array), built with
+  keywords in the same order; `take` and `concatenate` read the names from `fields()` (the `FIELDS` list of Q21 is
+  gone). The golden trees do not change.
