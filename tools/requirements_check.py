@@ -259,6 +259,71 @@ class CodeSettings:
         return SettingRow(page, self.text(keywords, "name"), prop, self.text(keywords, "default"), span)
 
 
+@dataclass(frozen=True)
+class TestRef:
+    """One test method and the requirement IDs it verifies (its own and its class's)."""
+
+    name: str
+    ids: tuple[str, ...]
+
+
+class TestTrace:
+    """The @Verifies references of the test sources, read without running them."""
+
+    TESTS = ROOT / "tests"
+    REQUIREMENT_TESTS = TESTS / "requirements"
+
+    def __init__(self, folder: Path) -> None:
+        """The trace of every test module below `folder`."""
+        self.folder = folder
+
+    def refs(self) -> list[TestRef]:
+        """Every test method below the folder with the IDs it verifies, in path order."""
+        found = []
+        for path in sorted(self.folder.rglob("test_*.py")):
+            found += self.module_refs(path)
+        return found
+
+    def module_refs(self, path: Path) -> list[TestRef]:
+        """The test methods of one module with their IDs."""
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        module = path.relative_to(self.TESTS).with_suffix("").as_posix()
+        found = []
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                class_ids = self.verified_ids(node)
+                for member in node.body:
+                    if isinstance(member, ast.FunctionDef) and member.name.startswith("test_"):
+                        ids = class_ids + self.verified_ids(member)
+                        found.append(TestRef(f"{module}::{node.name}.{member.name}", ids))
+        return found
+
+    @staticmethod
+    def verified_ids(node: ast.ClassDef | ast.FunctionDef) -> tuple[str, ...]:
+        """The IDs of the node's @Verifies decorators."""
+        ids: list[str] = []
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or getattr(decorator.func, "id", "") != "Verifies":
+                continue
+            for arg in decorator.args:
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    ids.append(arg.value)
+        return tuple(ids)
+
+
+@dataclass
+class Coverage:
+    """Which requirements the tests verify: the tests per test-verified requirement, and the gaps."""
+
+    tests: dict[str, list[str]]
+    gaps: list[str]
+
+    def summary(self) -> str:
+        """One line: how many test-verified requirements have a test."""
+        verified = len(self.tests) - len(self.gaps)
+        return f"requirement coverage: {verified} of {len(self.tests)} test-verified requirements have a test"
+
+
 class Checker:
     """All checks of the document, reported as findings."""
 
@@ -275,7 +340,36 @@ class Checker:
         for requirement in requirements:
             found += rules.check(requirement)
         found += self.appendix_findings()
+        found += self.trace_findings(requirements)
         return found
+
+    @staticmethod
+    def trace_findings(requirements: list[Requirement]) -> list[Finding]:
+        """A finding for each test that names an unknown ID, and each requirement test that verifies nothing."""
+        known = {requirement.ident for requirement in requirements}
+        found = []
+        for ref in TestTrace(TestTrace.TESTS).refs():
+            for ident in ref.ids:
+                if ident not in known:
+                    found.append(Finding(ref.name, "trace", f"verifies {ident}, which docs/requirements.md lacks"))
+        for ref in TestTrace(TestTrace.REQUIREMENT_TESTS).refs():
+            if not ref.ids:
+                found.append(Finding(ref.name, "trace", "a requirement test that names no requirement (@Verifies)"))
+        return found
+
+    @staticmethod
+    def coverage(requirements: list[Requirement]) -> Coverage:
+        """The tests of each requirement whose method is test, and the ones without a test."""
+        tests: dict[str, list[str]] = {}
+        for requirement in requirements:
+            if requirement.fields.get("Method") == "test":
+                tests[requirement.ident] = []
+        for ref in TestTrace(TestTrace.TESTS).refs():
+            for ident in ref.ids:
+                if ident in tests:
+                    tests[ident].append(ref.name)
+        gaps = [ident for ident, names in tests.items() if not names]
+        return Coverage(tests, gaps)
 
     @staticmethod
     def duplicate_ids(requirements: list[Requirement]) -> list[Finding]:
@@ -307,6 +401,7 @@ def main() -> int:
     """The command line: the checks, or the Appendix A table from the code."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--appendix", action="store_true", help="print Appendix A as the code gives it")
+    parser.add_argument("--require-full", action="store_true", help="fail when a test-verified requirement has no test")
     args = parser.parse_args()
     if args.appendix:
         rows = CodeSettings().rows()
@@ -316,12 +411,20 @@ def main() -> int:
             print(row.row())
         return 0
     document = RequirementsDocument(DOCUMENT)
+    requirements = document.requirements()
     findings = Checker(document).findings()
     for finding in findings:
         print(finding)
-    count = len(document.requirements())
+    coverage = Checker.coverage(requirements)
+    for ident in coverage.gaps:
+        print(f"{ident}: NOT VERIFIED (no test names it)")
+    print(coverage.summary())
+    count = len(requirements)
     if findings:
         print(f"requirements_check: FAILED {len(findings)} findings in {count} requirements")
+        return 1
+    if args.require_full and coverage.gaps:
+        print(f"requirements_check: FAILED {len(coverage.gaps)} requirements without a test (--require-full)")
         return 1
     print(f"requirements_check: ok, {count} requirements")
     return 0
