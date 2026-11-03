@@ -235,7 +235,7 @@ Each item gives the decision and the reason for it.
 - **Rigs are capped.** Blender creates each bone in time proportional to the bones that exist, so a
   rig of 80,000 bones takes minutes. The operator warns above 10,000 bones and refuses above 40,000.
   *Joint Levels* and *Joint Length* make smaller rigs. Wind without the rig needs no bones.
-- **`tools/check.py` checks all code.** It runs ruff (complexity 9 or less, docstrings and type
+- **`tools/check.py` checks all code.** It runs ruff (complexity 10 or less, docstrings and type
   annotations in `source/`) and mypy. It also runs the tests and requires 99 % line and 96 % branch
   coverage. Each `type: ignore` must give its reason.
 
