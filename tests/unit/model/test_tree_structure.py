@@ -251,7 +251,8 @@ class PlainParams(unittest.TestCase):
         for name, value in vars(params).items():
             with self.subTest(name=name):
                 if isinstance(value, list):
-                    self.assertTrue(all(isinstance(v, int | float) for v in value), f"{name}: {value!r}")
+                    not_numbers = [v for v in value if not isinstance(v, int | float)]
+                    self.assertEqual(not_numbers, [], f"{name}: {value!r}")
                 elif not isinstance(value, Addon.module("model.params").PlainParams):
                     self.assertTrue(isinstance(value, self.PLAIN) or hasattr(value, "__dataclass_fields__"), name)
 

@@ -78,7 +78,7 @@ class AutoHandles:
         h2 = points.h2
         if (first == last).any():
             raise ValueError("recalculate_flat needs splines of two or more points")
-        # zeros, not empty: a one-point spline between others has no neighbours set here and must read nothing random
+        # every entry is set below: the neighbour in the flat array, then the mirrored one at each spline's ends
         prev = np.zeros_like(co)
         nxt = np.zeros_like(co)
         prev[1:] = co[:-1]

@@ -145,9 +145,9 @@ class ArmatureBuilder:
         # the armature object, keeps the armature an ordinary part of the tree; bones in no collection are shown.
         collection = armature.collections.new(self.BONE_COLLECTION)
         with self._editing(armature_ob):
-            for bone in self._branch_bones(
-                armature, joints
-            ):  # an EditBone is assigned at the same cost however many bones there are
+            # an EditBone is assigned at the same cost however many bones there are
+            bones = self._branch_bones(armature, joints)
+            for bone in bones:
                 collection.assign(bone)
         collection.is_visible = p.preview_armature
         if animator is not None and wind is not None:

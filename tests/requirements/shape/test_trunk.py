@@ -84,7 +84,8 @@ class SeveralTrunks(unittest.TestCase):
         for bone in Scene.armature().data.bones:
             if bone.parent is not None and not bone.use_connect:  # the first bone of a branch
                 branches_per_root[self.root_of(bone).name] += 1
-        self.assertTrue(all(count >= 10 for count in branches_per_root.values()), branches_per_root)
+        few = {name: count for name, count in branches_per_root.items() if count < 10}
+        self.assertEqual(few, {}, "trunks with fewer than 10 branches")
 
     def test_every_trunk_base_stays_still(self):
         base = self.base_bones()

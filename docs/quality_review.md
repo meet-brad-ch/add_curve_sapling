@@ -33,8 +33,6 @@ for the stdlib `Random` stream order.
   `build/tree_record.py:159` `TreeEdit.__init__` changes data (an explicit `claim` step).
 - **Q18** Duck typing at the service boundary: `service/trees.py:111` and `generator.py:79` (`SimpleNamespace`/`Any`),
   `service/trees.py:122` `replaced(result: Any)`. Fix: named types.
-- **Q19** Generic helpers: `model/params.py:58-77` `_floats/_bools/_ints`, the generic `_choice[T]`;
-  `getattr(x, "id", "")` in `requirements_check.py:333`, `evaluated.py:71`; `check.py` `blender_of` sentinel.
 - **Q20** Callbacks in hot loops: `build/wind.py:93, 105, 116` (a lambda per bone); `tree_root.py:196` closure;
   `ui/pages.py:28` the getattr dispatch.
 
@@ -56,11 +54,6 @@ for the stdlib `Random` stream order.
   `growth.py:106-108` (state changes hidden in an argument list). Magic numbers `growth.py:202`, `branching.py:433`.
 - **Q25** Docstrings missing: 9 in source (generator, armature, materials, node_wind, the Blender overrides of ui),
   24 in tests/support, 22 in tools, 308 test methods, 59 classes, 123 other test functions.
-- **Q26** Comments and names: `curve_data.py:75` stale comment; `params.py:208` shadows `s`; `blender_env.py:25`
-  says Python 3.10 (the venv is 3.13: tomllib); `armature.py:146-151` a comment in a `for` header, a redundant test;
-  the bounded `while` loops of `requirements_check.py:235` and `test_trunk.py:20` need their bound named.
-- **Q27** Tests: 6 `assertTrue(all/any(...))` without the offenders (test_baked_mesh:48, test_rig:201,
-  test_pruning:96, test_flutter:94, test_wind:227, test_tree_structure:239). Fix: assert the offender list is empty.
 
 ## Fixed
 
@@ -130,3 +123,13 @@ for the stdlib `Random` stream order.
   Q23 for the tests), `MeshCounts`, `TimedStage`, `DeclaredProperty`, and local records `HelixLevel`, `Turns`,
   `BuildTime`, `LoadedCurve`.
 - **Q28** `NodeTrees.counts` frees its temporary mesh in `finally`.
+- **Q19** `model/params.py`: `_floats/_bools/_ints` became list comprehensions at the 15 calls, the generic
+  `_choice[T]` three explicit membership checks with the same messages (its `{s: s for s in ...}` also shadowed the
+  settings parameter `s`, the Q26 item); `requirements_check.verified_ids` matches an `ast.Name` explicitly.
+  (`evaluated.py` was Q7; `check.py blender_of` keeps "" for "not set", which `all_blenders` reports at once.)
+- **Q26** `curve_data.py`: the comment says why the neighbour arrays are complete; `armature.py`: the comment left the
+  `for` header and the bones are named first; `requirements_check.py`: the `while` loop's end is named. Checked and
+  kept: `blender_env.py` says the tools run on Python 3.10, which is right (`tools/run_tests.py` runs on the system
+  Python, 3.10 here; only the venv is 3.13).
+- **Q27** every `assertTrue(all(...))` and `assertFalse(any(...))` (13) asserts that the list of offenders is empty, so a
+  failure names them (the first 5 where a list can be long); the three positive `assertTrue(any(...))` stay.

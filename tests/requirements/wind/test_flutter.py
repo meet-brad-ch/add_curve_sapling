@@ -33,7 +33,8 @@ class LeafFlutter(unittest.TestCase):
         self.assertFalse([b.name for b in Scene.armature().data.bones if b.name.startswith("leaf")])
         groups = [g.name for g in bpy.data.objects["leaves"].vertex_groups]
         self.assertTrue(groups)
-        self.assertTrue(all(name.startswith("bone") for name in groups), groups[:5])
+        not_bones = [name for name in groups if not name.startswith("bone")]
+        self.assertEqual(not_bones[:5], [], "vertex groups that are not bones")
 
     def test_flutter_comes_before_the_armature(self):
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["NODES", "ARMATURE"])

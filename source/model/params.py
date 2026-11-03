@@ -9,7 +9,6 @@ Python number, string or tuple: the operator's property arrays die with the oper
 would read freed memory when the tree is built or edited later.
 """
 
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from math import degrees, pi, radians
 from typing import Any
@@ -56,28 +55,6 @@ class PlainParams:
     def _freeze(self) -> None:
         self._frozen = True
 
-    @staticmethod
-    def _floats(values: Iterable[float]) -> list[float]:
-        """A per-level vector setting as a list of Python floats."""
-        return [float(v) for v in values]
-
-    @staticmethod
-    def _bools(values: Iterable[bool]) -> list[bool]:
-        """A per-level vector setting as a list of Python bools."""
-        return [bool(v) for v in values]
-
-    @staticmethod
-    def _ints(values: Iterable[int]) -> list[int]:
-        """A per-level vector setting as a list of Python ints."""
-        return [int(v) for v in values]
-
-    @staticmethod
-    def _choice[T](table: Mapping[str, T], value: str, name: str) -> T:
-        """The value an enum setting stands for; raises ValueError for one that is not a choice."""
-        if value not in table:
-            raise ValueError(f"{name} {value!r} is not one of {sorted(table)}")
-        return table[value]
-
 
 class TreeParams(PlainParams):
     """Everything the model reads to grow the tree, derived once from the settings.
@@ -97,18 +74,21 @@ class TreeParams(PlainParams):
         self._growth(s)
         self._pruning(s)
         self._leaves(s)
-        self.handles: int = self._choice(self.HANDLE_TYPES, str(s.handleType), "Handle Type")
+        handle_type = str(s.handleType)
+        if handle_type not in self.HANDLE_TYPES:
+            raise ValueError(f"Handle Type {handle_type!r} is not one of {sorted(self.HANDLE_TYPES)}")
+        self.handles: int = self.HANDLE_TYPES[handle_type]
         # Joint Length: stem segments per joint, per level (the model names the bones the splines hang from)
-        self.bone_step = self._ints(s.jointStep)
+        self.bone_step = [int(v) for v in s.jointStep]
         # The envelope's base cannot be above the bare trunk
         self.prune_base_clamped = min(self.prune_base, self.base_size)
         self._check_prune_base()
         if s.autoTaper:
             self.taper = CrownShape.auto_taper(
-                self.length, self._floats(s.taper), self.shape, self.shape_s, self.levels, self.custom_shape
+                self.length, [float(v) for v in s.taper], self.shape, self.shape_s, self.levels, self.custom_shape
             )
         else:
-            self.taper = self._floats(s.taper)
+            self.taper = [float(v) for v in s.taper]
         self._freeze()
 
     def _shape(self, s: Any) -> None:
@@ -117,30 +97,33 @@ class TreeParams(PlainParams):
         self._check_scale()
         self.shape = int(s.shape)
         self.shape_s = int(s.shapeS)
-        self.custom_shape = self._floats(s.customShape)
+        self.custom_shape = [float(v) for v in s.customShape]
         self.branch_dist = float(s.branchDist)
         self.rings = int(s.nrings)
         self.base_size = float(s.baseSize)
         self.base_size_s = float(s.baseSize_s)
-        self.branch_base = self._floats(s.branchBase)
+        self.branch_base = [float(v) for v in s.branchBase]
         self.ratio = float(s.ratio)
         self.min_radius = float(s.minRadius)
         self.close_tip = bool(s.closeTip)
         self.root_flare = float(s.rootFlare)
-        self.radius_tweak = self._floats(s.radiusTweak)
+        self.radius_tweak = [float(v) for v in s.radiusTweak]
         self.ratio_power = float(s.ratioPower)
         self.scale0 = float(s.scale0)
         self.scale_v0 = float(s.scaleV0)
 
     def _branching(self, s: Any) -> None:
-        self.branches = self._ints(s.branches)
+        self.branches = [int(v) for v in s.branches]
         self.trunks = int(s.trunks)
         self.trunks_face_out = bool(s.trunksFaceOut)
         self.base_splits = int(s.baseSplits)
-        self.seg_splits = self._floats(s.segSplits)
+        self.seg_splits = [float(v) for v in s.segSplits]
         self.split_by_len = bool(s.splitByLen)
         self.count_above_base = bool(s.countAboveBase)
-        self.rotate_mode: str = self._choice({mode: mode for mode in BranchingMode.ALL}, str(s.rMode), "Branching Mode")
+        rotate_mode = str(s.rMode)
+        if rotate_mode not in BranchingMode.ALL:
+            raise ValueError(f"Branching Mode {rotate_mode!r} is not one of {sorted(BranchingMode.ALL)}")
+        self.rotate_mode: str = rotate_mode
         self.split_angle = Angles.to_radians(s.splitAngle)
         self.split_angle_v = Angles.to_radians(s.splitAngleV)
         self.split_height = float(s.splitHeight)
@@ -153,20 +136,20 @@ class TreeParams(PlainParams):
         self.use_parent_angle = bool(s.useParentAngle)
 
     def _growth(self, s: Any) -> None:
-        self.length = self._floats(s.length)
-        self.length_v = self._floats(s.lengthV)
+        self.length = [float(v) for v in s.length]
+        self.length_v = [float(v) for v in s.lengthV]
         self.taper_crown = float(s.taperCrown)
-        self.curve_res = self._ints(s.curveRes)
+        self.curve_res = [int(v) for v in s.curveRes]
         self.curve = Angles.to_radians(s.curve)
         self.curve_v = Angles.to_radians(s.curveV)
         self.curve_back = Angles.to_radians(s.curveBack)
         self.bend_v = Angles.to_radians(s.bendV)
-        self.helix = self._bools(s.helix)
+        self.helix = [bool(v) for v in s.helix]
         self._check_helix()
-        self.attract_up = self._floats(s.attractUp)
-        self.attract_out = self._floats(s.attractOut)
+        self.attract_up = [float(v) for v in s.attractUp]
+        self.attract_out = [float(v) for v in s.attractOut]
         self.wind_dir = radians(float(s.windDir))
-        self.wind_bend = self._floats(s.windBend)
+        self.wind_bend = [float(v) for v in s.windBend]
 
     def _check_prune_base(self) -> None:
         """With Prune on, the envelope's base (Prune Base Height, at most the Trunk Height) must be below the top of
@@ -230,7 +213,10 @@ class TreeParams(PlainParams):
         self.fan_angles = bool(s.fanAngles)
         self.leaves_above_base = bool(s.leavesAboveBase)
         self.blossom_rate = float(s.blossomRate)
-        self.blossom_shape: str = self._choice({s: s for s in BlossomShape.ALL}, str(s.blossomShape), "Blossom Shape")
+        blossom_shape = str(s.blossomShape)
+        if blossom_shape not in BlossomShape.ALL:
+            raise ValueError(f"Blossom Shape {blossom_shape!r} is not one of {sorted(BlossomShape.ALL)}")
+        self.blossom_shape: str = blossom_shape
         self.blossom_scale = float(s.blossomScale)
 
     @classmethod

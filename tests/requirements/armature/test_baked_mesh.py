@@ -46,7 +46,8 @@ class BakedBark(unittest.TestCase):
         self.assertEqual(root.modifiers[0].object.name, "treeArm")
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
         self.assertTrue({g.name for g in root.vertex_groups} <= bones)
-        self.assertTrue(all(len(v.groups) == 1 and v.groups[0].weight == 1.0 for v in root.data.vertices))
+        not_rigid = [v.index for v in root.data.vertices if not (len(v.groups) == 1 and v.groups[0].weight == 1.0)]
+        self.assertEqual(not_rigid[:5], [], "vertices not in exactly one group at weight 1")
         self.assertEqual([m.name for m in root.data.materials], ["Sapling Bark"])
         moved = np.linalg.norm(Evaluated.vertices("tree", 17) - Evaluated.vertices("tree", 1), axis=1)
         self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the baked bark moves")

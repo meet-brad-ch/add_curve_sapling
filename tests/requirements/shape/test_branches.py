@@ -97,7 +97,8 @@ class HelixStems(unittest.TestCase):
     @Verifies("SWR-0062")
     def test_helix_stems_do_not_split(self):
         level = self.helix(1, levels=2, segSplits=(0.0, 2.0, 0.0, 0.0))
-        self.assertFalse(any(level.model.grown.bone_map[i].is_split for i in level.rows))
+        split = [i for i in level.rows if level.model.grown.bone_map[i].is_split]
+        self.assertEqual(split, [], "helix stems that split")
         for co in level.stems:
             self.assert_helix(co)
 

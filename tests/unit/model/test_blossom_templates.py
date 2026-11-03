@@ -33,7 +33,8 @@ class BlossomTemplates(unittest.TestCase):
             with self.subTest(shape=shape):
                 template = self.template(shape)
                 self.assertAlmostEqual(np.hypot(template.vertices[:, 0], template.vertices[:, 1]).max(), 0.5)
-                self.assertTrue(all(0 in quad for quad in template.faces[::5].tolist()), "every petal meets the centre")
+                apart = [quad for quad in template.faces[::5].tolist() if 0 not in quad]
+                self.assertEqual(apart, [], "every petal meets the centre")
                 edges: dict[tuple[int, int], int] = {}
                 for quad in template.faces.tolist():
                     for a, b in zip(quad, quad[1:] + quad[:1], strict=True):

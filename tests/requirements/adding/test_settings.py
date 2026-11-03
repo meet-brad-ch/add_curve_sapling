@@ -295,7 +295,8 @@ class SettingsFuzz(unittest.TestCase):
         self.assertEqual(len(leaves.data.polygons) % per_leaf, 0, "whole leaves")
 
     def assert_finite(self, name, values):
-        self.assertTrue(all(math.isfinite(v) for v in values), f"{name} has NaN or inf coordinates")
+        not_finite = [v for v in values if not math.isfinite(v)]
+        self.assertEqual(not_finite[:5], [], f"{name} has NaN or inf coordinates")
 
     def assert_bones_on_splines(self):
         splines = Evaluated.spline_points()

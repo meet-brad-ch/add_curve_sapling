@@ -57,7 +57,8 @@ class RigLevels(unittest.TestCase):
         moved = np.linalg.norm(Evaluated.vertices("tree", 17) - Evaluated.vertices("tree", 1), axis=1)
         self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
         splines = {BoneIndex.of(b.name).spline for b in Scene.armature().data.bones}
-        self.assertTrue(all(spline < model.grown.level_ends[0] for spline in splines), "only the trunk has bones")
+        beyond_trunk = [spline for spline in splines if spline >= model.grown.level_ends[0]]
+        self.assertEqual(beyond_trunk, [], "only the trunk has bones")
 
 
 @Verifies("SWR-0100")
@@ -200,7 +201,8 @@ class RigSweep(unittest.TestCase):
         self.assertEqual(proxy.modifiers[0].object.name, "treeArm")
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
         self.assertEqual({g.name for g in proxy.vertex_groups}, bones)
-        self.assertTrue(all(len(v.groups) == 1 and v.groups[0].weight == 1.0 for v in proxy.data.vertices))
+        not_rigid = [v.index for v in proxy.data.vertices if not (len(v.groups) == 1 and v.groups[0].weight == 1.0)]
+        self.assertEqual(not_rigid[:5], [], "proxy vertices not in exactly one group at weight 1")
         inputs = Evaluated.modifier_inputs(root)["Sapling Tree"]["inputs"]
         self.assertEqual((inputs["Rig"], inputs["Wind"], inputs["Joints"]), (True, False, "tree_joints"))
 

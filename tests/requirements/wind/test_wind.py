@@ -224,7 +224,8 @@ class WindAnimation(unittest.TestCase):
         strips = [strip for track in animation.nla_tracks for strip in track.strips]
         slots = [animation.action_slot] if animation.action else [strip.action_slot for strip in strips]
         self.assertTrue(slots)
-        self.assertTrue(all(slot is not None for slot in slots))
+        empty = [i for i, slot in enumerate(slots) if slot is None]
+        self.assertEqual(empty, [], "empty slots")
 
     def test_branch_bones_move(self):
         arm = Scene.armature()

@@ -245,6 +245,7 @@ class CodeSettings:
         found: list[str] = []
         pending = [page]
         seen: set[str] = set()
+        # ends: a method is read once (seen), and only reading a method adds names
         while pending:
             name = pending.pop(0)
             if name in seen:
@@ -343,7 +344,9 @@ class TestTrace:
         """The IDs of the node's @Verifies decorators."""
         ids: list[str] = []
         for decorator in node.decorator_list:
-            if not isinstance(decorator, ast.Call) or getattr(decorator.func, "id", "") != "Verifies":
+            if not isinstance(decorator, ast.Call):
+                continue
+            if not isinstance(decorator.func, ast.Name) or decorator.func.id != "Verifies":
                 continue
             for arg in decorator.args:
                 if isinstance(arg, ast.Constant) and isinstance(arg.value, str):

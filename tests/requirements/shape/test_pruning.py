@@ -93,7 +93,8 @@ class PruningInterpolation(unittest.TestCase):
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
         # every spline is finite, and the branches crowd towards the top of the trunk (Branch Distribution > 1)
         splines = Evaluated.spline_points()
-        self.assertTrue(all(np.isfinite(co).all() for points in splines for co, _radius in points))
+        not_finite = [i for i, points in enumerate(splines) if not all(np.isfinite(co).all() for co, _r in points)]
+        self.assertEqual(not_finite[:5], [], "splines with NaN or inf points")
         trunk_top = max(co[2] for co, _radius in splines[0])
         starts = [points[0][0][2] for points in splines[1:] if len(points) > 1]
         self.assertGreater(float(np.median(starts)), 0.5 * trunk_top)
@@ -118,7 +119,8 @@ class PrunedAwayStems(unittest.TestCase):
         removed = [i for i, s in enumerate(splines) if i > 0 and len(s) == 1]
         self.assertGreater(len(removed), 10)
         bones = {b.name for b in bpy.data.objects["treeArm"].data.bones}
-        self.assertFalse(any(name.startswith(f"bone{i:03d}.") for name in bones for i in removed))
+        kept = [name for name in bones for i in removed if name.startswith(f"bone{i:03d}.")]
+        self.assertEqual(kept[:5], [], "bones of removed stems")
 
     @Verifies("SWR-0066")
     def test_envelope_is_hidden(self):

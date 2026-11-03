@@ -95,7 +95,8 @@ class Architecture(unittest.TestCase):
                     self.assertFalse(self.is_tuple_annotation(node), ast.unparse(node)[:80])
                     if isinstance(node, ast.FunctionDef):
                         returns = [n for n in ast.walk(node) if isinstance(n, ast.Return)]
-                        self.assertFalse(any(isinstance(r.value, ast.Tuple) for r in returns), node.name)
+                        tuples = [r.lineno for r in returns if isinstance(r.value, ast.Tuple)]
+                        self.assertEqual(tuples, [], f"{node.name} returns a tuple")
 
     @staticmethod
     def defined_name(node):
