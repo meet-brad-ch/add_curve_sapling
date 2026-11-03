@@ -7,8 +7,8 @@
     "points": 258,
     "resolution_u": 12,
     "spline_digests": [
-     "5f7c6fad502da2ff",
-     "ae6cabc14ed5c718"
+     "33813c8d88d53389",
+     "c1a33738b75aede6"
     ],
     "splines": 2
    },
@@ -20,7 +20,7 @@
   },
   "leaves": {
    "data": {
-    "co": "31a5d8f22946440c",
+    "co": "db774f421338a4cf",
     "edges": 2891,
     "faces": 826,
     "topology": "7302a6291051d541",
@@ -31,7 +31,7 @@
     "verts": 2478
    },
    "evaluated": {
-    "co": "be9984aa3ceb5281",
+    "co": "083618be8c4c1e66",
     "edges": 2891,
     "faces": 826,
     "verts": 2478
@@ -66,7 +66,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "10dd31ce37506819",
+    "co": "178d224df5fd9f63",
     "edges": 4852,
     "faces": 2368,
     "verts": 2484
@@ -101,13 +101,13 @@
    "animation": {
     "fcurves": 296,
     "groups": "c025cb4220ba312d",
-    "modifiers": "5fa6a94296bf4d3c",
+    "modifiers": "c1a6afabc5abad85",
     "paths": "82f13483ee8adb36"
    },
    "data": {
     "bones": 148,
     "connect": "d26b2613ec731bde",
-    "geometry": "04628eb408a358eb",
+    "geometry": "6c30edf3ac6f09e8",
     "names": "7ab396c8d0fc061e",
     "parents": "19a49f6ce3640b87"
    },
@@ -121,37 +121,37 @@
    "data": {
     "points": 179,
     "spline_digests": [
-     "aa321c81e98df4d3",
-     "0608dfe4483744f0",
-     "498096cc342547c5",
-     "b6e48d63e6143893",
-     "8f38d2e3866a1a51",
-     "e7d581f8ff7b18f3",
-     "7b7ca26f739d007c",
-     "12e6b9ef40a08e24",
-     "020e1112b3ef1922",
-     "26b620752cfd19c4",
-     "5f934123027ebd23",
-     "98a647c0c4df8012",
-     "97128e35e1923525",
-     "e91f8a29d141105b",
-     "1ffefcd809bcd08c",
-     "59163c97f633893a",
-     "5976c10a60241f01",
-     "dd05efc28c773504",
-     "d0997b49af7955d2",
-     "65c7766b913a528c",
-     "820a64a04bfafb3c",
-     "0db26010cfe79624",
-     "b34515c1c9025021",
-     "f40115f6578beb8b",
-     "43948faab7868fbf",
-     "1ad247f7439d76d1",
-     "ebbf33abadc4110f",
-     "617a292c2d7d2272",
-     "0a150b343f3e6ce3",
-     "44e45cdc75726293",
-     "61cd9b9a19f7314d"
+     "ca295fdb763ef32f",
+     "415694a276224463",
+     "27ccd844cc33dde2",
+     "3dbd07f5f11eafe0",
+     "7f6046225de60987",
+     "1bd3d75a4e00d64a",
+     "713f1f79076c6f09",
+     "df83087400fd6598",
+     "35ec4cdb9bebf0e5",
+     "8140d8774e211759",
+     "5aa00bfb7a88c400",
+     "feea9e653f7bff64",
+     "9e6890b89bc975b1",
+     "14d0be6415a3ec9d",
+     "c641b509d4fbb251",
+     "7170aa0cfa0b4e4e",
+     "ac5911efddce21dc",
+     "dad09a0a447e6324",
+     "d2ce6bc7477bb3f5",
+     "df477fea244e6edb",
+     "8c01ca0e061346af",
+     "53c242630ac55d60",
+     "fbb18e0033a9d315",
+     "2e0e7dfb36096a3f",
+     "5eb8ffe3e08a1bd7",
+     "7bc7a188b57bde5f",
+     "81ad7aef9a6e5474",
+     "3c8053e5c7ca9228",
+     "86c0f20cc3e3aadf",
+     "5897ed082be07882",
+     "37c435fe581606d6"
     ],
     "splines": 31
    },
@@ -163,7 +163,7 @@
   },
   "tree_joints": {
    "data": {
-    "co": "f99d24e894cfebe6",
+    "co": "d94e7a42864452ea",
     "edges": 0,
     "faces": 0,
     "topology": "da39a3ee5e6b4b0d",

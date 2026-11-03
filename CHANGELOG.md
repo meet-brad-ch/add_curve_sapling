@@ -74,6 +74,13 @@ this section and of 0.4.0 below.
 
 ### Changed
 
+- A tree's size is no longer moved by 0.000001 away from zero. The add-on refuses a *Scale* and *Scale
+  Variation* that can give a size of 0 or less, and names both settings. The trees of 13 presets change,
+  because the size feeds threshold decisions (splits, pruning, sprouts): *Cambridge Oak*, *Coast Live Oak*,
+  *Douglas Fir*, *European Larch*, *Hill Cherry*, *Japanese Maple*, *Monterey Pine*, *Silver Birch*, *Small
+  Maple*, *Small Pine*, *Weeping Willow*, *White Birch* and *Willow*. A tree made by an older version of these
+  presets changes when you edit it, also with its settings unchanged. The other trees move by less than
+  0.1 % of their size (median 5e-7).
 - The 18 presets from tree-gen use the full mapping: the leaf down angle variation sign (tree-gen's
   positive value is random, Sapling's varies along the parent), Bend Variation from `bend_v`, Helix on
   Black Oak's third level and Sphere Tree's trunk, blossoms on Apple and Hill Cherry, and Count Above

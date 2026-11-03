@@ -108,8 +108,8 @@ requirement and the trace from each requirement to its tests.
 - **Criteria:** A changed setting gives the tree of that setting.
 
 ### SWR-0016 Settings within range
-- **Statement:** When every setting is within its range of Appendix A, the Sapling Tree Gen extension shall generate a tree without an error.
-- **Rationale:** A setting that the panel allows must not break the tree.
+- **Statement:** When the settings are within their ranges and break no stated rule, the Sapling Tree Gen extension shall generate a tree without an error.
+- **Rationale:** A setting that the panel allows must not break the tree. The stated rules are the ones between settings that one range cannot hold (SWR-0063, SWR-0070, SWR-0076).
 - **Method:** test
 - **Criteria:** 100 trees with random settings within their ranges generate (the fuzz test).
 
@@ -341,6 +341,12 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** A split trunk carries the branches of one trunk, not one set per piece.
 - **Method:** test
 - **Criteria:** *White Birch* with two base splits grows the first-level branch count of one trunk.
+
+### SWR-0076 Tree size above zero
+- **Statement:** If *Scale* minus *Scale Variation* is 0 or less, then the Sapling Tree Gen extension shall refuse the tree and name both settings.
+- **Rationale:** The tree's size is Scale plus a random amount within plus or minus Scale Variation. The model divides by it. A size of 0 or less is no tree. No built-in preset comes near it (the smallest is 1.6 m).
+- **Method:** test
+- **Criteria:** Scale 1 and Scale Variation 1 cancel with a message that names both settings and makes no objects. Scale 1 and Scale Variation 0.5 generate.
 
 ## Leaves and blossoms
 

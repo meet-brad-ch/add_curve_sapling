@@ -3,7 +3,7 @@
  "fingerprint": {
   "blossoms": {
    "data": {
-    "co": "edbbd4f340e848c4",
+    "co": "19d9359c6957ce54",
     "edges": 8470,
     "faces": 3025,
     "topology": "2a228cbb1a9432d6",
@@ -14,7 +14,7 @@
     "verts": 5566
    },
    "evaluated": {
-    "co": "741a6f5b5d7b1a48",
+    "co": "920d34067c0a4340",
     "edges": 8470,
     "faces": 3025,
     "verts": 5566
@@ -47,7 +47,7 @@
   },
   "leaves": {
    "data": {
-    "co": "8113235ddb15f311",
+    "co": "acd06486b50a5b18",
     "edges": 2240,
     "faces": 640,
     "topology": "c2d98883f690908b",
@@ -58,7 +58,7 @@
     "verts": 1920
    },
    "evaluated": {
-    "co": "e49f5ca3f481f03d",
+    "co": "85b00e9d010e8e47",
     "edges": 2240,
     "faces": 640,
     "verts": 1920
@@ -91,7 +91,7 @@
   },
   "tree": {
    "data": {
-    "co": "e00495ff6ffd1514",
+    "co": "3e90f9fdda9fd3e4",
     "edges": 5180,
     "faces": 2528,
     "topology": "eafeef210f556b05",
@@ -99,7 +99,7 @@
     "verts": 2652
    },
    "evaluated": {
-    "co": "5cd52a2b7ad749b4",
+    "co": "f4cb072c28b9b41e",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -124,37 +124,37 @@
    "data": {
     "points": 189,
     "spline_digests": [
-     "aa321c81e98df4d3",
-     "0608dfe4483744f0",
-     "498096cc342547c5",
-     "b6e48d63e6143893",
-     "8f38d2e3866a1a51",
-     "e7d581f8ff7b18f3",
-     "7b7ca26f739d007c",
-     "12e6b9ef40a08e24",
-     "020e1112b3ef1922",
-     "26b620752cfd19c4",
-     "5f934123027ebd23",
-     "98a647c0c4df8012",
-     "97128e35e1923525",
-     "e91f8a29d141105b",
-     "1ffefcd809bcd08c",
-     "59163c97f633893a",
-     "5976c10a60241f01",
-     "dd05efc28c773504",
-     "d0997b49af7955d2",
-     "65c7766b913a528c",
-     "820a64a04bfafb3c",
-     "8a219496d0378cd8",
-     "8e27f7f99d0c305d",
-     "575f270387214993",
-     "7cf84e7080114783",
-     "3df2d550878ab0df",
-     "678e9c306077e5d3",
-     "14a3c04c211439c0",
-     "cce723eaae1375e5",
-     "e11195a004f75d57",
-     "ae0632cd6e9657bf"
+     "ca295fdb763ef32f",
+     "415694a276224463",
+     "27ccd844cc33dde2",
+     "3dbd07f5f11eafe0",
+     "7f6046225de60987",
+     "1bd3d75a4e00d64a",
+     "713f1f79076c6f09",
+     "df83087400fd6598",
+     "35ec4cdb9bebf0e5",
+     "8140d8774e211759",
+     "5aa00bfb7a88c400",
+     "feea9e653f7bff64",
+     "9e6890b89bc975b1",
+     "14d0be6415a3ec9d",
+     "c641b509d4fbb251",
+     "7170aa0cfa0b4e4e",
+     "ac5911efddce21dc",
+     "dad09a0a447e6324",
+     "d2ce6bc7477bb3f5",
+     "df477fea244e6edb",
+     "8c01ca0e061346af",
+     "678f5066f088d45f",
+     "aa2c854674be1e7b",
+     "99c2ef263ccbda06",
+     "49570e9f312fc27b",
+     "591ba8e84775212c",
+     "46d7b99352992342",
+     "d852ebb491a37017",
+     "859ff67ad7a76cae",
+     "0acdf57863ec5a90",
+     "46708c0a40f55a17"
     ],
     "splines": 31
    },
@@ -166,7 +166,7 @@
   },
   "tree_wind": {
    "data": {
-    "co": "f24ea7739d1f8655",
+    "co": "67de15b7eb6e9f52",
     "points": 158,
     "splines": 31
    },

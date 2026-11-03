@@ -13,8 +13,6 @@ for the stdlib `Random` stream order.
 ## Open
 
 ### Owner decisions (change computed trees)
-- **Q1 [N]** `source/generator.py:111` `scale += copysign(1e-6, scale)` silently moves a zero scale. Fix: refuse a
-  zero scale in the model params. Changes every golden tree (the nudge applies to all).
 - **Q2 [N]** Silent clamps in the model: `wind_model.py:50, 64` (`max(x, 1e-6)`, `max(speed, 0.001)`),
   `pruning.py:88`, `joints.py:276` (`np.maximum(radius, 1e-6)`). Fix: refuse the setting with
   `InvalidSettingError`, or name on the line why the clamp is the original behaviour. Changes trees only for the
@@ -94,3 +92,7 @@ for the stdlib `Random` stream order.
 - **Q28** `tests/support/node_trees.py:36` `to_mesh_clear()` not in `finally`.
 
 ## Fixed
+
+- **Q1** (owner 2026-11-03: validate the input, remove the nudge) the zero-scale nudge removed; SWR-0076
+  refuses Scale - Scale Variation <= 0. Measured: 14 of 77 golden cases change visibly (12 in element counts),
+  the others by less than 0.1 %; golden data re-recorded. Commit: see git log for SWR-0076.

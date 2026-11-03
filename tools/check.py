@@ -32,7 +32,11 @@ from blender_env import (
 LINE_COVERAGE_MIN = 99
 BRANCH_COVERAGE_MIN = 96
 # vulture: every folder of code (tools/vulture_whitelist.py holds the names used only by name)
-DEAD_CODE = ["source", "tools", "tests", "--exclude", "source/presets,build,.venv", "--min-confidence", "60"]
+# (requirement tests carry @Verifies: unittest finds them by name, so vulture skips that decorator)
+DEAD_CODE = [
+    "source", "tools", "tests", "--exclude", "source/presets,build,.venv", "--min-confidence", "60",
+    "--ignore-decorators", "@Verifies",
+]  # fmt: skip
 
 
 def step(title: str, cmd: list[str]) -> bool:

@@ -11,7 +11,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "1004048e1d530c5c",
+    "co": "2261eabfafb2dedc",
     "edges": 260,
     "faces": 128,
     "verts": 132
@@ -46,7 +46,7 @@
    "data": {
     "points": 9,
     "spline_digests": [
-     "264ae6228ae969ea"
+     "1edb9815aaef6c74"
     ],
     "splines": 1
    },

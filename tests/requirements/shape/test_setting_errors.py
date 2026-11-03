@@ -5,9 +5,11 @@
 import unittest
 import unittest.mock
 
+import bpy
 import numpy as np
 from support.addon import Addon
 from support.model import Model
+from support.scene import Scene
 from support.verifies import Verifies
 
 
@@ -31,3 +33,20 @@ class ExplicitChoices(unittest.TestCase):
         geometry = Addon.module("model.geometry")
         with self.assertRaisesRegex(ValueError, "Custom Shape needs its four values"):
             geometry.CrownShape.ratios(geometry.CrownShape.CUSTOM, np.array([0.5]))
+
+
+@Verifies("SWR-0076")
+class TreeSizeAboveZero(unittest.TestCase):
+    def settings(self, scale, variation):
+        settings = Addon.resolve_preset("quaking_aspen.py")
+        settings.update(scale=scale, scaleV=variation)
+        return settings
+
+    def test_a_size_range_reaching_zero_is_refused(self):
+        Scene.reset()
+        with self.assertRaisesRegex(RuntimeError, "Scale 1 minus Scale Variation 1 is 0"):
+            Scene.generate(self.settings(1.0, 1.0))
+        self.assertEqual(len(bpy.data.objects), 0)
+
+    def test_a_size_range_above_zero_generates(self):
+        self.assertEqual(Scene.generate(self.settings(1.0, 0.5)), {"FINISHED"})

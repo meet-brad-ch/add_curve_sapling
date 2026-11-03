@@ -3,7 +3,7 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "6f393f8635220657",
+    "co": "acd3c8fa526cbfc3",
     "edges": 3087,
     "faces": 882,
     "topology": "83ffb3597209477b",
@@ -31,7 +31,7 @@
     "verts": 0
    },
    "evaluated": {
-    "co": "5f60fabd9bc9de5a",
+    "co": "231ed1aab7bd4f03",
     "edges": 5180,
     "faces": 2528,
     "verts": 2652
@@ -66,13 +66,13 @@
    "animation": {
     "fcurves": 316,
     "groups": "3fd3fbe0c1560f3e",
-    "modifiers": "44f4ea225cae8e85",
+    "modifiers": "4acd547617a95f38",
     "paths": "9945c17a0699bf4b"
    },
    "data": {
     "bones": 158,
     "connect": "41663ef0cbb633b6",
-    "geometry": "ec13fc43e9327139",
+    "geometry": "ecb15efde4f50bdc",
     "names": "b869fe8ad1b37bd6",
     "parents": "dcb9e98e71750b96"
    },
@@ -86,37 +86,37 @@
    "data": {
     "points": 189,
     "spline_digests": [
-     "aa321c81e98df4d3",
-     "0608dfe4483744f0",
-     "498096cc342547c5",
-     "b6e48d63e6143893",
-     "8f38d2e3866a1a51",
-     "e7d581f8ff7b18f3",
-     "7b7ca26f739d007c",
-     "12e6b9ef40a08e24",
-     "020e1112b3ef1922",
-     "26b620752cfd19c4",
-     "5f934123027ebd23",
-     "98a647c0c4df8012",
-     "97128e35e1923525",
-     "e91f8a29d141105b",
-     "1ffefcd809bcd08c",
-     "59163c97f633893a",
-     "5976c10a60241f01",
-     "dd05efc28c773504",
-     "d0997b49af7955d2",
-     "65c7766b913a528c",
-     "820a64a04bfafb3c",
-     "8a219496d0378cd8",
-     "8e27f7f99d0c305d",
-     "575f270387214993",
-     "7cf84e7080114783",
-     "3df2d550878ab0df",
-     "678e9c306077e5d3",
-     "14a3c04c211439c0",
-     "cce723eaae1375e5",
-     "e11195a004f75d57",
-     "ae0632cd6e9657bf"
+     "ca295fdb763ef32f",
+     "415694a276224463",
+     "27ccd844cc33dde2",
+     "3dbd07f5f11eafe0",
+     "7f6046225de60987",
+     "1bd3d75a4e00d64a",
+     "713f1f79076c6f09",
+     "df83087400fd6598",
+     "35ec4cdb9bebf0e5",
+     "8140d8774e211759",
+     "5aa00bfb7a88c400",
+     "feea9e653f7bff64",
+     "9e6890b89bc975b1",
+     "14d0be6415a3ec9d",
+     "c641b509d4fbb251",
+     "7170aa0cfa0b4e4e",
+     "ac5911efddce21dc",
+     "dad09a0a447e6324",
+     "d2ce6bc7477bb3f5",
+     "df477fea244e6edb",
+     "8c01ca0e061346af",
+     "678f5066f088d45f",
+     "aa2c854674be1e7b",
+     "99c2ef263ccbda06",
+     "49570e9f312fc27b",
+     "591ba8e84775212c",
+     "46d7b99352992342",
+     "d852ebb491a37017",
+     "859ff67ad7a76cae",
+     "0acdf57863ec5a90",
+     "46708c0a40f55a17"
     ],
     "splines": 31
    },
@@ -128,7 +128,7 @@
   },
   "tree_joints": {
    "data": {
-    "co": "ab660d29a22c1c52",
+    "co": "6cd515311c126749",
     "edges": 0,
     "faces": 0,
     "topology": "da39a3ee5e6b4b0d",

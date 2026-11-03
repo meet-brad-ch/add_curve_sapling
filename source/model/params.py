@@ -111,6 +111,7 @@ class TreeParams(PlainParams):
     def _shape(self, s: Any) -> None:
         self.scale = float(s.scale)
         self.scale_v = float(s.scaleV)
+        self._check_scale()
         self.shape = int(s.shape)
         self.shape_s = int(s.shapeS)
         self.custom_shape = self._floats(s.customShape)
@@ -163,6 +164,16 @@ class TreeParams(PlainParams):
         self.attract_out = self._floats(s.attractOut)
         self.wind_dir = radians(float(s.windDir))
         self.wind_bend = self._floats(s.windBend)
+
+    def _check_scale(self) -> None:
+        """The tree's size is Scale plus a random amount within +-Scale Variation. It must stay above 0: the model
+        divides by it (split probability, pruning envelope, sprout positions)."""
+        smallest = self.scale - abs(self.scale_v)
+        if smallest <= 0:
+            raise InvalidSettingError(
+                f"Scale {self.scale:g} minus Scale Variation {abs(self.scale_v):g} is {smallest:g}: the tree's size "
+                "must stay above 0. Raise Scale or lower Scale Variation"
+            )
 
     def _check_helix(self) -> None:
         """A helix level takes its helix angle from Curvature Variation, which must be less than 90 degrees."""

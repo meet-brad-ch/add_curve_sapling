@@ -5,7 +5,6 @@
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
-from math import copysign
 from typing import Any
 
 from bpy.types import Collection, Context, Object
@@ -107,8 +106,7 @@ class TreeGenerator:
         rng = random.Random(p.seed)
         root_builder = TreeRootBuilder(b, objects)
         root = root_builder.build()
-        scale = p.scale + rng.uniform(-p.scale_v, p.scale_v)
-        scale += copysign(1e-6, scale)  # never exactly zero
+        scale = p.scale + rng.uniform(-p.scale_v, p.scale_v)  # above 0: TreeParams checks the range
         if p.prune:
             EnvelopeBuilder(p, objects).build(root, scale)
 
