@@ -107,6 +107,12 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** A changed setting gives the tree of that setting.
 
+### SWR-0016 Settings within range
+- **Statement:** When every setting is within its range of Appendix A, the Sapling Tree Gen extension shall generate a tree without an error.
+- **Rationale:** A setting that the panel allows must not break the tree.
+- **Method:** test
+- **Criteria:** 100 trees with random settings within their ranges generate (the fuzz test).
+
 ## Editing and duplicating
 
 ### SWR-0020 Stored settings
@@ -174,6 +180,12 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** The panel does not fail at each redraw, and the user knows why the edit is not available.
 - **Method:** test
 - **Criteria:** The panel draws the reason and raises no error.
+
+### SWR-0031 Edit on another object
+- **Statement:** If *Edit Sapling Tree* runs on an object that is not a tree, then the Sapling Tree Gen extension shall cancel with a message.
+- **Rationale:** Only a tree has the stored settings.
+- **Method:** test
+- **Criteria:** The operator cancels with a message and the object is unchanged.
 
 ## Presets
 
@@ -300,6 +312,36 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The operator cancels with the reason and makes no objects.
 
+### SWR-0071 Bend Variation
+- **Statement:** Where a level's *Bend Variation* is more than 0, the Sapling Tree Gen extension shall turn its segments sideways by random angles up to it.
+- **Rationale:** Branches of real trees wander sideways (tree-gen's bend variation).
+- **Method:** test
+- **Criteria:** A segment turns by at most the value divided by the level's segments. The first segment and a segment that splits do not turn. Value 0 changes nothing.
+
+### SWR-0072 Count Above Base
+- **Statement:** Where *Count Above Base* is on, the Sapling Tree Gen extension shall count each level's branches on the stem part above its bare base.
+- **Rationale:** tree-gen counts branches so; the palm then gets its fronds in the crown.
+- **Method:** test
+- **Criteria:** The palm preset gets 25 fronds in the crown. The leaf count does not change.
+
+### SWR-0073 Trunks Face Out
+- **Statement:** Where *Trunks Face Out* is on, the Sapling Tree Gen extension shall curve each further trunk of a clump away from the clump's centre.
+- **Rationale:** Bamboo culms lean out from the clump.
+- **Method:** test
+- **Criteria:** Each further trunk bends away from the centre. Off: the trunks bend in random directions.
+
+### SWR-0074 Bevel
+- **Statement:** Where *Bevel* is on, the Sapling Tree Gen extension shall sweep the bark around the branches with the radius settings.
+- **Rationale:** The branches get thickness, and the sweep stays live for later edits.
+- **Method:** test
+- **Criteria:** The sweep has the vertex count of Blender's own bevel of the same curve. The Bevel inputs stay live. Apply gives the mesh.
+
+### SWR-0075 Base Splits
+- **Statement:** Where *Base Splits* is more than 0, the Sapling Tree Gen extension shall grow one first-level branch per height among the trunk's pieces.
+- **Rationale:** A split trunk carries the branches of one trunk, not one set per piece.
+- **Method:** test
+- **Criteria:** *White Birch* with two base splits grows the first-level branch count of one trunk.
+
 ## Leaves and blossoms
 
 ### SWR-0080 Leaves
@@ -345,6 +387,18 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** Conifers and shrubs carry flat foliage pads.
 - **Method:** test
 - **Criteria:** Value 1 lays every leaf flat, 0.5 turns each one halfway. *Leaf Face Up Variation* tilts each leaf within its range.
+
+### SWR-0087 Leaves Above Base
+- **Statement:** Where *Leaves Above Base* is on, the Sapling Tree Gen extension shall grow no leaves on the bare base of their stems.
+- **Rationale:** Leaves grow where branches grow.
+- **Method:** test
+- **Criteria:** No leaf lies on the bare base of its stem.
+
+### SWR-0088 Fan Angles
+- **Statement:** Where *Fan Angles* is on, the Sapling Tree Gen extension shall tilt the leaves of each palmate fan by *Leaf Down Angle* into a cup.
+- **Rationale:** Palm fans are cupped, not flat (tree-gen's fans).
+- **Method:** test
+- **Criteria:** The fan leaves tilt by the down angle. Off: the fans are flat and even.
 
 ## Armature and baked mesh
 
@@ -461,6 +515,12 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** Orphan meshes, curves and node groups fill the file.
 - **Method:** test
 - **Criteria:** The data block counts are equal before and after a remove and after a regenerate.
+
+### SWR-0145 No other objects changed
+- **Statement:** The Sapling Tree Gen extension shall change no object other than the tree that it builds or edits.
+- **Rationale:** Other objects of the scene are the user's work.
+- **Method:** test
+- **Criteria:** Other objects, including another selected armature, keep their data, mode and selection.
 
 ## Performance
 
