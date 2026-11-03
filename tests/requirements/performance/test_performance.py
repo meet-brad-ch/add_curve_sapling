@@ -5,6 +5,7 @@
 import math
 import time
 import unittest
+from dataclasses import dataclass
 
 import bpy
 from support.addon import Addon
@@ -12,10 +13,18 @@ from support.coverage import Coverage
 from support.evaluated import Evaluated
 from support.model import Model
 from support.scene import Scene
-from support.timing import StageTimer
+from support.timing import StageTimer, TimedStage
 from support.verifies import Verifies
 
 MAX_RATIO = 2.6
+
+
+@dataclass(frozen=True)
+class BuildTime:
+    """A tree's spline count and its shortest build time in seconds."""
+
+    splines: int
+    seconds: float
 
 
 @Verifies("SWR-0162")
@@ -23,10 +32,10 @@ class LeafScaling(unittest.TestCase):
     RUNS = 2  # the shortest of these runs counts, which keeps other load on the machine out of the ratio
 
     STAGES = (
-        ("model.leaves", "LeafGenerator", "generate"),
-        ("build.leaf_object", "LeafObjectBuilder", "build"),
-        ("build.leaf_object", "LeafObjectBuilder", "finish"),
-        ("build.armature", "ArmatureBuilder", "_leaf_groups"),  # vertex groups and the flutter
+        TimedStage(module="model.leaves", owner="LeafGenerator", method="generate"),
+        TimedStage(module="build.leaf_object", owner="LeafObjectBuilder", method="build"),
+        TimedStage(module="build.leaf_object", owner="LeafObjectBuilder", method="finish"),
+        TimedStage(module="build.armature", owner="ArmatureBuilder", method="_leaf_groups"),  # groups and flutter
     )
 
     def leaf_time(self, leaves):
@@ -77,11 +86,15 @@ class BuildScaling(unittest.TestCase):
                 started = time.perf_counter()
                 self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
                 times.append(time.perf_counter() - started)
-        return len(Evaluated.spline_points()), min(times)
+        return BuildTime(splines=len(Evaluated.spline_points()), seconds=min(times))
 
     def test_build_is_linear(self):
-        small_stems, small = self.build(25)
-        big_stems, big = self.build(100)
+        small_build = self.build(25)
+        big_build = self.build(100)
+        small_stems = small_build.splines
+        small = small_build.seconds
+        big_stems = big_build.splines
+        big = big_build.seconds
         exponent = math.log(big / small) / math.log(big_stems / small_stems)
         measured = f"{small_stems} stems {small:.2f} s, {big_stems} stems {big:.2f} s"
         self.assertLess(exponent, self.MAX_EXPONENT, measured)

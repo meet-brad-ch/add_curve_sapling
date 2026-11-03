@@ -10,6 +10,7 @@ from mathutils import Vector
 
 from support.addon import Addon
 from support.evaluated import Evaluated
+from support.grown_leaves import GrownLeaves
 from support.model import Model
 from support.scene import Scene
 
@@ -21,16 +22,22 @@ class Foliage:
     def blossoms_module():
         return Addon.module("model.blossoms")
 
-    @staticmethod
-    def grow(**changes):
+    @classmethod
+    def grow(cls, **changes):
         """The leaves and blossoms of a quaking aspen with leaves, grown in the model alone."""
+        return cls.grow_with_tree(**changes).foliage
+
+    @staticmethod
+    def grow_with_tree(**changes) -> GrownLeaves:
+        """The leaves and blossoms of a quaking aspen with leaves, grown in the model alone, with the tree."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=True, **changes)
         params = Model.params(settings)
         curve = Addon.module("model.curve_data").CurveData()
         rng = random.Random(params.seed)
         grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-        return Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts)
+        foliage = Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts)
+        return GrownLeaves(grown=grown, foliage=foliage)
 
     @staticmethod
     def blocks(leaf_set):

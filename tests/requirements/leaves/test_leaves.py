@@ -2,7 +2,6 @@
 
 """Leaves and blossoms: leaves (the requirements each class or test names)."""
 
-import random
 import unittest
 import unittest.mock
 
@@ -155,28 +154,23 @@ class PalmSettings(unittest.TestCase):
         ends = model.grown.level_ends
         return [i for i in range(ends[0], ends[1]) if not model.grown.bone_map[i].is_split]
 
-    @staticmethod
-    def foliage(**changes):
-        settings = Addon.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, showLeaves=True, **changes)
-        params = Model.params(settings)
-        curve = Addon.module("model.curve_data").CurveData()
-        rng = random.Random(params.seed)
-        grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-        return grown, Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
-
     @Verifies("SWR-0087")
     def test_leaves_above_base_keep_off_the_bare_base(self):
-        grown, plain = self.foliage(baseSize=0.4, baseSize_s=1.0)
+        result = Foliage.grow_with_tree(baseSize=0.4, baseSize_s=1.0)
+        grown = result.grown
+        plain = result.foliage.leaves
         self.assertLess(grown.sprouts.stem_offset[~grown.sprouts.is_tip].min(), 0.3)
-        grown, above = self.foliage(baseSize=0.4, baseSize_s=1.0, leavesAboveBase=True)
+        result = Foliage.grow_with_tree(baseSize=0.4, baseSize_s=1.0, leavesAboveBase=True)
+        grown = result.grown
+        above = result.foliage.leaves
         self.assertGreaterEqual(grown.sprouts.stem_offset[~grown.sprouts.is_tip].min(), 0.4 - 1e-9)
         self.assertLess(above.count, plain.count)
 
     @Verifies("SWR-0088")
     def test_fan_angles_cup_the_fans(self):
         def out_of_plane(**changes):
-            _, leaves = self.foliage(leaves=-7, leafRotate=200.0, leafDownAngle=-20.0, leafDownAngleV=-5.0, **changes)
+            foliage = Foliage.grow(leaves=-7, leafRotate=200.0, leafDownAngle=-20.0, leafDownAngleV=-5.0, **changes)
+            leaves = foliage.leaves
             per_leaf = leaves.vertices.reshape(leaves.count, -1, 3).astype(np.float64)
             directions = per_leaf.mean(axis=1) - leaves.sprout_co
             directions /= np.linalg.norm(directions, axis=1, keepdims=True)

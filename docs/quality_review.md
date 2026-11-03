@@ -27,8 +27,6 @@ for the stdlib `Random` stream order.
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
 
 ### Records and structure
-- **Q16** Tuples instead of records: `requirements_check.py:257` `properties()`, `tests/support/timing.py:14`
-  stages, `node_trees.py:36` counts, and the tuple returns of 10 test helpers. Fix: frozen dataclasses.
 - **Q17** OOD splits: `model/joints.py` `Joints` holds topology and sway (move sway to `JointSwayBuilder`);
   `model/branching.py` `TrunkPick` uses `LevelStarter`'s static methods (a `BranchAngles` object);
   `model/tree.py:64-79` placeholder grower and pruning (temporal coupling), `root_key` twice;
@@ -63,7 +61,6 @@ for the stdlib `Random` stream order.
   the bounded `while` loops of `requirements_check.py:235` and `test_trunk.py:20` need their bound named.
 - **Q27** Tests: 6 `assertTrue(all/any(...))` without the offenders (test_baked_mesh:48, test_rig:201,
   test_pruning:96, test_flutter:94, test_wind:227, test_tree_structure:239). Fix: assert the offender list is empty.
-- **Q28** `tests/support/node_trees.py:36` `to_mesh_clear()` not in `finally`.
 
 ## Fixed
 
@@ -127,3 +124,9 @@ for the stdlib `Random` stream order.
   (`LevelStarter.children`), `TrunkGroups` (`TrunkPick._rotate_choice`), `SplitStep` (`LevelGrower._split_rows`),
   `HandleArrays` (`AutoHandles.recalculate_flat`). Every value is computed where it was, in the same order; the
   golden trees do not change. `FamilyPositions` and `GrownTree` are frozen dataclasses too.
+- **Q16** no tuple returns in tests/ and tools/ (an AST scan finds none outside the port tools): the shared helpers
+  became support classes with named records (`OperatorStandIn` from three copies, `RiggedTree` from two copies with
+  `assert_selected_and_movable`, `Foliage.grow_with_tree` and `GrownLeaves` from two copies of `Foliage.grow`, also
+  Q23 for the tests), `MeshCounts`, `TimedStage`, `DeclaredProperty`, and local records `HelixLevel`, `Turns`,
+  `BuildTime`, `LoadedCurve`.
+- **Q28** `NodeTrees.counts` frees its temporary mesh in `finally`.

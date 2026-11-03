@@ -13,6 +13,7 @@ from support.console import Console
 from support.evaluated import Evaluated
 from support.model import BoneIndex, Model
 from support.node_trees import NodeTrees
+from support.rigged_tree import RiggedTree
 from support.scene import Scene
 from support.trees import Trees
 from support.verifies import Verifies
@@ -287,35 +288,19 @@ class RigSizeLimits(unittest.TestCase):
 class ArmatureDisplay(unittest.TestCase):
     """The tree mesh is the root, the armature its child; the bones are hidden, the root never is."""
 
-    def add(self, **changes):
-        Scene.reset()
-        settings = Addon.resolve_preset("quaking_aspen.py")
-        settings.update(useRig=True, **changes)
-        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        root = Scene.active_object()
-        self.assertEqual((root.name, root.type), ("tree", "MESH"))
-        (armature,) = [ob for ob in root.children if ob.type == "ARMATURE"]
-        (collection,) = armature.data.collections
-        return root, armature, collection
-
-    def assert_selected_and_movable(self, root):
-        self.assertTrue(root.visible_get())
-        self.assertTrue(root.select_get())
-        editable = bpy.context.selected_editable_objects
-        if editable is None:
-            raise AssertionError("no selected_editable_objects in this context")
-        self.assertIn(root, editable)
-
     def test_bones_hidden_tree_selected_and_movable(self):
-        root, armature, collection = self.add()
+        tree = RiggedTree.add(self)
+        root = tree.root
+        armature = tree.armature
+        collection = tree.collection
         self.assertEqual(collection.name, "Sapling Bones")
         self.assertFalse(collection.is_visible)
         self.assertEqual(len(collection.bones), len(armature.data.bones))
         self.assertGreater(len(armature.data.bones), 10)
-        self.assert_selected_and_movable(root)
+        RiggedTree.assert_selected_and_movable(self, root)
 
     def test_hidden_bones_still_deform(self):
-        self.add(showLeaves=True, windAnim=True)
+        RiggedTree.add(self, showLeaves=True, windAnim=True)
         leaves = bpy.data.objects["leaves"]
         scene = bpy.context.scene
         positions = []

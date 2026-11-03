@@ -3,20 +3,42 @@
 """Tree shape: branches (the requirements each class or test names)."""
 
 import math
-import random
 import unittest
 import unittest.mock
+from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import Any
 
 import bpy
 import numpy as np
 from support.addon import Addon
 from support.crown import Crown
 from support.evaluated import Evaluated
+from support.foliage import Foliage
+from support.mesh_counts import MeshCounts
 from support.model import Model
 from support.node_trees import LegacyBevel, NodeTrees
 from support.scene import Scene
 from support.verifies import Verifies
+
+
+@dataclass(frozen=True)
+class HelixLevel:
+    """A tree whose one level grows helixes: the model, its flat curve, the level's spline rows, and the points of
+    that level's stems with three or more points."""
+
+    model: Any
+    flat: Any
+    rows: range
+    stems: list
+
+
+@dataclass(frozen=True)
+class Turns:
+    """The turn angles between the segments of every level-1 stem (degrees), and the level's segment count."""
+
+    angles: np.ndarray
+    segments: int
 
 
 class HelixStems(unittest.TestCase):
@@ -35,7 +57,8 @@ class HelixStems(unittest.TestCase):
         ends = [0, *model.grown.level_ends]
         rows = range(ends[level], ends[level + 1])
         points = [flat.co[flat.start[i] : flat.start[i + 1]].astype(np.float64) for i in rows]
-        return model, flat, rows, [p for p in points if len(p) >= 3]
+        stems = [p for p in points if len(p) >= 3]
+        return HelixLevel(model=model, flat=flat, rows=rows, stems=stems)
 
     def assert_helix(self, co):
         """Points on a helix: every second point one pitch further along the same axis, every chord as long, and
@@ -50,13 +73,15 @@ class HelixStems(unittest.TestCase):
 
     @Verifies("SWR-0062")
     def test_points_lie_on_a_helix(self):
-        _, _, _, stems = self.helix(0, levels=1, curveRes=(12, 5, 3, 1))
+        stems = self.helix(0, levels=1, curveRes=(12, 5, 3, 1)).stems
         self.assertEqual(len(stems), 1)
         self.assert_helix(stems[0])
 
     @Verifies("SWR-0062")
     def test_helix_points_have_free_handles(self):
-        _, flat, rows, _ = self.helix(1, levels=2)
+        level = self.helix(1, levels=2)
+        flat = level.flat
+        rows = level.rows
         free = Addon.module("model.curve_data").HandleType.FREE
         at = np.concatenate([np.arange(flat.start[i], flat.start[i + 1]) for i in rows])
         self.assertTrue((flat.h1[at] == free).all() and (flat.h2[at] == free).all())
@@ -71,16 +96,16 @@ class HelixStems(unittest.TestCase):
 
     @Verifies("SWR-0062")
     def test_helix_stems_do_not_split(self):
-        model, _, rows, stems = self.helix(1, levels=2, segSplits=(0.0, 2.0, 0.0, 0.0))
-        self.assertFalse(any(model.grown.bone_map[i].is_split for i in rows))
-        for co in stems:
+        level = self.helix(1, levels=2, segSplits=(0.0, 2.0, 0.0, 0.0))
+        self.assertFalse(any(level.model.grown.bone_map[i].is_split for i in level.rows))
+        for co in level.stems:
             self.assert_helix(co)
 
     @Verifies("SWR-0062")
     def test_a_pruned_helix_stays_a_helix(self):
-        model, _, _, stems = self.helix(1, preset="callistemon", prune=True)
-        self.assertTrue(model.params.prune and stems)
-        for co in stems:
+        level = self.helix(1, preset="callistemon", prune=True)
+        self.assertTrue(level.model.params.prune and level.stems)
+        for co in level.stems:
             self.assert_helix(co)
 
     @Verifies("SWR-0063")
@@ -166,7 +191,7 @@ class BendVariation(unittest.TestCase):
             d = np.diff(co, axis=0)
             d /= np.linalg.norm(d, axis=1, keepdims=True)
             turns.append(np.degrees(np.arccos(np.clip((d[:-1] * d[1:]).sum(axis=1), -1, 1))))
-        return np.concatenate(turns), model.params.curve_res[1]
+        return Turns(angles=np.concatenate(turns), segments=model.params.curve_res[1])
 
     def test_bend_off_draws_nothing(self):
         bend = Addon.module("model.randomness").Draw.BEND
@@ -174,11 +199,11 @@ class BendVariation(unittest.TestCase):
         self.assertIn(bend, self.draws(levels=2, bendV=(0.0, 30.0, 0.0, 0.0)))
 
     def test_bend_turns_level_stems_sideways(self):
-        straight, _ = self.turns(0.0)
+        straight = self.turns(0.0).angles
         self.assertLess(straight.max(), 1e-3)
-        bent, segments = self.turns(60.0)
-        self.assertGreater(bent.max(), 1.0)
-        self.assertLessEqual(bent.max(), 60.0 / segments + 1e-3)
+        bent = self.turns(60.0)
+        self.assertGreater(bent.angles.max(), 1.0)
+        self.assertLessEqual(bent.angles.max(), 60.0 / bent.segments + 1e-3)
 
     def test_split_step_does_not_bend(self):
         growth = Addon.module("model.growth")
@@ -206,16 +231,6 @@ class PalmSettings(unittest.TestCase):
         ends = model.grown.level_ends
         return [i for i in range(ends[0], ends[1]) if not model.grown.bone_map[i].is_split]
 
-    @staticmethod
-    def foliage(**changes):
-        settings = Addon.resolve_preset("quaking_aspen.py")
-        settings.update(levels=2, showLeaves=True, **changes)
-        params = Model.params(settings)
-        curve = Addon.module("model.curve_data").CurveData()
-        rng = random.Random(params.seed)
-        grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-        return grown, Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
-
     def test_count_above_base_fills_the_crown(self):
         self.assertLessEqual(len(self.first_level(Model.grow_preset(**self.PALM))), 2)
         crown = Model.grow_preset(**self.PALM, countAboveBase=True)
@@ -227,8 +242,8 @@ class PalmSettings(unittest.TestCase):
         self.assertGreater(heights.min(), 0.9)
 
     def test_count_above_base_leaves_the_leaf_count(self):
-        _, plain = self.foliage(baseSize=0.4)
-        _, counted = self.foliage(baseSize=0.4, countAboveBase=True)
+        plain = Foliage.grow(baseSize=0.4).leaves
+        counted = Foliage.grow(baseSize=0.4, countAboveBase=True).leaves
         per_stem = plain.count / len(set(plain.parent_spline.tolist()))
         counted_per_stem = counted.count / len(set(counted.parent_spline.tolist()))
         self.assertAlmostEqual(counted_per_stem, per_stem, delta=0.15 * per_stem)
@@ -246,9 +261,9 @@ class RootSweep(unittest.TestCase):
         source = Evaluated.tree_curves()
         self.assertEqual((source.type, source.parent), ("CURVES", root))
         self.assertTrue(source.hide_viewport and source.hide_render)
-        verts, _edges, faces = NodeTrees.counts("tree")
-        self.assertGreater(faces, 1000)
-        self.assertGreater(verts, faces)
+        counts = NodeTrees.counts("tree")
+        self.assertGreater(counts.polygons, 1000)
+        self.assertGreater(counts.vertices, counts.polygons)
 
     def test_sweep_counts_equal_the_old_bevel(self):
         """Blender's own bevel of a legacy curve with the same points is the reference."""
@@ -264,9 +279,9 @@ class RootSweep(unittest.TestCase):
         before = NodeTrees.counts("tree")
         NodeTrees.set_input(root, "Bevel Resolution", 4)
         after = NodeTrees.counts("tree")
-        self.assertGreater(after[0], before[0])
+        self.assertGreater(after.vertices, before.vertices)
         NodeTrees.set_input(root, "Fill Caps", True)
-        self.assertGreater(NodeTrees.counts("tree")[2], after[2])
+        self.assertGreater(NodeTrees.counts("tree").polygons, after.polygons)
 
     def test_apply_gives_the_mesh(self):
         self.assertEqual(Scene.generate(NodeTrees.settings()), {"FINISHED"})
@@ -275,7 +290,7 @@ class RootSweep(unittest.TestCase):
         with bpy.context.temp_override(object=root, active_object=root):
             self.assertEqual(bpy.ops.object.modifier_apply(modifier="Sapling Tree"), {"FINISHED"})
         mesh = root.data
-        self.assertEqual((len(mesh.vertices), len(mesh.edges), len(mesh.polygons)), counts)
+        self.assertEqual(MeshCounts.of(mesh), counts)
         self.assertEqual([m.name for m in mesh.materials], ["Sapling Bark"])
 
 

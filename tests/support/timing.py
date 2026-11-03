@@ -4,17 +4,28 @@
 
 import time
 import unittest
+from dataclasses import dataclass
 
 from support.addon import Addon
+
+
+@dataclass(frozen=True)
+class TimedStage:
+    """A method whose time a StageTimer adds up: its add-on module, its class and its name."""
+
+    module: str
+    owner: str
+    method: str
 
 
 class StageTimer:
     """Adds up the time spent in the given methods while a tree is built (patched for the test's duration)."""
 
-    def __init__(self, test: unittest.TestCase, stages: tuple[tuple[str, str, str], ...]) -> None:
+    def __init__(self, test: unittest.TestCase, stages: tuple[TimedStage, ...]) -> None:
         self.total = 0.0
-        for module_name, class_name, method_name in stages:
-            owner = getattr(Addon.module(module_name), class_name)
+        for stage in stages:
+            method_name = stage.method
+            owner = getattr(Addon.module(stage.module), stage.owner)
             raw = owner.__dict__[method_name]
             bound_to_class = isinstance(raw, staticmethod | classmethod)
             if bound_to_class:

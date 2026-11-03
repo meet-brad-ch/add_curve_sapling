@@ -12,6 +12,7 @@ import bpy
 import numpy as np
 from support.addon import Addon
 from support.evaluated import Evaluated
+from support.mesh_counts import MeshCounts
 from support.node_trees import NodeTrees
 from support.scene import Scene
 from support.trees import Trees
@@ -31,7 +32,7 @@ class BakedBark(unittest.TestCase):
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
         root = bpy.data.objects["tree"]
         self.assertEqual([m.name for m in root.modifiers], ["Sapling Follow Wind"])
-        self.assertEqual((len(root.data.vertices), len(root.data.edges), len(root.data.polygons)), live)
+        self.assertEqual(MeshCounts.of(root.data), live)
         self.assertEqual([m.name for m in root.data.materials], ["Sapling Bark"])
         self.assertNotIn("treemesh", bpy.data.objects)
         moved = np.linalg.norm(Evaluated.vertices("tree", 17) - Evaluated.vertices("tree", 1), axis=1)
@@ -80,7 +81,7 @@ class StaticBake(unittest.TestCase):
         root = bpy.data.objects["tree"]
         self.assertEqual(list(root.modifiers), [])
         self.assertEqual([a.name for a in root.data.attributes if a.name.startswith("sapling")], [])
-        self.assertEqual((len(root.data.vertices), len(root.data.edges), len(root.data.polygons)), live)
+        self.assertEqual(MeshCounts.of(root.data), live)
         self.assertNotIn("tree_wind", bpy.data.objects)
         self.assertNotIn("tree_joints", bpy.data.objects)
 
@@ -141,7 +142,7 @@ class RootSweep(unittest.TestCase):
     def test_export_writes_the_bark(self):
         self.assertEqual(Scene.generate(NodeTrees.settings()), {"FINISHED"})
         root = bpy.data.objects["tree"]
-        verts = NodeTrees.counts("tree")[0]
+        verts = NodeTrees.counts("tree").vertices
         for ob in bpy.context.view_layer.objects:
             ob.select_set(ob == root)
         with tempfile.TemporaryDirectory() as folder:

@@ -5,8 +5,8 @@
 import unittest
 
 import bpy
-from support.addon import Addon
 from support.node_trees import NodeTrees
+from support.rigged_tree import RiggedTree
 from support.scene import Scene
 from support.verifies import Verifies
 
@@ -52,27 +52,10 @@ class BakedBark(unittest.TestCase):
 class ArmatureDisplay(unittest.TestCase):
     """The tree mesh is the root, the armature its child; the bones are hidden, the root never is."""
 
-    def add(self, **changes):
-        Scene.reset()
-        settings = Addon.resolve_preset("quaking_aspen.py")
-        settings.update(useRig=True, **changes)
-        self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
-        root = Scene.active_object()
-        self.assertEqual((root.name, root.type), ("tree", "MESH"))
-        (armature,) = [ob for ob in root.children if ob.type == "ARMATURE"]
-        (collection,) = armature.data.collections
-        return root, armature, collection
-
-    def assert_selected_and_movable(self, root):
-        self.assertTrue(root.visible_get())
-        self.assertTrue(root.select_get())
-        editable = bpy.context.selected_editable_objects
-        if editable is None:
-            raise AssertionError("no selected_editable_objects in this context")
-        self.assertIn(root, editable)
-
     def test_fast_preview_draws_the_tree_as_bounds_and_shows_the_bones(self):
-        root, _armature, collection = self.add(fastPreview=True)
+        tree = RiggedTree.add(self, fastPreview=True)
+        root = tree.root
+        collection = tree.collection
         self.assertTrue(collection.is_visible)
         self.assertEqual(root.display_type, "BOUNDS")
-        self.assert_selected_and_movable(root)
+        RiggedTree.assert_selected_and_movable(self, root)

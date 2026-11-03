@@ -11,6 +11,7 @@ import numpy as np
 
 from support.addon import Addon
 from support.evaluated import Evaluated
+from support.mesh_counts import MeshCounts
 from support.model import Model
 
 
@@ -33,12 +34,14 @@ class NodeTrees:
         return settings
 
     @staticmethod
-    def counts(name):
+    def counts(name) -> MeshCounts:
+        """The evaluated mesh's element counts of the object (its temporary mesh is freed after, also on a failure)."""
         ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
         mesh = ob.to_mesh()
-        counts = (len(mesh.vertices), len(mesh.edges), len(mesh.polygons))
-        ob.to_mesh_clear()
-        return counts
+        try:
+            return MeshCounts.of(mesh)
+        finally:
+            ob.to_mesh_clear()
 
     @staticmethod
     def model_joints(**changes):

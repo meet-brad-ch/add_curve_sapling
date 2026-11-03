@@ -4,6 +4,8 @@
 
 import random
 import unittest
+from dataclasses import dataclass
+from typing import Any
 
 import bpy
 import numpy as np
@@ -84,30 +86,45 @@ class HandlesMatchBlender(unittest.TestCase):
             auto.recalculate_flat(points, np.array([0]), np.array([0]))
 
 
+@dataclass(frozen=True)
+class LoadedCurve:
+    """Random splines, their flat arrays, and a curve loaded from them."""
+
+    splines: list
+    flat: Any
+    curve: Any
+
+
 class FlatCurves(unittest.TestCase):
     """A curve loaded from flat arrays holds them as they are; it loads once, and parts concatenate."""
 
     def loaded(self):
+        """Random splines, their flat arrays, and a curve loaded from them."""
         splines = random_splines(random.Random(2), 4)
         flat = flat_of(splines)
         curve = curve_data().CurveData()
         curve.load(flat)
-        return splines, flat, curve
+        return LoadedCurve(splines=splines, flat=flat, curve=curve)
 
     def test_loaded_curve_holds_the_arrays(self):
-        splines, flat, curve = self.loaded()
+        loaded = self.loaded()
+        splines = loaded.splines
+        flat = loaded.flat
+        curve = loaded.curve
         self.assertEqual(curve.spline_count, 4)
         self.assertEqual(flat.sizes.tolist(), [len(s) for s in splines])
         self.assertIs(curve.flatten(), flat)
         self.assertEqual(curve_data().CurveData().spline_count, 0)
 
     def test_reloading_rejected(self):
-        _, flat, curve = self.loaded()
+        loaded = self.loaded()
+        flat = loaded.flat
+        curve = loaded.curve
         with self.assertRaisesRegex(RuntimeError, "only an empty curve"):
             curve.load(flat)
 
     def test_concatenate(self):
-        _, flat, _ = self.loaded()
+        flat = self.loaded().flat
         both = curve_data().FlatCurve.concatenate([flat, flat])
         self.assertEqual(both.start.tolist(), flat.start.tolist() + (flat.start[1:] + flat.start[-1]).tolist())
         np.testing.assert_array_equal(both.co[flat.start[-1] :], flat.co)

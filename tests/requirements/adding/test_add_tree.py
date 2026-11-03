@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import bpy
 from support.addon import Addon
 from support.layout import RecordingLayout
+from support.operator_stand_in import OperatorStandIn
 from support.scene import Scene
 from support.trees import Trees
 from support.verifies import Verifies
@@ -50,20 +51,11 @@ class RedoPanel(unittest.TestCase):
     change regenerates it; a settings error cancels with its message. Blender sets is_repeat only for its own redo,
     so execute runs on a stand-in operator."""
 
-    def operator(self, **values):
-        reports = []
-        stand_in = SimpleNamespace(
-            options=SimpleNamespace(is_repeat=True), report=lambda kind, text: reports.append(text), **values
-        )
-        operator = Addon.module("ui.operators").AddTreeOperator
-        stand_in.ui_change_only = lambda: operator.ui_change_only(stand_in)
-        return stand_in, reports
-
     def execute(self, stand_in):
         return Addon.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
 
     def test_a_setting_change_regenerates(self):
-        stand_in, _reports = self.operator(do_update=True, make=lambda context: None)
+        stand_in = OperatorStandIn.make(do_update=True, make=lambda context: None).operator
         self.assertEqual(self.execute(stand_in), {"FINISHED"})
 
 

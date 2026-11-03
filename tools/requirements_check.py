@@ -47,6 +47,14 @@ class Requirement:
 
 
 @dataclass(frozen=True)
+class DeclaredProperty:
+    """A Blender property declared in properties.py: its name and its keyword arguments."""
+
+    name: str
+    keywords: dict[str, ast.expr]
+
+
+@dataclass(frozen=True)
 class SettingRow:
     """One setting as Appendix A lists it, or as the code gives it."""
 
@@ -213,7 +221,9 @@ class CodeSettings:
         """Each property drawn on a page, in the order properties.py declares them."""
         page_of = self.pages()
         rows = []
-        for prop, keywords in self.properties():
+        for declared in self.properties():
+            prop = declared.name
+            keywords = declared.keywords
             page = page_of.get(prop)
             if page is not None:
                 rows.append(self.row(page, prop, keywords))
@@ -257,7 +267,7 @@ class CodeSettings:
             return node.func.attr
         return ""
 
-    def properties(self) -> list[tuple[str, dict[str, ast.expr]]]:
+    def properties(self) -> list[DeclaredProperty]:
         """Each annotated Blender property of properties.py: its name and its keyword arguments."""
         tree = ast.parse(PROPERTIES.read_text(encoding="utf-8"))
         found = []
@@ -266,7 +276,7 @@ class CodeSettings:
                 continue
             if isinstance(node.annotation, ast.Call):
                 keywords = {k.arg: k.value for k in node.annotation.keywords if k.arg}
-                found.append((node.target.id, keywords))
+                found.append(DeclaredProperty(name=node.target.id, keywords=keywords))
         return found
 
     @staticmethod
