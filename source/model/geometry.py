@@ -90,21 +90,21 @@ class CrownShape:
 
     @staticmethod
     def envelope(ratio: float, peak: float, power_high: float, power_low: float) -> float:
-        """Pruning envelope width factor: rises to 1 at `peak` from the top, then falls to 0 at both ends."""
-        if (ratio < (1 - peak)) and (ratio > 0.0):
-            return (ratio / (1 - peak)) ** power_high
-        if (ratio >= (1 - peak)) and (ratio < 1.0):
-            return ((1 - ratio) / peak) ** power_low
-        return 0.0
+        """envelopes() for one ratio (the envelope helper curve's points)."""
+        widths = CrownShape.envelopes(np.array([ratio], dtype=np.float64), peak, power_high, power_low)
+        return float(widths[0])
 
     @staticmethod
     def envelopes(ratio: np.ndarray, peak: float, power_high: float, power_low: float) -> np.ndarray:
-        """envelope() for an array of ratios."""
+        """Pruning envelope width factor per ratio: rises to 1 at `peak` from the top, then falls to 0 at both
+        ends. Each branch is computed only on its own ratios, so no division by zero happens (peak 0 or 1)."""
         r = np.asarray(ratio, dtype=np.float64)
-        with np.errstate(invalid="ignore", divide="ignore"):  # the masked-out branches may divide by zero
-            rising = (np.clip(r, 0.0, None) / (1 - peak)) ** power_high
-            falling = (np.clip(1 - r, 0.0, None) / peak) ** power_low
-        return np.where((r < 1 - peak) & (r > 0.0), rising, np.where((r >= 1 - peak) & (r < 1.0), falling, 0.0))
+        widths = np.zeros_like(r)
+        rising = (r < 1 - peak) & (r > 0.0)
+        falling = (r >= 1 - peak) & (r < 1.0)
+        widths[rising] = (r[rising] / (1 - peak)) ** power_high
+        widths[falling] = ((1 - r[falling]) / peak) ** power_low
+        return widths
 
     _SHAPES = {
         CONICAL: lambda ratio: 0.05 + 0.95 * ratio,

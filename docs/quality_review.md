@@ -13,9 +13,6 @@ for the stdlib `Random` stream order.
 ## Open
 
 ### Owner decisions (change computed trees)
-- **Q3 [N]** `source/model/geometry.py:92-107`: the scalar `envelope` repeats the vector `envelopes` formula. Fix:
-  the scalar calls the vector one. Python `**` and `np.power` may round differently.
-
 ### Complexity and control flow (no change to computed trees)
 - **Q4** lizard CCN > 10 (bug S2): `build/tree_copy.py` `complete` (12, also a call in `?:`), `_relink_modifiers`
   (11, nesting 4); `settings.py` `_check_migratable` (11, `min(levels, 3)` twice); `tools/port_treegen_in_blender.py`
@@ -96,3 +93,7 @@ for the stdlib `Random` stream order.
   a joint of radius 0 raises (a model defect); Prune Base Height and Trunk Height at 1 are refused (SWR-0077);
   Flutter Speed <= 0 with Leaf Flutter is refused (SWR-0125). Measured: 7 golden cases have pruned-away stems,
   none reaches the other three; the golden data does not change (the removed stems have no joints).
+- **Q3** (owner: merge) one envelope formula: `envelope()` calls `envelopes()`, which computes each branch only on
+  its own ratios (no suppressed divide warnings; runs under -W error). The vector formula is bit-identical to
+  before on 630 parameter sets; the old scalar one differed by at most 1.1e-16, which the envelope curve's
+  float32 points round away: the golden data does not change.
