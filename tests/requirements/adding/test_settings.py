@@ -77,19 +77,24 @@ FACES_PER_LEAF = {"hex": 2, "rect": 1, "dFace": 1, "dVert": 0}
 
 @Verifies("SWR-0014")
 class SettingsPages(unittest.TestCase):
-    PAGES = 8
-
     def draw(self, **changes):
         """The properties drawn on every page, with the operator's defaults plus `changes`."""
         pages = Addon.module("ui.pages").SettingsPages
         drawn_per_page = []
-        for page in range(self.PAGES):
+        for page in range(len(Addon.module("ui.properties").Choices.PAGES)):
             values = {**Addon.operator_defaults(), "leafDupliObj": "", "presetName": "", "overwrite": False}
             props = SimpleNamespace(**{**values, "chooseSet": str(page), **changes})
             layout = RecordingLayout()
             pages.draw(props, layout)
             drawn_per_page.append(layout.props)
         return drawn_per_page
+
+    def test_one_drawing_method_per_page(self):
+        pages = Addon.module("ui.pages").SettingsPages
+        choices = Addon.module("ui.properties").Choices.PAGES
+        self.assertEqual(len(pages.ORDER), len(choices))
+        missing = [name for name in pages.ORDER if not hasattr(pages, name)]
+        self.assertEqual(missing, [], "page names without a drawing method")
 
     def test_every_page_draws_existing_properties(self):
         properties = set(Addon.operator_property_names())

@@ -2,7 +2,6 @@
 
 """The rig's wind animation (F-curve modifiers on the bones' rotation) and the leaf flutter in Geometry Nodes."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from random import Random
 
@@ -90,7 +89,10 @@ class WindAnimator:
             action = bpy.data.actions.new(name=self.ACTION)
             ob.animation_data.action = action  # type: ignore[union-attr]  # created above
             for sway in self.sways:
-                self._write(sway, lambda path, index: action.fcurve_ensure_for_datablock(ob, path, index=index))
+                path = self._path(sway)
+                sway_x = action.fcurve_ensure_for_datablock(ob, path, index=0)
+                sway_z = action.fcurve_ensure_for_datablock(ob, path, index=2)
+                self._write(sway, sway_x, sway_z)
             return
         for start in range(0, len(self.sways), self.CHUNK):
             self._chunk(self.sways[start : start + self.CHUNK], start // self.CHUNK)
@@ -102,7 +104,10 @@ class WindAnimator:
         slot = action.slots.new(id_type="OBJECT", name=ob.name)
         channelbag = action.layers.new("Wind").strips.new(type="KEYFRAME").channelbags.new(slot)  # type: ignore[attr-defined]  # stub: keyframe strips have channelbags
         for sway in sways:
-            self._write(sway, lambda path, index: channelbag.fcurves.new(path, index=index))
+            path = self._path(sway)
+            sway_x = channelbag.fcurves.new(path, index=0)
+            sway_z = channelbag.fcurves.new(path, index=2)
+            self._write(sway, sway_x, sway_z)
         track = ob.animation_data.nla_tracks.new()  # type: ignore[union-attr]  # created by finish()
         track.name = action.name
         strip = track.strips.new(action.name, 0, action)
@@ -113,15 +118,17 @@ class WindAnimator:
         if strip.frame_start != 0.0 or strip.frame_end != float(self.LAST_FRAME):
             raise RuntimeError(f"the wind strip spans {strip.frame_start}..{strip.frame_end}, not the timeline")
 
-    def _write(self, sway: BranchSway, new_curve: Callable[[str, int], FCurve]) -> None:
-        """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend.
+    @staticmethod
+    def _path(sway: BranchSway) -> str:
+        """The data path of the bone's rotation. Its X (index 0) and Z (index 2) curves are made first, X then Z.
 
         The curves are not grouped per bone (as keyframing does): Blender 5.2 takes about 4 times as long to
         create a grouped F-curve (measured at 16,000 bones: 450 against 100 µs).
         """
-        path = 'pose.bones["' + sway.bone + '"].rotation_euler'
-        sway_x = new_curve(path, 0)
-        sway_z = new_curve(path, 2)
+        return 'pose.bones["' + sway.bone + '"].rotation_euler'
+
+    def _write(self, sway: BranchSway, sway_x: FCurve, sway_z: FCurve) -> None:
+        """Sine waves: X and Z each get wind 1 + wind 2 (+ offset phase) and a gust bend."""
         self._waves(sway_x, sway, sway.offset_x)
         self._waves(sway_z, sway, sway.offset_z)
         self._bend(sway_z, sway, sway.gust_z)

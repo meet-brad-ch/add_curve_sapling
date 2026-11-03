@@ -192,19 +192,20 @@ class TreeSweepNodes:
         """The curves with every point and its handles where the rig's joint proxy holds them (JointProxy: vertex
         3i is point i, 3i + 1 and 3i + 2 its left and right handles)."""
         base = m.math("MULTIPLY", m.nodes.new("GeometryNodeInputIndex").outputs[0], 3.0)
-
-        def sampled(offset: float) -> NodeSocket:
-            return m.sample(proxy, m.position(), m.math("ADD", base, offset), "FLOAT_VECTOR")
-
         # Free handles take the posed positions as they are (Blender recomputes Auto and Vector handles from the
         # points, which would change the bark at rest; the model's handles are Blender's own, moved with the bones)
         free = m.nodes.new("GeometryNodeCurveSetHandles")
         free.handle_type = "FREE"  # type: ignore[attr-defined]  # stub: new() returns the Node base class
         free.mode = {"LEFT", "RIGHT"}  # type: ignore[attr-defined]  # stub: as above
         m.link(curves, free.inputs["Curve"])
-        posed = m.set_position(free.outputs["Curve"], sampled(0.0))
-        posed = TreeSweepNodes._handles(m, posed, "LEFT", sampled(1.0))
-        return TreeSweepNodes._handles(m, posed, "RIGHT", sampled(2.0))
+        posed = m.set_position(free.outputs["Curve"], TreeSweepNodes._sampled(m, proxy, base, 0.0))
+        posed = TreeSweepNodes._handles(m, posed, "LEFT", TreeSweepNodes._sampled(m, proxy, base, 1.0))
+        return TreeSweepNodes._handles(m, posed, "RIGHT", TreeSweepNodes._sampled(m, proxy, base, 2.0))
+
+    @staticmethod
+    def _sampled(m: NodeMath, proxy: NodeSocket, base: NodeSocket, offset: float) -> NodeSocket:
+        """The joint proxy's vertex base + offset of each point: 0 the point, 1 its left and 2 its right handle."""
+        return m.sample(proxy, m.position(), m.math("ADD", base, offset), "FLOAT_VECTOR")
 
     @staticmethod
     def _handles(m: NodeMath, curves: NodeSocket, side: str, position: NodeSocket) -> NodeSocket:

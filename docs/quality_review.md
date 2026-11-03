@@ -33,8 +33,6 @@ for the stdlib `Random` stream order.
   `build/tree_record.py:159` `TreeEdit.__init__` changes data (an explicit `claim` step).
 - **Q18** Duck typing at the service boundary: `service/trees.py:111` and `generator.py:79` (`SimpleNamespace`/`Any`),
   `service/trees.py:122` `replaced(result: Any)`. Fix: named types.
-- **Q20** Callbacks in hot loops: `build/wind.py:93, 105, 116` (a lambda per bone); `tree_root.py:196` closure;
-  `ui/pages.py:28` the getattr dispatch.
 
 ### State, duplication, style
 - **Q21** Mutable class-level lists and dicts: model `params.py:43, 87`, `blossoms.py:37-52`, `leaves.py:33-49`,
@@ -133,3 +131,7 @@ for the stdlib `Random` stream order.
   Python, 3.10 here; only the venv is 3.13).
 - **Q27** every `assertTrue(all(...))` and `assertFalse(any(...))` (13) asserts that the list of offenders is empty, so a
   failure names them (the first 5 where a list can be long); the three positive `assertTrue(any(...))` stay.
+- **Q20** `build/wind.py`: no lambda per bone; each loop makes the bone's X and Z curves (X first, as before) and
+  `_write` takes them. `build/tree_root.py`: the closure is the method `_sampled` (the nodes made in the same order).
+  `ui/pages.py` keeps its dispatch by name (a draw, not a hot loop); a new unit test checks that `ORDER` has one
+  drawing method per entry of `Choices.PAGES`, and the page test takes the page count from `Choices.PAGES`.
