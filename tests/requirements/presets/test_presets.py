@@ -158,3 +158,33 @@ class PresetErrors(unittest.TestCase):
         self.assertEqual(
             normalized(Addon.preset_store().load("saved tree").to_json()).values, normalized(settings.to_json()).values
         )
+
+
+@Verifies("SWR-0045")
+class SaveOverwrite(unittest.TestCase):
+    NAME = "overwrite check"
+
+    def saved(self):
+        """The user preset file of this test, removed after it."""
+        path = Addon.preset_store().user_folder(create=True) / f"{self.NAME}.py"
+        self.addCleanup(path.unlink, missing_ok=True)
+        return path
+
+    def save(self, preset, overwrite):
+        settings = Addon.preset_store().load(preset).to_json()
+        return bpy.ops.sapling.preset_save(name=self.NAME, overwrite=overwrite, settings=settings)
+
+    def test_an_existing_preset_is_kept_without_overwrite(self):
+        path = self.saved()
+        self.assertEqual(self.save("quaking_aspen", overwrite=True), {"FINISHED"})
+        before = path.read_bytes()
+        with self.assertRaisesRegex(RuntimeError, "Enable Overwrite"):
+            self.save("weeping_willow", overwrite=False)
+        self.assertEqual(path.read_bytes(), before)
+
+    def test_overwrite_replaces_it(self):
+        path = self.saved()
+        self.assertEqual(self.save("quaking_aspen", overwrite=True), {"FINISHED"})
+        before = path.read_bytes()
+        self.assertEqual(self.save("weeping_willow", overwrite=True), {"FINISHED"})
+        self.assertNotEqual(path.read_bytes(), before)
