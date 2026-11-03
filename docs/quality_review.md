@@ -97,3 +97,12 @@ for the stdlib `Random` stream order.
   its own ratios (no suppressed divide warnings; runs under -W error). The vector formula is bit-identical to
   before on 630 parameter sets; the old scalar one differed by at most 1.1e-16, which the envelope curve's
   float32 points round away: the golden data does not change.
+- **Q29** (found by the owner-rule scan) `model/rotations.py` `from_matrices`: all four Shepperd branches ran on every
+  matrix under `np.errstate(ignore)`; now each runs only on its own matrices (no division by zero, no clamp in the
+  sqrt), and a non-finite result raises. Bit-identical on 200,005 matrices, warning-free under -W error.
+- **Q30** `settings.py` `old_wind_without_rig`: the nested `.get(..., False)` is an explicit rule with the named
+  `TreeSettings.RIG_DEFAULT` (a left-out setting has its default, SWR-0047); a unit test checks it equals useRig's.
+- **Q31** `build/node_groups.py` `set_input`: `getattr(i, "name", "")` became an explicit input-socket match.
+- **Q32** `model/params.py` `PlainParams`: `getattr(self, "_frozen", False)` became a class attribute.
+  `model/randomness.py`: the remaining `errstate(over="ignore")` are the hash's defined uint64 wrap (commented).
+

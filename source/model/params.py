@@ -46,8 +46,10 @@ class BranchingMode:
 class PlainParams:
     """Settings copied into plain values; read-only once _freeze() has run (at the end of __init__)."""
 
+    _frozen = False  # the instance's own True, set by _freeze(), shadows this
+
     def __setattr__(self, name: str, value: object) -> None:
-        if getattr(self, "_frozen", False):
+        if self._frozen:
             raise AttributeError(f"{type(self).__name__} is read-only; cannot set {name}")
         super().__setattr__(name, value)
 

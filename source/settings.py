@@ -19,6 +19,8 @@ class TreeSettings:
 
     # Version of the settings stored on a generated tree (see to_json()).
     VERSION = 1
+    # The Armature Rig setting's default (ui/properties.py useRig): what a left-out rig setting means
+    RIG_DEFAULT = False
     # Keys of the oldest preset format that no longer exist.
     OBSOLETE_KEYS = ["startCurv", "windGust", "windSpeed"]
     # Presets older than the leaf angles used the last branch level's angles for the leaves.
@@ -150,9 +152,16 @@ class TreeSettings:
     def old_wind_without_rig(values: Mapping[str, Any]) -> bool:
         """Old settings with armAnim but no armature: the old wind ran on the armature only, so they had none.
 
-        windAnim without the rig now makes the node wind; these settings keep their still tree.
+        windAnim without the rig now makes the node wind; these settings keep their still tree. A script or preset
+        that leaves the rig out has the rig's default, off (as every left-out setting has its default, SWR-0047).
         """
-        return bool(values.get("armAnim")) and not values.get("useArm", values.get("useRig", False))
+        if not values.get("armAnim"):
+            return False
+        if "useArm" in values:
+            return not values["useArm"]
+        if "useRig" in values:
+            return not values["useRig"]
+        return not TreeSettings.RIG_DEFAULT
 
     def to_json(self) -> str:
         """The settings as versioned JSON, the form a generated tree stores (read back with from_json())."""

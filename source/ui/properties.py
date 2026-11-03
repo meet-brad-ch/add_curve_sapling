@@ -496,7 +496,7 @@ class TreeProperties:
         name="Armature Rig",
         description="Generate an armature whose bones move the branches, one bone per Joint Length stem segments "
         "within the Joint Levels. With Wind, the wind animates the bones",
-        default=False, update=update_tree,
+        default=False, update=update_tree,  # TreeSettings.RIG_DEFAULT (a unit test checks they agree)
     )  # fmt: skip
     makeMesh: BoolProperty(
         name="Make Mesh",

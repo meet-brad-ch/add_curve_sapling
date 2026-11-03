@@ -76,7 +76,7 @@ class KeyedRandom:
     @classmethod
     def derive(cls, parent: np.ndarray, kind: int, a: np.ndarray | int, b: np.ndarray | int) -> np.ndarray:
         """Keys of the rows related to `parent` by `kind` at (a, b): e.g. the child at (point, position)."""
-        with np.errstate(over="ignore"):
+        with np.errstate(over="ignore"):  # uint64 wraps: the hash's defined arithmetic (mix), not an error
             a64 = np.asarray(a, dtype=np.int64).astype(np.uint64) + np.uint64(1)
             b64 = np.asarray(b, dtype=np.int64).astype(np.uint64) + np.uint64(1)
             salted = cls.mix(parent ^ (np.uint64(kind) * cls.GOLDEN))
@@ -85,7 +85,7 @@ class KeyedRandom:
     @classmethod
     def uniform(cls, keys: np.ndarray, step: int, draw: int) -> np.ndarray:
         """One number in [0, 1) per key for (step, draw), with 53 random bits like random.random()."""
-        with np.errstate(over="ignore"):
+        with np.errstate(over="ignore"):  # uint64 wraps: the hash's defined arithmetic (mix), not an error
             salt = cls.mix(np.array([(step << 16) | draw], dtype=np.uint64) * cls.GOLDEN)
             return (cls.mix(keys ^ salt) >> cls.DROP).astype(np.float64) * cls.SCALE
 

@@ -5,7 +5,7 @@
 from collections.abc import Callable
 
 import bpy
-from bpy.types import NodesModifier, NodeTree, Object
+from bpy.types import NodesModifier, NodeTree, NodeTreeInterfaceSocket, Object
 
 from ..settings import SettingsError
 
@@ -45,7 +45,11 @@ class SharedNodeGroup:
     def set_input(modifier: NodesModifier, name: str, value: object) -> None:
         """Set the modifier's value for the group input called `name`."""
         group = modifier.node_group
-        socket = next((i for i in group.interface.items_tree if getattr(i, "name", "") == name), None)  # type: ignore[union-attr]  # a modifier made by add_modifier has a group with an interface
+        socket = None
+        for item in group.interface.items_tree:  # type: ignore[union-attr]  # a modifier made by add_modifier has a group with an interface
+            if isinstance(item, NodeTreeInterfaceSocket) and item.in_out == "INPUT" and item.name == name:
+                socket = item
+                break
         if socket is None:
             raise RuntimeError(f"the node group '{group.name}' has no input called '{name}'")  # type: ignore[union-attr]  # as above
         # Blender 5.2: modifier inputs are typed sockets, no longer ID properties

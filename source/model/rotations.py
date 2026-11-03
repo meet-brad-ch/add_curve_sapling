@@ -126,52 +126,47 @@ class Quaternions:
         # the four branches of Shepperd's method, each stable where its pivot is the largest
         pivot = np.argmax(np.stack([trace, m[:, 0, 0], m[:, 1, 1], m[:, 2, 2]], axis=1), axis=1)
         q = np.empty((len(m), 4))
-        with np.errstate(invalid="ignore", divide="ignore"):  # unused branches may divide by zero
-            s0 = np.sqrt(np.maximum(1.0 + trace, 0.0)) * 2.0
-            q0 = np.stack(
-                [
-                    0.25 * s0,
-                    (m[:, 2, 1] - m[:, 1, 2]) / s0,
-                    (m[:, 0, 2] - m[:, 2, 0]) / s0,
-                    (m[:, 1, 0] - m[:, 0, 1]) / s0,
-                ],
-                1,
-            )
-            s1 = np.sqrt(np.maximum(1.0 + m[:, 0, 0] - m[:, 1, 1] - m[:, 2, 2], 0.0)) * 2.0
-            q1 = np.stack(
-                [
-                    (m[:, 2, 1] - m[:, 1, 2]) / s1,
-                    0.25 * s1,
-                    (m[:, 0, 1] + m[:, 1, 0]) / s1,
-                    (m[:, 0, 2] + m[:, 2, 0]) / s1,
-                ],
-                1,
-            )
-            s2 = np.sqrt(np.maximum(1.0 - m[:, 0, 0] + m[:, 1, 1] - m[:, 2, 2], 0.0)) * 2.0
-            q2 = np.stack(
-                [
-                    (m[:, 0, 2] - m[:, 2, 0]) / s2,
-                    (m[:, 0, 1] + m[:, 1, 0]) / s2,
-                    0.25 * s2,
-                    (m[:, 1, 2] + m[:, 2, 1]) / s2,
-                ],
-                1,
-            )
-            s3 = np.sqrt(np.maximum(1.0 - m[:, 0, 0] - m[:, 1, 1] + m[:, 2, 2], 0.0)) * 2.0
-            q3 = np.stack(
-                [
-                    (m[:, 1, 0] - m[:, 0, 1]) / s3,
-                    (m[:, 0, 2] + m[:, 2, 0]) / s3,
-                    (m[:, 1, 2] + m[:, 2, 1]) / s3,
-                    0.25 * s3,
-                ],
-                1,
-            )
-            for branch, candidate in enumerate((q0, q1, q2, q3)):
-                rows = pivot == branch
-                q[rows] = candidate[rows]
+        # each branch only on the matrices whose pivot it is: there its radicand is positive, so no division by zero
+        q[pivot == 0] = Quaternions.shepperd_w(m[pivot == 0], trace[pivot == 0])
+        q[pivot == 1] = Quaternions.shepperd_x(m[pivot == 1])
+        q[pivot == 2] = Quaternions.shepperd_y(m[pivot == 2])
+        q[pivot == 3] = Quaternions.shepperd_z(m[pivot == 3])
+        if not np.all(np.isfinite(q)):
+            raise ValueError("from_matrices: a matrix is not a rotation (its quaternion is not finite)")
         q = q / np.linalg.norm(q, axis=1)[:, None]
         return np.where((q[:, :1] < 0), -q, q)
+
+    @staticmethod
+    def shepperd_w(m: np.ndarray, trace: np.ndarray) -> np.ndarray:
+        """Shepperd's branch where the trace is the largest pivot: w first."""
+        s = np.sqrt(1.0 + trace) * 2.0
+        return np.stack(
+            [0.25 * s, (m[:, 2, 1] - m[:, 1, 2]) / s, (m[:, 0, 2] - m[:, 2, 0]) / s, (m[:, 1, 0] - m[:, 0, 1]) / s], 1
+        )
+
+    @staticmethod
+    def shepperd_x(m: np.ndarray) -> np.ndarray:
+        """Shepperd's branch where m[0, 0] is the largest pivot: x first."""
+        s = np.sqrt(1.0 + m[:, 0, 0] - m[:, 1, 1] - m[:, 2, 2]) * 2.0
+        return np.stack(
+            [(m[:, 2, 1] - m[:, 1, 2]) / s, 0.25 * s, (m[:, 0, 1] + m[:, 1, 0]) / s, (m[:, 0, 2] + m[:, 2, 0]) / s], 1
+        )
+
+    @staticmethod
+    def shepperd_y(m: np.ndarray) -> np.ndarray:
+        """Shepperd's branch where m[1, 1] is the largest pivot: y first."""
+        s = np.sqrt(1.0 - m[:, 0, 0] + m[:, 1, 1] - m[:, 2, 2]) * 2.0
+        return np.stack(
+            [(m[:, 0, 2] - m[:, 2, 0]) / s, (m[:, 0, 1] + m[:, 1, 0]) / s, 0.25 * s, (m[:, 1, 2] + m[:, 2, 1]) / s], 1
+        )
+
+    @staticmethod
+    def shepperd_z(m: np.ndarray) -> np.ndarray:
+        """Shepperd's branch where m[2, 2] is the largest pivot: z first."""
+        s = np.sqrt(1.0 - m[:, 0, 0] - m[:, 1, 1] + m[:, 2, 2]) * 2.0
+        return np.stack(
+            [(m[:, 1, 0] - m[:, 0, 1]) / s, (m[:, 0, 2] + m[:, 2, 0]) / s, (m[:, 1, 2] + m[:, 2, 1]) / s, 0.25 * s], 1
+        )
 
     @staticmethod
     def multiply(a: np.ndarray, b: np.ndarray) -> np.ndarray:

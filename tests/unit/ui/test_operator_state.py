@@ -43,3 +43,10 @@ class UpdateCallbacks(unittest.TestCase):
         self.assertTrue(props.do_update)
         self.properties().no_update_tree(props, None)
         self.assertFalse(props.do_update)
+
+
+class RigDefault(unittest.TestCase):
+    def test_the_settings_rig_default_is_the_propertys(self):
+        """TreeSettings.RIG_DEFAULT (what a left-out rig setting means for old settings) is useRig's default."""
+        default = Addon.operator_defaults()["useRig"]
+        self.assertEqual(default, Addon.module("settings").TreeSettings.RIG_DEFAULT)
