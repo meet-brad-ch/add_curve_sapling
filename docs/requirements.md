@@ -56,6 +56,18 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The architecture test finds no file write outside that folder. A saved preset is in that folder.
 
+### SWR-0005 Disable and enable
+- **Statement:** When the user disables the extension, the Sapling Tree Gen extension shall remove all its classes and menu entries.
+- **Rationale:** A disabled extension leaves nothing in the interface.
+- **Method:** test
+- **Criteria:** After disable and enable, each menu has one entry of the extension.
+
+### SWR-0006 Failed registration
+- **Statement:** If registration fails, then the Sapling Tree Gen extension shall unregister the classes that it registered before the failure.
+- **Rationale:** A failed start leaves Blender clean.
+- **Method:** test
+- **Criteria:** After a forced failure, none of the extension's classes is registered.
+
 ## Adding a tree
 
 ### SWR-0010 Add Tree
@@ -270,6 +282,24 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The operator cancels and the message names the value.
 
+### SWR-0068 Wind shape
+- **Statement:** Where *Wind Shear* or *Wind Bend* is more than 0, the Sapling Tree Gen extension shall shape the crown toward the *Wind Direction*.
+- **Rationale:** Trees on windy coasts and ridges grow a one-sided crown.
+- **Method:** test
+- **Criteria:** *Wind Shear* moves the crown downwind. *Wind Bend* turns the branches downwind. A direction with both at 0 changes nothing.
+
+### SWR-0069 Branch Base
+- **Statement:** Where a level's *Branch Base* is more than 0, the Sapling Tree Gen extension shall grow no sprouts on that share of its stems.
+- **Rationale:** Some species carry their foliage only at the outer part of the limbs.
+- **Method:** test
+- **Criteria:** No sprout of a level with *Branch Base* b lies on the first share b of its stem. Value 0 changes nothing.
+
+### SWR-0070 No room for the trunks
+- **Statement:** If the further trunks do not fit on the disc, then the Sapling Tree Gen extension shall refuse the tree and name the reason.
+- **Rationale:** A clump with overlapping trunks is wrong.
+- **Method:** test
+- **Criteria:** The operator cancels with the reason and makes no objects.
+
 ## Leaves and blossoms
 
 ### SWR-0080 Leaves
@@ -309,6 +339,12 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The objects have these materials. *Sapling Leaf* is a Principled BSDF with Thin Wall and Subsurface
   Weight 1.0.
+
+### SWR-0086 Leaf Face Up
+- **Statement:** Where *Leaf Face Up* is more than 0, the Sapling Tree Gen extension shall turn each leaf's face toward the sky by that share.
+- **Rationale:** Conifers and shrubs carry flat foliage pads.
+- **Method:** test
+- **Criteria:** Value 1 lays every leaf flat, 0.5 turns each one halfway. *Leaf Face Up Variation* tilts each leaf within its range.
 
 ## Armature and baked mesh
 
@@ -354,6 +390,12 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** The whole tree moves when the user moves the tree.
 - **Method:** test
 - **Criteria:** Every part of the tree has the tree curve as its top parent.
+
+### SWR-0107 Export
+- **Statement:** Where *Make Mesh* and *Armature Rig* are on, the Sapling Tree Gen extension shall make bark that an FBX export writes as a skinned mesh.
+- **Rationale:** Game engines import the tree with its rig.
+- **Method:** test
+- **Criteria:** An FBX or glTF export holds the bark mesh, the armature and the vertex weights.
 
 ## Wind
 
@@ -408,6 +450,18 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The state of `random` is equal before and after a tree is generated.
 
+### SWR-0143 No active collection
+- **Statement:** If no collection is active, then the Sapling Tree Gen extension shall cancel *Sapling: Add Tree* with a message.
+- **Rationale:** A new object must go into a collection.
+- **Method:** test
+- **Criteria:** The operator cancels with a message and makes no objects.
+
+### SWR-0144 No orphan data
+- **Statement:** The Sapling Tree Gen extension shall leave no orphan data blocks after it removes or generates a tree again.
+- **Rationale:** Orphan meshes, curves and node groups fill the file.
+- **Method:** test
+- **Criteria:** The data block counts are equal before and after a remove and after a regenerate.
+
 ## Performance
 
 ### SWR-0160 Generation time
@@ -423,6 +477,24 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** Measured 0.02-0.03 s per frame (CHANGELOG 1.0.0). OPEN: the limit and the reference machine.
 - **Method:** analysis
 - **Criteria:** Headless playback on the reference machine, frames 1-48, the slowest frame.
+
+### SWR-0162 Leaf build scaling
+- **Statement:** When the leaf count doubles, the Sapling Tree Gen extension shall take less than 2.6 times as long to build the leaves.
+- **Rationale:** The build time must grow linearly with the leaves (measured in `tests/test_performance.py`).
+- **Method:** test
+- **Criteria:** The leaf stages at 40 and 80 leaves per branch, the shortest of 2 runs: the ratio is less than 2.6.
+
+### SWR-0163 Build scaling
+- **Statement:** The Sapling Tree Gen extension shall build trees in a time that grows with an exponent of less than 1.3 of the stem count.
+- **Rationale:** A quadratic build made big trees take minutes in 0.3.7.
+- **Method:** test
+- **Criteria:** The fitted exponent of build time against stem count is less than 1.3 (1 is linear).
+
+### SWR-0164 Model time
+- **Statement:** The Sapling Tree Gen extension shall grow the model of *Quaking Aspen* with more than 1,000 stems in less than 0.1 s.
+- **Rationale:** The model is the part of the build that is all Python.
+- **Method:** test
+- **Criteria:** The shortest model time of the test runs is less than 0.1 s, with more than 1,000 stems.
 
 ## Open questions (unwanted behaviour not yet stated)
 
