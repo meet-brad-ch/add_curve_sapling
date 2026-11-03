@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
+import numpy as np
+
 from support.addon import Addon
 
 
@@ -80,3 +82,16 @@ class Model:
         grower.grow = recording
         test.addCleanup(setattr, grower, "grow", original)
         return captured
+
+    @classmethod
+    def grow_preset(cls, **changes):
+        """Grow a tree in the model alone (no Blender objects)."""
+        settings = Addon.resolve_preset(changes.pop("preset", "quaking_aspen") + ".py")
+        settings.update(changes)
+        return cls.grow(settings)
+
+    @staticmethod
+    def level_index(grown, spline):
+        """The parameter level of a spline: its depth below the trunk, deeper levels reusing the last."""
+        depth = int(np.searchsorted(np.array(grown.level_ends), spline, side="right"))
+        return Addon.module("model.params").TreeParams.level_index(depth)

@@ -7,15 +7,7 @@ import unittest
 
 import numpy as np
 from support.addon import Addon
-from support.evaluated import Evaluated
-from support.scene import Scene
-
-
-def crown_points(settings: dict) -> np.ndarray:
-    """Every point of the tree's branches (all splines but the first, the trunk), as (x, y, z)."""
-    Scene.generate(settings)
-    splines = Evaluated.spline_points()
-    return np.array([point for spline in splines[1:] for point, _radius in spline])
+from support.crown import Crown
 
 
 class WindShape(unittest.TestCase):
@@ -26,12 +18,12 @@ class WindShape(unittest.TestCase):
         settings = Addon.resolve_preset("black_oak.py")
         settings.update(levels=3, prune=True, pruneWidth=0.5, pruneRatio=1.0, seed=3)
         cls.base = settings
-        cls.still = crown_points(settings)
+        cls.still = Crown.points(settings)
 
     def grown(self, **wind) -> np.ndarray:
         settings = dict(self.base)
         settings.update(wind)
-        return crown_points(settings)
+        return Crown.points(settings)
 
     def test_a_direction_without_strength_changes_nothing(self):
         turned = self.grown(windDir=137.0)

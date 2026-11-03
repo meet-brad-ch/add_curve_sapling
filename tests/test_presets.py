@@ -10,13 +10,11 @@ from support.addon import Addon
 from support.console import Console
 from support.scene import Scene
 
-store = Addon.preset_store
-
 
 class PresetApplication(unittest.TestCase):
     def apply(self, props, name, defaults):
         names = Addon.generation_names()
-        store().load(name).complete(defaults).apply_to(props, names)
+        Addon.preset_store().load(name).complete(defaults).apply_to(props, names)
 
     # The settings the old willow preset (0.3.7) did not have: a real preset from an older version
     OLD_PRESET_LACKS = (
@@ -32,9 +30,9 @@ class PresetApplication(unittest.TestCase):
         """A preset sets every setting: before, an older preset (willow lacked 39) kept the values of the one loaded
         before it."""
         defaults = Addon.operator_defaults()
-        callistemon = store().load("callistemon").values
+        callistemon = Addon.preset_store().load("callistemon").values
         partial = {k: v for k, v in callistemon.items() if k not in self.OLD_PRESET_LACKS}
-        path = store().user_folder(create=True) / "old tree.py"
+        path = Addon.preset_store().user_folder(create=True) / "old tree.py"
         path.write_text(repr(partial), encoding="utf-8")
         self.addCleanup(path.unlink)
 
@@ -46,7 +44,7 @@ class PresetApplication(unittest.TestCase):
         self.assertEqual(vars(after_other), vars(fresh))
 
     def test_unknown_key_rejected(self):
-        settings = store().load("willow").complete(Addon.operator_defaults())
+        settings = Addon.preset_store().load("willow").complete(Addon.operator_defaults())
         settings.values["bogus"] = 1
         with self.assertRaisesRegex(Addon.module("settings").SettingsError, r"unknown \['bogus'\]"):
             settings.apply_to(SimpleNamespace(), Addon.generation_names())
@@ -56,7 +54,7 @@ class PresetErrors(unittest.TestCase):
     """User preset files that cannot be used make the operator cancel with a clear message."""
 
     def write(self, name, text):
-        path = store().user_folder(create=True) / f"{name}.py"
+        path = Addon.preset_store().user_folder(create=True) / f"{name}.py"
         path.write_text(text, encoding="utf-8")
         self.addCleanup(path.unlink)
 
@@ -79,14 +77,14 @@ class PresetErrors(unittest.TestCase):
         self.assert_add_fails("tiny", r"tiny.py: Settings do not have \['attractUp'")
 
     def test_unknown_key(self):
-        values = store().load("callistemon").values
+        values = Addon.preset_store().load("callistemon").values
         values["bogus"] = 1
         self.write("bogus", repr(values))
         self.assert_add_fails("bogus", r"unknown \['bogus'\]")
 
     def test_invalid_file_name_is_listed_not_hidden(self):
-        self.write("bad name!", repr(store().load("willow").values))
-        (entry,) = [e for e in store().entries() if e.name == "bad name!"]
+        self.write("bad name!", repr(Addon.preset_store().load("willow").values))
+        (entry,) = [e for e in Addon.preset_store().entries() if e.name == "bad name!"]
         self.assertIn("invalid name", entry.problem)
         self.assert_add_fails("bad name!", "Rename the file")
 
@@ -96,14 +94,16 @@ class PresetErrors(unittest.TestCase):
                 bpy.ops.sapling.preset_save(name="whatever", overwrite=False, settings=settings)
 
     def test_save_through_operator_round_trips(self):
-        settings = store().load("quaking_aspen")
-        saved = store().user_folder(create=True) / "saved tree.py"
+        settings = Addon.preset_store().load("quaking_aspen")
+        saved = Addon.preset_store().user_folder(create=True) / "saved tree.py"
         self.addCleanup(saved.unlink, missing_ok=True)  # registered first: a failing save leaves no file behind
         self.assertEqual(
             bpy.ops.sapling.preset_save(name="saved tree", overwrite=True, settings=settings.to_json()), {"FINISHED"}
         )
         normalized = Addon.module("settings").TreeSettings.from_json
-        self.assertEqual(normalized(store().load("saved tree").to_json()).values, normalized(settings.to_json()).values)
+        self.assertEqual(
+            normalized(Addon.preset_store().load("saved tree").to_json()).values, normalized(settings.to_json()).values
+        )
 
 
 class BuiltinPresets(unittest.TestCase):
@@ -113,12 +113,12 @@ class BuiltinPresets(unittest.TestCase):
         import ast
 
         defaults = Addon.operator_defaults()
-        for entry in store().entries():
+        for entry in Addon.preset_store().entries():
             if not entry.builtin:
                 continue
             with self.subTest(preset=entry.name):
-                self.assertEqual(store().load(entry.name).missing(defaults), [])
-                path = store().builtin / f"{entry.name}.py"
+                self.assertEqual(Addon.preset_store().load(entry.name).missing(defaults), [])
+                path = Addon.preset_store().builtin / f"{entry.name}.py"
                 body = "\n".join(
                     line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("#")
                 )
@@ -131,10 +131,10 @@ class PresetDefaults(unittest.TestCase):
     """A preset that lacks settings loads with their defaults, and the operator says which ones."""
 
     def test_missing_settings_are_reported(self):
-        values = store().load("callistemon").values
+        values = Addon.preset_store().load("callistemon").values
         for name in ("bend", "rootFlare"):
             values.pop(name)
-        path = store().user_folder(create=True) / "lacking.py"
+        path = Addon.preset_store().user_folder(create=True) / "lacking.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_text(repr(values), encoding="utf-8")
         Scene.reset()
@@ -145,7 +145,7 @@ class PresetDefaults(unittest.TestCase):
         self.assertIn("does not have 2 settings: bend, rootFlare", warnings[0])
 
     def test_limit_import(self):
-        settings = store().load("quaking_aspen")
+        settings = Addon.preset_store().load("quaking_aspen")
         settings.values["levels"] = 4
         settings.values["showLeaves"] = True
         settings.limit_import()
@@ -156,7 +156,7 @@ class PresetFileErrors(unittest.TestCase):
     """Preset files with the right syntax but the wrong content cancel with a message naming the cause."""
 
     def write(self, name, text):
-        path = store().user_folder(create=True) / f"{name}.py"
+        path = Addon.preset_store().user_folder(create=True) / f"{name}.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_text(text, encoding="utf-8")
 
@@ -165,12 +165,12 @@ class PresetFileErrors(unittest.TestCase):
             "short", "{'levels': 3, 'attractUp': 1, 'downAngle': [1], 'downAngleV': [1], 'rotate': [1], 'rotateV': [1]}"
         )
         with self.assertRaisesRegex(Addon.module("presets").PresetError, "downAngle has 1 values; 4 are needed"):
-            store().load("short")
+            Addon.preset_store().load("short")
 
     def test_unhashable_key(self):
         self.write("unhashable", "{[1]: 2}")
         with self.assertRaisesRegex(Addon.module("presets").PresetError, "Cannot read preset unhashable.py"):
-            store().load("unhashable")
+            Addon.preset_store().load("unhashable")
 
 
 class SettingsShape(unittest.TestCase):
@@ -194,11 +194,11 @@ class SettingsShape(unittest.TestCase):
 
     def test_preset_not_found(self):
         with self.assertRaisesRegex(Addon.module("presets").PresetError, "Preset 'nowhere' not found"):
-            store().load("nowhere")
+            Addon.preset_store().load("nowhere")
 
     def test_preset_that_is_not_utf8(self):
-        path = store().user_folder(create=True) / "latin.py"
+        path = Addon.preset_store().user_folder(create=True) / "latin.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_bytes("{'name': 'caf\xe9'}".encode("latin-1"))
         with self.assertRaisesRegex(Addon.module("presets").PresetError, "Cannot read preset latin.py"):
-            store().load("latin")
+            Addon.preset_store().load("latin")

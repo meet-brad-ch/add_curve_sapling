@@ -14,22 +14,9 @@ from support.model import Model
 from support.scene import Scene
 
 
-def grow(**changes):
-    """Grow a tree in the model alone (no Blender objects)."""
-    settings = Addon.resolve_preset(changes.pop("preset", "quaking_aspen") + ".py")
-    settings.update(changes)
-    return Model.grow(settings)
-
-
-def level_index(grown, spline):
-    """The parameter level of a spline: its depth below the trunk, deeper levels reusing the last."""
-    depth = int(np.searchsorted(np.array(grown.level_ends), spline, side="right"))
-    return Addon.module("model.params").TreeParams.level_index(depth)
-
-
 class TreeStructure(unittest.TestCase):
     def test_one_bone_link_per_spline_and_monotone_levels(self):
-        model = grow(levels=4)
+        model = Model.grow_preset(levels=4)
         curve = model.curve
         grown = model.grown
         flat = curve.flatten()
@@ -39,7 +26,7 @@ class TreeStructure(unittest.TestCase):
         self.assertTrue(np.isfinite(flat.co).all() and np.isfinite(flat.left).all() and np.isfinite(flat.right).all())
 
     def test_parents_come_before_their_children(self):
-        model = grow(levels=3)
+        model = Model.grow_preset(levels=3)
         grown = model.grown
         bone_name = Addon.module("model.stem").BoneName
         for index, link in enumerate(grown.bone_map):
@@ -50,13 +37,13 @@ class TreeStructure(unittest.TestCase):
 
     def test_spline_sizes(self):
         """A root has curveRes + 1 points; a split starts at its split point, so it has fewer."""
-        model = grow(levels=3, segSplits=(0.5, 0.5, 0.5, 0.0), baseSplits=2)
+        model = Model.grow_preset(levels=3, segSplits=(0.5, 0.5, 0.5, 0.0), baseSplits=2)
         params = model.params
         curve = model.curve
         grown = model.grown
         sizes = curve.flatten().sizes
         for index, (link, size) in enumerate(zip(grown.bone_map, sizes, strict=True)):
-            segments = params.curve_res[level_index(grown, index)]
+            segments = params.curve_res[Model.level_index(grown, index)]
             if link.is_split:
                 self.assertTrue(2 <= size <= segments, f"split {index}: {size} points")
                 parent = Addon.module("model.stem").BoneName.spline(link.bone)
@@ -66,7 +53,7 @@ class TreeStructure(unittest.TestCase):
 
     def test_trunk_count(self):
         for trunks in (1, 3):
-            model = grow(levels=2, trunks=trunks)
+            model = Model.grow_preset(levels=2, trunks=trunks)
             curve = model.curve
             grown = model.grown
             roots = [i for i, link in enumerate(grown.bone_map) if not link.bone and not link.is_split]
@@ -77,7 +64,7 @@ class TreeStructure(unittest.TestCase):
 
     def test_split_fraction_follows_seg_splits(self):
         """Without Split by Length, a level's stems split with probability segSplits (times the boost rule)."""
-        model = grow(
+        model = Model.grow_preset(
             levels=2, branches=(0, 400, 0, 0), segSplits=(0.0, 0.3, 0.0, 0.0), splitByLen=False, curveRes=(8, 10, 3, 1)
         )
         grown = model.grown
@@ -94,14 +81,14 @@ class TreeStructure(unittest.TestCase):
 
     def test_no_children_sprout_only_tips(self):
         """A negative leaf count (palmate leaves) sprouts at the stem tips only."""
-        model = grow(levels=2, leaves=-3, showLeaves=True)
+        model = Model.grow_preset(levels=2, leaves=-3, showLeaves=True)
         grown = model.grown
         self.assertTrue(grown.sprouts.is_end.all())
         self.assertEqual(grown.sprouts.count, grown.level_ends[1] - grown.level_ends[0])
 
     def test_sprouts_sit_on_their_parent_segment(self):
         """Every sprout point lies on the Bezier segment of the parent it names, within the sampling precision."""
-        model = grow(levels=2, branches=(0, 60, 0, 0))
+        model = Model.grow_preset(levels=2, branches=(0, 60, 0, 0))
         curve = model.curve
         grown = model.grown
         flat = curve.flatten()
@@ -122,7 +109,7 @@ class RadiusRange(unittest.TestCase):
     grew radii past float32: an infinite radius gave the swept bark NaN vertices (fuzz case 56)."""
 
     def test_radii_stay_within_float32(self):
-        model = grow(
+        model = Model.grow_preset(
             levels=4,
             trunks=3,
             scale=13.2,
@@ -156,11 +143,11 @@ class FailFast(unittest.TestCase):
 
     def test_a_tree_needs_a_level(self):
         with self.assertRaisesRegex(ValueError, "at least one level"):
-            grow(levels=0)
+            Model.grow_preset(levels=0)
 
     def test_non_finite_sprouts_are_an_error(self):
         """Sprouts without a finite position stop the model instead of reaching Blender as NaN."""
-        params = grow(levels=1).params
+        params = Model.grow_preset(levels=1).params
         module = Addon.module
         root_key = module("model.randomness").KeyedRandom.root(params.seed)
         grid = module("model.branching").LevelStarter(params, random.Random(1), root_key).trunks(params.scale)
@@ -175,10 +162,10 @@ class FailFast(unittest.TestCase):
         pruning.MAX_PASSES = 0
         self.addCleanup(setattr, pruning, "MAX_PASSES", passes)
         with self.assertRaisesRegex(RuntimeError, "did not settle"):
-            grow(preset="callistemon", prune=True)
+            Model.grow_preset(preset="callistemon", prune=True)
 
     def test_a_grown_level_cannot_be_subset(self):
-        params = grow(levels=1, baseSplits=2).params  # Base Splits split the trunk at its first step
+        params = Model.grow_preset(levels=1, baseSplits=2).params  # Base Splits split the trunk at its first step
         module = Addon.module
         root_key = module("model.randomness").KeyedRandom.root(params.seed)
         grid = module("model.branching").LevelStarter(params, random.Random(1), root_key).trunks(params.scale)
@@ -256,7 +243,7 @@ class PrunedTrees(unittest.TestCase):
         search before it. Without pruning most ends are far outside."""
         for preset, changes in (("callistemon", {}), ("quaking_aspen", {"pruneWidth": 0.25})):
             with self.subTest(preset=preset):
-                model = grow(preset=preset, prune=True, pruneRatio=1.0, **changes)
+                model = Model.grow_preset(preset=preset, prune=True, pruneRatio=1.0, **changes)
                 params = model.params
                 curve = model.curve
                 grown = model.grown
@@ -276,7 +263,7 @@ class PrunedTrees(unittest.TestCase):
         sizes = flat.sizes
         over = []
         for i, end in enumerate(ends):
-            level = level_index(grown, i)
+            level = Model.level_index(grown, i)
             if sizes[i] < 2 or (level == 0 and end[2] < params.prune_base_clamped * scale):
                 continue
             ratio = (scale - end[2]) / (scale * max(1 - params.prune_base_clamped, 1e-6))
@@ -286,7 +273,7 @@ class PrunedTrees(unittest.TestCase):
         return np.array(over)
 
     def test_removed_stems_are_stubs_without_sprouts(self):
-        model = grow(preset="quaking_aspen", prune=True, pruneRatio=1.0, pruneWidth=0.25)
+        model = Model.grow_preset(preset="quaking_aspen", prune=True, pruneRatio=1.0, pruneWidth=0.25)
         curve = model.curve
         grown = model.grown
         flat = curve.flatten()
@@ -308,16 +295,16 @@ class PrunedTrees(unittest.TestCase):
 
     def test_two_growths_are_identical(self):
         """The same settings give the same arrays, bit for bit, every time."""
-        model = grow(preset="cambridge_oak")
+        model = Model.grow_preset(preset="cambridge_oak")
         first = model.curve
-        model = grow(preset="cambridge_oak")
+        model = Model.grow_preset(preset="cambridge_oak")
         second = model.curve
         a, b = first.flatten(), second.flatten()
         for name in ("co", "left", "right", "radius", "h1", "h2", "start"):
             np.testing.assert_array_equal(getattr(a, name), getattr(b, name), err_msg=name)
 
     def test_partial_ratio_keeps_every_stem(self):
-        model = grow(preset="quaking_aspen", prune=True, pruneRatio=0.5, pruneWidth=0.25)
+        model = Model.grow_preset(preset="quaking_aspen", prune=True, pruneRatio=0.5, pruneWidth=0.25)
         curve = model.curve
         self.assertTrue((curve.flatten().sizes >= 2).all())
 
@@ -347,7 +334,7 @@ class TrunkHeightOne(unittest.TestCase):
     """Trunk Height 1 leaves the whole trunk bare: the first level's branches continue from its tip only."""
 
     def test_a_bare_trunk_grows_from_its_tip(self):
-        model = grow(levels=2, baseSize=1.0)
+        model = Model.grow_preset(levels=2, baseSize=1.0)
         flat = model.curve.flatten()
         self.assertTrue(np.isfinite(flat.co).all())
         first_level = range(model.grown.level_ends[0], model.grown.level_ends[1])
@@ -452,12 +439,12 @@ class BendVariation(unittest.TestCase):
             return original(keys, step, draw, low, high)
 
         with unittest.mock.patch.object(randomness, "between", side_effect=spy):
-            grow(**changes)
+            Model.grow_preset(**changes)
         return seen
 
     def turns(self, bend):
         """Every level-1 stem's turn angles between its segments, in degrees, and the level's segment count."""
-        model = grow(**self.STRAIGHT, bendV=(0.0, bend, 0.0, 0.0))
+        model = Model.grow_preset(**self.STRAIGHT, bendV=(0.0, bend, 0.0, 0.0))
         flat = model.curve.flatten()
         ends = model.grown.level_ends
         turns = []
@@ -506,7 +493,7 @@ class HelixStems(unittest.TestCase):
         helix[level] = True
         curve_v = [20.0, 50.0, 75.0, 0.0]
         curve_v[level] = self.HELIX_ANGLE
-        model = grow(helix=helix, curveV=curve_v, **changes)
+        model = Model.grow_preset(helix=helix, curveV=curve_v, **changes)
         flat = model.curve.flatten()
         ends = [0, *model.grown.level_ends]
         rows = range(ends[level], ends[level + 1])
@@ -557,7 +544,7 @@ class HelixStems(unittest.TestCase):
     def test_helix_angle_of_90_degrees_is_an_error(self):
         error = Addon.module("model.params").InvalidSettingError
         with self.assertRaisesRegex(error, "Helix on level 2: .* It is 90 degrees"):
-            grow(levels=2, helix=(False, True, False, False), curveV=(20.0, 90.0, 0.0, 0.0))
+            Model.grow_preset(levels=2, helix=(False, True, False, False), curveV=(20.0, 90.0, 0.0, 0.0))
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, helix=(False, True, False, False), curveV=(20.0, -95.0, 0.0, 0.0))
         with self.assertRaisesRegex(RuntimeError, "Helix on level 2: .* It is 95 degrees"):
@@ -585,8 +572,8 @@ class PalmSettings(unittest.TestCase):
         return grown, Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts).leaves
 
     def test_count_above_base_fills_the_crown(self):
-        self.assertLessEqual(len(self.first_level(grow(**self.PALM))), 2)
-        crown = grow(**self.PALM, countAboveBase=True)
+        self.assertLessEqual(len(self.first_level(Model.grow_preset(**self.PALM))), 2)
+        crown = Model.grow_preset(**self.PALM, countAboveBase=True)
         stems = self.first_level(crown)
         self.assertGreaterEqual(len(stems), 20)
         flat = crown.curve.flatten()
@@ -638,7 +625,7 @@ class TrunksFaceOut(unittest.TestCase):
 
     def outward(self, **changes):
         """Per further trunk, the cosine between its base's direction from the centre and its tip's sideways shift."""
-        model = grow(**self.CLUMP, **changes)
+        model = Model.grow_preset(**self.CLUMP, **changes)
         flat = model.curve.flatten()
         cosines = []
         for trunk in range(1, model.grown.level_ends[0]):

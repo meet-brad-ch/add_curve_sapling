@@ -12,10 +12,7 @@ from support.addon import Addon
 from support.evaluated import Evaluated
 from support.fingerprint import Fingerprint
 from support.scene import Scene
-
-
-def root_of(ob):
-    return Addon.module("build.tree_record").TreeRecord.root_of(ob)
+from support.trees import Trees
 
 
 class Registration(unittest.TestCase):
@@ -98,7 +95,7 @@ class Placement(unittest.TestCase):
         finally:
             bpy.context.scene.cursor.location = (0.0, 0.0, 0.0)
         root = bpy.context.active_object
-        self.assertEqual(root_of(root), root)
+        self.assertEqual(Trees.root_of(root), root)
         self.assertEqual(root.location.to_tuple(), (1.0, 2.0, 3.0))
         self.assertEqual(bpy.context.selected_objects, [root])
 

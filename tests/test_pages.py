@@ -8,55 +8,10 @@ Blender draws no UI in background mode, so the draw code runs against a stand-in
 import unittest
 from types import SimpleNamespace
 
-import bpy
 from support.addon import Addon
+from support.layout import RecordingLayout
 from support.scene import Scene
-
-
-class RecordingLayout:
-    """Stands in for bpy.types.UILayout: records the properties, buttons and labels drawn, in order."""
-
-    def __init__(self):
-        self.props = []
-        self.buttons = []
-        self.labels = []
-
-    def prop(self, props, name, **options):
-        self.props.append(name)
-
-    def prop_search(self, props, name, search_data, search_property, **options):
-        self.props.append(name)
-
-    def operator(self, idname, **options):
-        button = SimpleNamespace(idname=idname, **options)
-        self.buttons.append(button)
-        return button
-
-    def label(self, text="", **options):
-        self.labels.append(text)
-
-    def separator(self):
-        pass
-
-    def row(self):
-        return self
-
-    def column(self):
-        return self
-
-    def box(self):
-        return self
-
-    def split(self):
-        return self
-
-
-def add_tree():
-    Scene.reset()
-    settings = {**Addon.resolve_preset("quaking_aspen.py"), "showLeaves": True}
-    if bpy.ops.curve.tree_add(**settings, do_update=True) != {"FINISHED"}:
-        raise AssertionError("tree_add failed")
-    return Scene.active_object()
+from support.trees import Trees
 
 
 class SettingsPages(unittest.TestCase):
@@ -112,7 +67,7 @@ class TreeUi(unittest.TestCase):
         return Addon.module("ui.panels")
 
     def test_panel_shows_for_tree_parts_only(self):
-        root = add_tree()
+        root = Trees.add_with_leaves()
         panel = self.panels().TreePanel
         self.assertTrue(panel.poll(SimpleNamespace(mode="OBJECT", active_object=root)))
         self.assertFalse(panel.poll(SimpleNamespace(mode="EDIT_CURVE", active_object=root)))
@@ -121,7 +76,7 @@ class TreeUi(unittest.TestCase):
         self.assertFalse(panel.poll(SimpleNamespace(mode="OBJECT", active_object=card)))
 
     def test_panel_draws_the_edit_button_for_the_root(self):
-        root = add_tree()
+        root = Trees.add_with_leaves()
         child = root.children[0]
         layout = RecordingLayout()
         self.panels().TreePanel.draw(SimpleNamespace(layout=layout), SimpleNamespace(active_object=child))
@@ -133,13 +88,13 @@ class TreeUi(unittest.TestCase):
         self.assertEqual(duplicate.idname, "sapling.tree_duplicate")
 
     def test_panel_draw_without_a_layout_fails(self):
-        root = add_tree()
+        root = Trees.add_with_leaves()
         with self.assertRaisesRegex(RuntimeError, "without a layout"):
             self.panels().TreePanel.draw(SimpleNamespace(layout=None), SimpleNamespace(active_object=root))
 
     def test_panel_shows_a_broken_record(self):
         """A draw method cannot report: a record that cannot be read shows its reason, and no Edit button."""
-        root = add_tree()
+        root = Trees.add_with_leaves()
         root[Addon.module("build.tree_record").TreeRecord.SETTINGS] = "{"
         layout = RecordingLayout()
         self.panels().TreePanel.draw(SimpleNamespace(layout=layout), SimpleNamespace(active_object=root))
@@ -148,7 +103,7 @@ class TreeUi(unittest.TestCase):
         self.assertEqual(layout.buttons, [])
 
     def test_menu_entries(self):
-        root = add_tree()
+        root = Trees.add_with_leaves()
         menus = self.panels().Menus
         add_menu = RecordingLayout()
         menus.add_curve(SimpleNamespace(layout=add_menu), None)

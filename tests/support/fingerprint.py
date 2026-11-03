@@ -191,3 +191,38 @@ class Fingerprint:
         for v in ob.data.vertices:
             members.append(",".join(f"{g.group}:{g.weight!r}" for g in v.groups))
         return cls.text([g.name for g in ob.vertex_groups] + members)
+
+
+class FingerprintDiff:
+    """The first difference between two fingerprints, as a readable path."""
+
+    @classmethod
+    def first(cls, expected, actual, path="") -> str:
+        """Human-readable location of the first difference between two fingerprints."""
+        if isinstance(expected, dict) and isinstance(actual, dict):
+            return cls.in_dict(expected, actual, path)
+        if isinstance(expected, list) and isinstance(actual, list):
+            return cls.in_list(expected, actual, path)
+        return "" if expected == actual else f"{path}: {expected!r} -> {actual!r}"
+
+    @classmethod
+    def in_dict(cls, expected, actual, path) -> str:
+        for key in sorted(set(expected) | set(actual)):
+            if key not in actual:
+                return f"{path}/{key}: missing"
+            if key not in expected:
+                return f"{path}/{key}: unexpected"
+            found = cls.first(expected[key], actual[key], f"{path}/{key}")
+            if found:
+                return found
+        return ""
+
+    @classmethod
+    def in_list(cls, expected, actual, path) -> str:
+        if len(expected) != len(actual):
+            return f"{path}: length {len(expected)} -> {len(actual)}"
+        for i, (e, a) in enumerate(zip(expected, actual, strict=True)):
+            found = cls.first(e, a, f"{path}[{i}]")
+            if found:
+                return found
+        return ""

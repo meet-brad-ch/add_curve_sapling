@@ -7,18 +7,7 @@ import unittest
 
 import numpy as np
 from support.addon import Addon
-from support.evaluated import Evaluated
-from support.model import Model
-from support.scene import Scene
-
-
-def spray_starts(settings: dict) -> np.ndarray:
-    """The first point of every third-level stem (the sprays on the limbs), as (x, y, z)."""
-    model = Model.grow(settings)
-    ends = model.grown.level_ends
-    Scene.generate(settings)
-    splines = Evaluated.spline_points()
-    return np.array([spline[0][0] for spline in splines[ends[1] : ends[2]]])
+from support.crown import Crown
 
 
 class BranchBase(unittest.TestCase):
@@ -28,14 +17,14 @@ class BranchBase(unittest.TestCase):
         # no splits: every spline is one stem, starting where it sprouts (a split piece starts mid-stem)
         settings.update(levels=3, seed=5, prune=False, baseSplits=0, segSplits=[0.0, 0.0, 0.0, 0.0])
         cls.base = settings
-        cls.plain = spray_starts(settings)
+        cls.plain = Crown.spray_starts(settings)
 
     def test_zero_changes_nothing(self):
-        same = spray_starts(dict(self.base, branchBase=[0.0, 0.0, 0.0, 0.0]))
+        same = Crown.spray_starts(dict(self.base, branchBase=[0.0, 0.0, 0.0, 0.0]))
         np.testing.assert_array_equal(same, self.plain)
 
     def test_the_sprays_grow_on_the_limbs_outer_part(self):
-        outer = spray_starts(dict(self.base, branchBase=[0.0, 0.6, 0.0, 0.0]))
+        outer = Crown.spray_starts(dict(self.base, branchBase=[0.0, 0.6, 0.0, 0.0]))
         plain_reach = np.hypot(self.plain[:, 0], self.plain[:, 1])
         outer_reach = np.hypot(outer[:, 0], outer[:, 1])
         # the sprays start further out from the trunk: none on the limbs' bare inner 60 %

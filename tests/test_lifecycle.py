@@ -7,13 +7,7 @@ import unittest
 import bpy
 from support.addon import Addon
 from support.scene import Scene
-
-
-def full_tree_settings(rig=True):
-    """Everything on, with the armature rig or with the node wind."""
-    settings = Addon.resolve_preset("quaking_aspen.py")
-    settings.update(showLeaves=True, useRig=rig, windAnim=True, leafFlutter=True, makeMesh=True, prune=True)
-    return settings
+from support.trees import Trees
 
 
 class DataLifecycle(unittest.TestCase):
@@ -22,7 +16,7 @@ class DataLifecycle(unittest.TestCase):
             with self.subTest(rig=rig):
                 Scene.reset()
                 empty = Scene.counts()
-                self.assertEqual(bpy.ops.curve.tree_add(**full_tree_settings(rig), do_update=True), {"FINISHED"})
+                self.assertEqual(bpy.ops.curve.tree_add(**Trees.full_settings(rig), do_update=True), {"FINISHED"})
                 root = Addon.module("build.tree_record").TreeRecord.root_of(bpy.context.active_object)
                 Addon.module("build.tree_record").TreeRecord.remove(root)
                 self.assertEqual(Scene.counts(), empty)
@@ -30,7 +24,7 @@ class DataLifecycle(unittest.TestCase):
     def test_regenerate_leaves_no_orphans(self):
         for rig in (True, False):
             with self.subTest(rig=rig):
-                self.regenerate_three_times(full_tree_settings(rig))
+                self.regenerate_three_times(Trees.full_settings(rig))
 
     def regenerate_three_times(self, settings):
         Scene.reset()

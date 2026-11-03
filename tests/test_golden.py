@@ -15,42 +15,11 @@ from pathlib import Path
 import bpy
 from golden_cases import CASES
 from support.addon import Addon
-from support.fingerprint import Fingerprint
+from support.fingerprint import Fingerprint, FingerprintDiff
 from support.golden import Golden
 from support.scene import Scene
 
 GOLDEN = Path(__file__).resolve().parent / "golden"
-
-
-def first_difference(expected, actual, path="") -> str:
-    """Human-readable location of the first difference between two fingerprints."""
-    if isinstance(expected, dict) and isinstance(actual, dict):
-        return dict_difference(expected, actual, path)
-    if isinstance(expected, list) and isinstance(actual, list):
-        return list_difference(expected, actual, path)
-    return "" if expected == actual else f"{path}: {expected!r} -> {actual!r}"
-
-
-def dict_difference(expected, actual, path) -> str:
-    for key in sorted(set(expected) | set(actual)):
-        if key not in actual:
-            return f"{path}/{key}: missing"
-        if key not in expected:
-            return f"{path}/{key}: unexpected"
-        found = first_difference(expected[key], actual[key], f"{path}/{key}")
-        if found:
-            return found
-    return ""
-
-
-def list_difference(expected, actual, path) -> str:
-    if len(expected) != len(actual):
-        return f"{path}: length {len(expected)} -> {len(actual)}"
-    for i, (e, a) in enumerate(zip(expected, actual, strict=True)):
-        found = first_difference(e, a, f"{path}[{i}]")
-        if found:
-            return found
-    return ""
 
 
 class GoldenTrees(unittest.TestCase):
@@ -76,7 +45,7 @@ class GoldenTrees(unittest.TestCase):
                         f"{name} was recorded with Blender {recorded['blender']}: run the tests on that version",
                     )
                     settings = recorded["settings"]
-                    difference = first_difference(settings, current)
+                    difference = FingerprintDiff.first(settings, current)
                     self.assertEqual(difference, "", f"{name}: settings drifted from the recording at {difference}")
 
                 result = Scene.generate(settings)
@@ -87,7 +56,7 @@ class GoldenTrees(unittest.TestCase):
                     record = {"blender": bpy.app.version_string, "settings": settings, "fingerprint": actual}
                     path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n", encoding="utf-8")
                 else:
-                    difference = first_difference(recorded["fingerprint"], actual)
+                    difference = FingerprintDiff.first(recorded["fingerprint"], actual)
                     self.assertEqual(difference, "", f"{name} differs at {difference}")
         if Golden.record:
             self.fail("golden files recorded: review the diff, then run the tests without --record-golden")

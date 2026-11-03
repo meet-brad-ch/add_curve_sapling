@@ -3,7 +3,6 @@
 """Blossoms: some leaf positions grow a flower instead of a leaf (Blossom Rate, Shape and Scale)."""
 
 import math
-import random
 import unittest
 import unittest.mock
 
@@ -11,40 +10,20 @@ import bpy
 import numpy as np
 from support.addon import Addon
 from support.evaluated import Evaluated
+from support.foliage import Foliage
 from support.model import Model
 from support.scene import Scene
 
 
-def blossoms_module():
-    return Addon.module("model.blossoms")
-
-
-def foliage(**changes):
-    """The leaves and blossoms of a quaking aspen with leaves, grown in the model alone."""
-    settings = Addon.resolve_preset("quaking_aspen.py")
-    settings.update(levels=2, showLeaves=True, **changes)
-    params = Model.params(settings)
-    curve = Addon.module("model.curve_data").CurveData()
-    rng = random.Random(params.seed)
-    grown = Addon.module("model.tree").TreeGrower(params, rng).grow(curve, params.scale)
-    return Addon.module("model.leaves").LeafGenerator(params, rng).generate(grown.sprouts)
-
-
-def leaf_blocks(leaf_set):
-    """Each leaf's vertices as one bytes value (for comparing sets of leaves)."""
-    per_leaf = leaf_set.vertices.reshape(leaf_set.count, -1)
-    return [row.tobytes() for row in per_leaf]
-
-
 class BlossomTemplates(unittest.TestCase):
     def template(self, shape):
-        return blossoms_module().BlossomShape.template(shape)
+        return Foliage.blossoms_module().BlossomShape.template(shape)
 
     def form(self, shape):
-        return blossoms_module().BlossomShape.FORMS[shape]
+        return Foliage.blossoms_module().BlossomShape.FORMS[shape]
 
     def test_counts(self):
-        for shape in blossoms_module().BlossomShape.ALL:
+        for shape in Foliage.blossoms_module().BlossomShape.ALL:
             with self.subTest(shape=shape):
                 template = self.template(shape)
                 petals = self.form(shape).petals
@@ -53,7 +32,7 @@ class BlossomTemplates(unittest.TestCase):
                 self.assertEqual(set(np.unique(template.faces).tolist()), set(range(len(template.vertices))))
 
     def test_closed_disc_of_unit_diameter(self):
-        for shape in blossoms_module().BlossomShape.ALL:
+        for shape in Foliage.blossoms_module().BlossomShape.ALL:
             with self.subTest(shape=shape):
                 template = self.template(shape)
                 self.assertAlmostEqual(np.hypot(template.vertices[:, 0], template.vertices[:, 1]).max(), 0.5)
@@ -65,7 +44,7 @@ class BlossomTemplates(unittest.TestCase):
                 self.assertLessEqual(max(edges.values()), 2, "no edge is shared by more than two faces")
 
     def test_petals_repeat_around_the_centre(self):
-        for shape in blossoms_module().BlossomShape.ALL:
+        for shape in Foliage.blossoms_module().BlossomShape.ALL:
             with self.subTest(shape=shape):
                 template = self.template(shape)
                 angle = 2 * math.pi / self.form(shape).petals
@@ -77,7 +56,7 @@ class BlossomTemplates(unittest.TestCase):
                 self.assertLess(distance.max(), 1e-9)
 
     def test_faces_look_up(self):
-        for shape in blossoms_module().BlossomShape.ALL:
+        for shape in Foliage.blossoms_module().BlossomShape.ALL:
             with self.subTest(shape=shape):
                 template = self.template(shape)
                 v = template.vertices[template.faces]
@@ -85,7 +64,7 @@ class BlossomTemplates(unittest.TestCase):
                 self.assertTrue((normals[:, 2] > 0).all())
 
     def test_cup_and_reflex(self):
-        shapes = blossoms_module().BlossomShape
+        shapes = Foliage.blossoms_module().BlossomShape
         tips = {shape: self.template(shape).vertices[:, 2].max() for shape in [shapes.CHERRY, shapes.MAGNOLIA]}
         self.assertGreater(tips[shapes.CHERRY], 0)
         self.assertGreater(tips[shapes.MAGNOLIA], tips[shapes.CHERRY])
@@ -111,38 +90,40 @@ class BlossomPositions(unittest.TestCase):
             return original(keys, step, draw)
 
         with unittest.mock.patch.object(randomness.KeyedRandom, "uniform", side_effect=spy):
-            self.assertIsNone(foliage(blossomRate=0.0).blossoms)
+            self.assertIsNone(Foliage.grow(blossomRate=0.0).blossoms)
             self.assertNotIn(randomness.Draw.BLOSSOM, seen)
-            foliage(blossomRate=0.5)
+            Foliage.grow(blossomRate=0.5)
         self.assertIn(randomness.Draw.BLOSSOM, seen)
 
     def test_rate_one_grows_only_blossoms(self):
-        everything = foliage(blossomRate=1.0)
+        everything = Foliage.grow(blossomRate=1.0)
         self.assertEqual(everything.leaves.count, 0)
-        self.assertEqual(everything.blossoms.count, foliage().leaves.count)
+        self.assertEqual(everything.blossoms.count, Foliage.grow().leaves.count)
 
     def test_fraction_follows_the_rate(self):
-        result = foliage(blossomRate=0.3)
+        result = Foliage.grow(blossomRate=0.3)
         total = result.leaves.count + result.blossoms.count
         spread = 4 * math.sqrt(total * 0.3 * 0.7)
         self.assertLess(abs(result.blossoms.count - 0.3 * total), spread)
 
     def test_a_higher_rate_keeps_every_blossom(self):
-        low = set(map(bytes, foliage(blossomRate=0.3).blossoms.sprout_co))
-        high = set(map(bytes, foliage(blossomRate=0.6).blossoms.sprout_co))
+        low = set(map(bytes, Foliage.grow(blossomRate=0.3).blossoms.sprout_co))
+        high = set(map(bytes, Foliage.grow(blossomRate=0.6).blossoms.sprout_co))
         self.assertTrue(low < high)
 
     def test_leaves_and_blossoms_share_the_positions(self):
-        plain = foliage().leaves
-        mixed = foliage(blossomRate=0.4)
+        plain = Foliage.grow().leaves
+        mixed = Foliage.grow(blossomRate=0.4)
         together = np.concatenate([mixed.leaves.sprout_co, mixed.blossoms.sprout_co])
         self.assertEqual(sorted(map(bytes, together)), sorted(map(bytes, plain.sprout_co)))
-        self.assertTrue(set(leaf_blocks(mixed.leaves)) <= set(leaf_blocks(plain)), "the leaves left are unchanged")
+        self.assertTrue(
+            set(Foliage.blocks(mixed.leaves)) <= set(Foliage.blocks(plain)), "the leaves left are unchanged"
+        )
 
     def test_blossom_size_and_place(self):
-        shapes = blossoms_module().BlossomShape
+        shapes = Foliage.blossoms_module().BlossomShape
         scale = 0.3
-        result = foliage(blossomRate=1.0, blossomScale=scale)
+        result = Foliage.grow(blossomRate=1.0, blossomScale=scale)
         blossoms = result.blossoms
         flowers = blossoms.vertices.reshape(blossoms.count, -1, 3).astype(np.float64)
         np.testing.assert_array_equal(flowers[:, 0], blossoms.sprout_co)

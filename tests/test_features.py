@@ -11,8 +11,10 @@ from mathutils import Vector
 from support.addon import Addon
 from support.console import Console
 from support.evaluated import Evaluated
+from support.foliage import Foliage
 from support.model import BoneIndex, Model
 from support.scene import Scene
+from support.trees import Trees
 
 
 def root_of(bone):
@@ -79,21 +81,6 @@ class TrunkPlacementFailure(unittest.TestCase):
             bpy.ops.curve.tree_add(**settings, do_update=True)
 
 
-def leaf_positions(frame, armature_on=True):
-    """The leaves' evaluated vertex positions at a frame (optionally without the Armature modifier, which is
-    shown again after)."""
-    leaves = bpy.data.objects["leaves"]
-    armatures = [modifier for modifier in leaves.modifiers if modifier.type == "ARMATURE"]
-    shown = [modifier.show_viewport for modifier in armatures]
-    for modifier in armatures:
-        modifier.show_viewport = armature_on
-    try:
-        return [Vector(co) for co in Evaluated.vertices("leaves", frame).tolist()]
-    finally:
-        for modifier, was_shown in zip(armatures, shown, strict=True):
-            modifier.show_viewport = was_shown
-
-
 class LeafFlutter(unittest.TestCase):
     """Leaf Animation: one Geometry Nodes modifier turns every leaf about its sprout; no bone per leaf.
 
@@ -120,12 +107,14 @@ class LeafFlutter(unittest.TestCase):
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["NODES", "ARMATURE"])
 
     def test_leaves_move_between_frames(self):
-        self.assertNotEqual(leaf_positions(1), leaf_positions(17))
+        self.assertNotEqual(Foliage.positions(1), Foliage.positions(17))
 
     def test_each_leaf_turns_rigidly_about_its_sprout(self):
         moved = 0
         for frame in (5, 17):
-            for rest, now, pivot in zip(self.rest, leaf_positions(frame, armature_on=False), self.pivots, strict=True):
+            for rest, now, pivot in zip(
+                self.rest, Foliage.positions(frame, armature_on=False), self.pivots, strict=True
+            ):
                 self.assertAlmostEqual((now - pivot).length, (rest - pivot).length, places=5)
                 moved += (now - rest).length > 1e-4
         self.assertGreater(moved, len(self.rest) // 2)
@@ -143,7 +132,7 @@ class LeafFlutterOptions(unittest.TestCase):
         rest = [v.co.copy() for v in bpy.data.objects["leaves"].data.vertices]
 
         def largest_move(frame):  # turning by zero about the sprout can still round in the last bit
-            return max((a - b).length for a, b in zip(leaf_positions(frame, armature_on=False), rest, strict=True))
+            return max((a - b).length for a, b in zip(Foliage.positions(frame, armature_on=False), rest, strict=True))
 
         self.assertLess(largest_move(0), 1e-6)
         self.assertLess(largest_move(48), 1e-6)
@@ -160,13 +149,6 @@ class LeafFlutterOptions(unittest.TestCase):
         self.assertEqual([m.type for m in bpy.data.objects["leaves"].modifiers], ["ARMATURE"])
 
 
-def generated_model(test, settings):
-    """Generate a tree (the result must be FINISHED) and return the model the generator grew for it."""
-    captured = Model.record_growth(test)
-    test.assertEqual(Scene.generate(settings), {"FINISHED"})
-    return captured[-1]
-
-
 class RigLevels(unittest.TestCase):
     """Joint Levels and Joint Length thin the rig: level 1 rigs the trunks, level 2 adds their branches, and so on;
     a stem above the levels follows the nearest bone below it, bark and leaves alike."""
@@ -174,7 +156,7 @@ class RigLevels(unittest.TestCase):
     def test_joint_levels_rig_the_trunk_only(self):
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=3, showLeaves=True, useRig=True, jointLevels=1)
-        model = generated_model(self, settings)
+        model = Trees.generated_model(self, settings)
         bone_name = Addon.module("model.stem").BoneName
         splines = {bone_name.spline(b.name) for b in Scene.armature().data.bones}
         self.assertTrue(splines)
@@ -188,7 +170,7 @@ class RigLevels(unittest.TestCase):
     def test_joint_length_thins_the_rig(self):
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, useRig=True, jointLevels=2, jointStep=(2, 3, 1, 1))
-        model = generated_model(self, settings)
+        model = Trees.generated_model(self, settings)
         bone_name = Addon.module("model.stem").BoneName
         for bone in Scene.armature().data.bones:
             step = 2 if bone_name.spline(bone.name) < model.grown.level_ends[0] else 3
@@ -199,7 +181,7 @@ class RigLevels(unittest.TestCase):
         """Joint Levels 1 with wind: the bark of the branches (no bones of their own) sways with the trunk's bones."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=3, branches=(0, 20, 5, 0), useRig=True, windAnim=True, jointLevels=1)
-        model = generated_model(self, settings)
+        model = Trees.generated_model(self, settings)
         moved = np.linalg.norm(Evaluated.vertices("tree", 17) - Evaluated.vertices("tree", 1), axis=1)
         self.assertGreater(np.mean(moved > 1e-3), 0.5, "most of the bark moves")
         splines = {BoneIndex.of(b.name).spline for b in Scene.armature().data.bones}
