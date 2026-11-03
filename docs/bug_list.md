@@ -26,6 +26,8 @@ that the validation finds broken (`docs/requirements.md`) is entered here with t
 - **Seen:** 2026-11-03, `lizard -C 10 -w source tools tests -x "./source/presets/*"`. ruff's C901 passes them: it does
   not count `and`/`or` and comprehensions as lizard does.
 - **Fix:** the quality pass (plan step 2b), then lizard in `tools/check.py`.
+- **Status:** source/ fixed in 71e75a6 (lizard -C 10 on source/ finds nothing). Open: the functions in tools/ and
+  tests/.
 
 ### S1 Version 0.3.7 on the Extensions Platform fails on Blender 5.x
 - **Where:** extensions.blender.org, Sapling Tree Gen 0.3.7, Blender range "4.4 and newer".
