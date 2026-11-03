@@ -35,6 +35,8 @@ def main() -> int:
         step("ruff format", [python, "-m", "ruff", "format", "--check", "."]),
         step("mypy", [python, "-m", "mypy"]),
         step("requirements", [python, "tools/requirements_check.py"]),
+        # a thin UI: every function of source/ui/ at cyclomatic complexity 3 or less (the logic is in source/service/)
+        step("thin UI", [python, "-m", "lizard", "-C", "3", "-w", "source/ui"]),
     ]
     print("== extension validate", flush=True)
     validate = run(["--factory-startup", "-c", "extension", "validate", str(SOURCE)], check=False)

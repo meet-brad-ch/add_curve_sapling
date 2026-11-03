@@ -8,8 +8,8 @@ import bpy
 from bpy.app.handlers import persistent
 from bpy.types import Context, Depsgraph, Event, Object, Operator, Scene
 
-from ..build.tree_copy import TreeCopy
-from ..build.tree_record import TreeRecord
+from ..service.copies import TreeCopies
+from ..service.query import TreeQuery
 
 if TYPE_CHECKING:
     from bpy.stub_internal.rna_enums import OperatorReturnItems
@@ -25,17 +25,11 @@ class DuplicateTreeOperator(Operator):
     @override
     @classmethod
     def poll(cls, context: Context) -> bool:  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
-        return context.mode == "OBJECT" and TreeRecord.is_tree(context.active_object)
+        return context.mode == "OBJECT" and TreeQuery.is_tree(context.active_object)
 
     @override
     def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
-        root = TreeRecord.root_of(context.active_object)  # type: ignore[arg-type]  # poll: the active object is a tree
-        copy = TreeCopy(root).copy()
-        view_layer = context.view_layer
-        for ob in view_layer.objects:  # type: ignore[union-attr]  # an operator context has a view layer
-            ob.select_set(False)
-        copy.select_set(True)
-        view_layer.objects.active = copy  # type: ignore[union-attr]  # as above
+        TreeCopies.duplicate(context)
         return {"FINISHED"}
 
     @override
@@ -59,8 +53,7 @@ class CopiedTreeWatcher:
     def on_update(scene: Scene, depsgraph: Depsgraph) -> None:
         """depsgraph_update_post handler (persistent: it stays across file loads)."""
         updated = [update.id.original for update in depsgraph.updates if isinstance(update.id, Object)]
-        for found in TreeCopy.copied_roots(updated):  # type: ignore[arg-type]  # .original of an Object is an Object
-            TreeCopy(found.original).complete(found.copy)
+        TreeCopies.complete(updated)  # type: ignore[arg-type]  # .original of an Object is an Object
 
     @classmethod
     def register(cls) -> None:

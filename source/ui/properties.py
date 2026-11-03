@@ -16,11 +16,7 @@ from bpy.props import (
 )
 from bpy.types import Context
 
-from ..model.blossoms import BlossomShape
-from ..model.geometry import CrownShape
-from ..model.leaves import LeafShape
-from ..model.params import BranchingMode
-from ..settings import TreeSettings
+from ..service.vocabulary import BlossomShape, BranchingMode, CrownShape, LeafShape
 
 
 @dataclass(frozen=True, slots=True)
@@ -582,7 +578,8 @@ class TreeProperties:
     def generation_names(cls) -> list[str]:
         """Names of the properties that shape the tree (what presets and stored trees hold)."""
         names = TreeProperties.__annotations__  # the mixin's own; operators add only UI state
-        return [n for n in names if n not in cls.UI_ONLY and n not in cls.SCENE_BOUND]
+        excluded = {*cls.UI_ONLY, *cls.SCENE_BOUND}
+        return [n for n in names if n not in excluded]
 
     @classmethod
     def stored_names(cls) -> list[str]:
@@ -609,17 +606,3 @@ class OldSettingNames:
     af1: FloatProperty(name="af1", options=HIDDEN)
     af2: FloatProperty(name="af2", options=HIDDEN)
     af3: FloatProperty(name="af3", options=HIDDEN)
-
-    def forward_old_names(self) -> None:
-        """Move values a script gave under old ids to the new ids; SettingsError when both disagree."""
-        props = self.properties  # type: ignore[attr-defined]  # mixed into an Operator
-        old = [name for name in TreeSettings.RENAMED if props.is_property_set(name)]
-        if not old:
-            return
-        names = [*TreeSettings.RENAMED, *TreeSettings.RENAMED.values()]
-        given = TreeSettings({n: TreeSettings.plain(getattr(self, n)) for n in names if props.is_property_set(n)})
-        given.rename_keys()  # the same rules as for presets and stored trees
-        for name in old:
-            props.property_unset(name)  # the redo panel then works on the new id only
-        for name, value in given.values.items():
-            setattr(self, name, value)

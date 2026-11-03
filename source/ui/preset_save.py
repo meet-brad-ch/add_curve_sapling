@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, override
 from bpy.props import BoolProperty, StringProperty
 from bpy.types import Context, Operator
 
-from ..presets import PresetStore
-from ..settings import SettingsError, TreeSettings
+from ..service.presets import PresetService
+from ..settings import SettingsError
 
 if TYPE_CHECKING:
     from bpy.stub_internal.rna_enums import OperatorReturnItems
@@ -28,7 +28,7 @@ class SavePresetOperator(Operator):
     @override
     def execute(self, context: Context) -> "set[OperatorReturnItems]":  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         try:
-            path = PresetStore.for_addon().save(self.name, TreeSettings.from_json(self.settings), self.overwrite)
+            path = PresetService.save(self.name, self.settings, self.overwrite)
         except SettingsError as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}

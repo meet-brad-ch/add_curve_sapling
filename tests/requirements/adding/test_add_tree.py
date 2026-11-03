@@ -55,13 +55,15 @@ class RedoPanel(unittest.TestCase):
         stand_in = SimpleNamespace(
             options=SimpleNamespace(is_repeat=True), report=lambda kind, text: reports.append(text), **values
         )
+        operator = Addon.module("ui.operators").AddTreeOperator
+        stand_in.ui_change_only = lambda: operator.ui_change_only(stand_in)
         return stand_in, reports
 
     def execute(self, stand_in):
         return Addon.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
 
     def test_a_setting_change_regenerates(self):
-        stand_in, _reports = self.operator(do_update=True, _generate=lambda context: {"FINISHED"})
+        stand_in, _reports = self.operator(do_update=True, make=lambda context: None)
         self.assertEqual(self.execute(stand_in), {"FINISHED"})
 
 

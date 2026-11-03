@@ -16,8 +16,12 @@ SOURCE = ROOT / "source"
 
 LAYERS = {
     # package: project packages/modules it must not import
-    "model": {"build", "ui", "generator", "presets", "settings"},
-    "build": {"ui", "generator", "presets"},
+    "model": {"build", "ui", "generator", "presets", "settings", "service"},
+    "build": {"ui", "generator", "presets", "service"},
+    # the backend's front door for the UI must not depend on the UI
+    "service": {"ui"},
+    # a thin UI: only the service and the settings (tools/check.py also keeps each UI function at complexity 3)
+    "ui": {"model", "build", "generator", "presets"},
 }
 
 

@@ -120,6 +120,22 @@ class TreeSettings:
                 count = len(v[key]) if isinstance(v[key], list | tuple) else 0
                 raise SettingsError(f"{key} has {count} values; {last + 1} are needed")
 
+    @classmethod
+    def forward_old_names(cls, target: Any, props: Any) -> None:
+        """Move the values a script gave under old ids (RENAMED) to the new ids on `target` (the operator), and
+        unset the old ids on its properties `props`, so the redo panel works on the new ids only. SettingsError
+        when an old and a new id disagree. Nothing happens when no old id was given."""
+        old = [name for name in cls.RENAMED if props.is_property_set(name)]
+        if not old:
+            return
+        names = [*cls.RENAMED, *cls.RENAMED.values()]
+        given = cls({n: cls.plain(getattr(target, n)) for n in names if props.is_property_set(n)})
+        given.rename_keys()  # the same rules as for presets and stored trees
+        for name in old:
+            props.property_unset(name)
+        for name, value in given.values.items():
+            setattr(target, name, value)
+
     def rename_keys(self) -> Self:
         """Settings under their old ids (RENAMED) move to the new ids; raises SettingsError when both are given
         with different values."""

@@ -217,15 +217,42 @@ class CodeSettings:
         return rows
 
     def pages(self) -> dict[str, str]:
-        """Each property name the page methods of pages.py draw, with the first page that draws it."""
+        """Each property name the page methods of pages.py draw (with the sub-methods a page calls), with the
+        first page that draws it."""
         tree = ast.parse(PAGES.read_text(encoding="utf-8"))
+        methods = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
         page_of: dict[str, str] = {}
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name in self.PAGE_NAMES:
-                for constant in ast.walk(node):
-                    if isinstance(constant, ast.Constant) and isinstance(constant.value, str):
-                        page_of.setdefault(constant.value, self.PAGE_NAMES[node.name])
+        for name, page in self.PAGE_NAMES.items():
+            for constant in self.drawn(methods, name):
+                page_of.setdefault(constant, page)
         return page_of
+
+    def drawn(self, methods: dict[str, ast.FunctionDef], page: str) -> list[str]:
+        """The string constants of a page method and of the class's methods it calls (cls.<name>(...))."""
+        found: list[str] = []
+        pending = [page]
+        seen: set[str] = set()
+        while pending:
+            name = pending.pop(0)
+            if name in seen:
+                continue
+            seen.add(name)
+            for node in ast.walk(methods[name]):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    found.append(node.value)
+                callee = self.called_method(node)
+                if callee in methods:
+                    pending.append(callee)
+        return found
+
+    @staticmethod
+    def called_method(node: ast.AST) -> str:
+        """The method name of a call `cls.<name>(...)`, else ""."""
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            return ""
+        if isinstance(node.func.value, ast.Name) and node.func.value.id == "cls":
+            return node.func.attr
+        return ""
 
     def properties(self) -> list[tuple[str, dict[str, ast.expr]]]:
         """Each annotated Blender property of properties.py: its name and its keyword arguments."""

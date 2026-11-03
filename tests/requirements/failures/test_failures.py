@@ -94,6 +94,8 @@ class RedoPanel(unittest.TestCase):
         stand_in = SimpleNamespace(
             options=SimpleNamespace(is_repeat=True), report=lambda kind, text: reports.append(text), **values
         )
+        operator = Addon.module("ui.operators").AddTreeOperator
+        stand_in.ui_change_only = lambda: operator.ui_change_only(stand_in)
         return stand_in, reports
 
     def execute(self, stand_in):
@@ -105,7 +107,7 @@ class RedoPanel(unittest.TestCase):
         def failing(context):
             raise error
 
-        stand_in, reports = self.operator(do_update=True, _generate=failing)
+        stand_in, reports = self.operator(do_update=True, make=failing)
         self.assertEqual(self.execute(stand_in), {"CANCELLED"})
         self.assertEqual(reports, [str(error)])
 

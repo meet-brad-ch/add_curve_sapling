@@ -7,8 +7,7 @@ from typing import override
 import bpy
 from bpy.types import Context, Menu, Object, Panel, UILayout
 
-from ..build.tree_record import TreeRecord
-from ..settings import SettingsError
+from ..service.query import TreeQuery
 from .duplicate import DuplicateTreeOperator
 from .operators import AddTreeOperator
 
@@ -37,22 +36,21 @@ class TreePanel(Panel):
     @override
     @classmethod
     def poll(cls, context: Context) -> bool:  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
-        return context.mode == "OBJECT" and TreeRecord.is_tree(context.active_object)
+        return context.mode == "OBJECT" and TreeQuery.is_tree(context.active_object)
 
     @override
     def draw(self, context: Context) -> None:  # type: ignore[override]  # stub: context is Context | None; Blender always passes one
         layout = self.layout
         if layout is None:
             raise RuntimeError("Panel.draw without a layout")
-        root = TreeRecord.root_of(context.active_object)  # type: ignore[arg-type]  # poll: the active object is a tree
+        root = TreeQuery.root_of(context.active_object)  # type: ignore[arg-type]  # poll: the active object is a tree
+        summary = TreeQuery.summary(root)
         col = layout.column()
-        col.label(text=f"Root: {root.name}")
-        try:
-            settings = TreeRecord.settings(root).values
-        except SettingsError as error:  # a draw method cannot report: the panel shows the problem instead
-            col.label(text=str(error), icon="ERROR")
+        col.label(text=f"Root: {summary.root_name}")
+        if not summary.readable:  # a draw method cannot report: the panel shows the problem instead
+            col.label(text=summary.text, icon="ERROR")
             return
-        col.label(text=f"Levels: {settings['levels']}   Seed: {settings['seed']}")
+        col.label(text=summary.text)
         TreeEditButton.draw(col, root)
 
 
@@ -67,9 +65,9 @@ class Menus:
     @staticmethod
     def object_menu(menu: Menu, context: Context) -> None:
         """Object menu entry, only when the active object belongs to a Sapling tree: edit that tree."""
-        if TreeRecord.is_tree(context.active_object):
+        if TreeQuery.is_tree(context.active_object):
             menu.layout.separator()  # type: ignore[union-attr]  # stub: layout is optional; a menu's draw always has one
-            TreeEditButton.draw(menu.layout, TreeRecord.root_of(context.active_object))  # type: ignore[arg-type]  # a menu's draw has a layout; is_tree() above checked the active object
+            TreeEditButton.draw(menu.layout, TreeQuery.root_of(context.active_object))  # type: ignore[arg-type]  # a menu's draw has a layout; is_tree() above checked the active object
 
     @classmethod
     def register(cls) -> None:

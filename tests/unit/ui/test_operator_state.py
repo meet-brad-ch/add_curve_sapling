@@ -19,6 +19,8 @@ class RedoPanel(unittest.TestCase):
         stand_in = SimpleNamespace(
             options=SimpleNamespace(is_repeat=True), report=lambda kind, text: reports.append(text), **values
         )
+        operator = Addon.module("ui.operators").AddTreeOperator
+        stand_in.ui_change_only = lambda: operator.ui_change_only(stand_in)
         return stand_in, reports
 
     def execute(self, stand_in):

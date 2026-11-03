@@ -7,8 +7,7 @@ from typing import Any
 import bpy
 from bpy.types import UILayout
 
-from ..model.geometry import CrownShape
-from ..model.leaves import LeafShape
+from ..service.page_rules import PageRules
 from ..settings import TreeSettings
 from .preset_save import SavePresetOperator
 from .properties import TreeProperties
@@ -38,7 +37,7 @@ class SettingsPages:
         row.prop(props, "resU")
         box.prop(props, "handleType")
         box.prop(props, "shape")
-        if props.shape == str(CrownShape.CUSTOM):
+        if PageRules.custom_shape(props):
             box.column().prop(props, "customShape")
         box.prop(props, "shapeS")
         box.prop(props, "branchDist")
@@ -145,15 +144,27 @@ class SettingsPages:
         row.prop(props, "prunePowerLow")
         box.prop(props, "windShear")
 
+    @classmethod
+    def leaves(cls, props: Any, box: UILayout) -> None:
+        """Leaf shape, count, angles and scale; the blossoms; the leaf options (PageRules: where each has effect)."""
+        cls.leaf_shape(props, box)
+        cls.leaf_angles(props, box)
+        cls.blossoms(props, box)
+        cls.leaf_options(props, box)
+
     @staticmethod
-    def leaves(props: Any, box: UILayout) -> None:
-        """Leaf shape, count, angles and scale; the leaf object for instanced shapes, the material for meshes."""
+    def leaf_shape(props: Any, box: UILayout) -> None:
+        """Show Leaves, the shape, the leaf object of instanced shapes, the count and the distribution."""
         box.prop(props, "showLeaves")
         box.prop(props, "leafShape")
-        if props.leafShape in LeafShape.INSTANCED:
+        if PageRules.leaf_object(props):
             box.prop_search(props, "leafDupliObj", bpy.data, "objects")
         box.prop(props, "leaves")
         box.prop(props, "leafDist")
+
+    @staticmethod
+    def leaf_angles(props: Any, box: UILayout) -> None:
+        """The down and rotate angles and the scales, each with its variation."""
         row = box.row()
         row.prop(props, "leafDownAngle")
         row.prop(props, "leafDownAngleV")
@@ -166,12 +177,20 @@ class SettingsPages:
         row = box.row()
         row.prop(props, "leafScaleT")
         row.prop(props, "leafScaleV")
+
+    @staticmethod
+    def blossoms(props: Any, box: UILayout) -> None:
+        """The blossom rate; its shape and scale when there are blossoms."""
         box.prop(props, "blossomRate")
-        if props.blossomRate > 0:
+        if PageRules.blossom_options(props):
             row = box.row()
             row.prop(props, "blossomShape")
             row.prop(props, "blossomScale")
-        if props.leafShape in LeafShape.MESH or props.blossomRate > 0:
+
+    @staticmethod
+    def leaf_options(props: Any, box: UILayout) -> None:
+        """The material (for meshes) and the leaf turns: horizontal, face up, fans, above base, angle."""
+        if PageRules.leaf_material(props):
             box.prop(props, "leafMaterial")
         box.prop(props, "horzLeaves")
         box.prop(props, "leafUp")
