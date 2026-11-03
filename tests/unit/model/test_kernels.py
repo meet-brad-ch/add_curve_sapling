@@ -12,60 +12,75 @@ from support.addon import Addon
 from support.model import Model
 
 
-def rotations():
-    return Addon.module("model.rotations")
+class KernelFixtures:
+    """The kernels' module and random directions for the kernel tests."""
 
+    @staticmethod
+    def rotations():
+        """The add-on's model.rotations module."""
+        return Addon.module("model.rotations")
 
-def random_directions(rng, count):
-    out = np.array([[rng.gauss(0, 1) for _ in range(3)] for _ in range(count)])
-    return out / np.linalg.norm(out, axis=1)[:, None]
+    @staticmethod
+    def random_directions(rng, count):
+        """Random unit vectors from the generator (shape: count x 3)."""
+        out = np.array([[rng.gauss(0, 1) for _ in range(3)] for _ in range(count)])
+        return out / np.linalg.norm(out, axis=1)[:, None]
 
 
 class RotationMatrices(unittest.TestCase):
+    """The rotation matrices (about an axis, about a vector, and composed) equal the mathutils rotations
+    for 2000 random angles."""
+
     N = 2000
 
     def setUp(self):
+        """Make the seeded random generator and N random angles in radians."""
         self.rng = random.Random(3)
         self.angles = np.array([self.rng.uniform(-7, 7) for _ in range(self.N)])
 
     def test_about_an_axis_equals_matrix_rotation(self):
         for axis in ("X", "Y", "Z"):
-            ours = rotations().Rotation.about(self.angles, axis)
+            ours = KernelFixtures.rotations().Rotation.about(self.angles, axis)
             self.assertEqual(ours.shape, (self.N, 3, 3))
             for angle, matrix in zip(self.angles, ours, strict=True):
                 expected = np.array(Matrix.Rotation(angle, 3, axis))
                 np.testing.assert_allclose(matrix, expected, atol=1e-6, err_msg=axis)
 
     def test_axis_angle_equals_matrix_rotation(self):
-        axes = random_directions(self.rng, self.N)
-        ours = rotations().Rotation.axis_angle(axes, self.angles)
+        axes = KernelFixtures.random_directions(self.rng, self.N)
+        ours = KernelFixtures.rotations().Rotation.axis_angle(axes, self.angles)
         for axis, angle, matrix in zip(axes, self.angles, ours, strict=True):
             np.testing.assert_allclose(matrix, np.array(Matrix.Rotation(angle, 3, axis.tolist())), atol=1e-6)
 
     def test_compose_applies_the_first_turn_first(self):
         """Rotation.compose(a, b, c) @ v == v.rotate(a); v.rotate(b); v.rotate(c)."""
-        a = rotations().Rotation.about(self.angles, "X")
-        b = rotations().Rotation.about(self.angles[::-1], "Z")
+        a = KernelFixtures.rotations().Rotation.about(self.angles, "X")
+        b = KernelFixtures.rotations().Rotation.about(self.angles[::-1], "Z")
         c = np.array(Matrix.Rotation(0.4, 3, "Y"))  # a constant turn broadcasts over the rows
-        composed = rotations().Rotation.compose(a, b, c)
+        composed = KernelFixtures.rotations().Rotation.compose(a, b, c)
         for i in range(0, self.N, 97):
             v = Vector((0.3, -1.2, 2.0))
             v.rotate(Matrix.Rotation(self.angles[i], 3, "X"))
             v.rotate(Matrix.Rotation(self.angles[::-1][i], 3, "Z"))
             v.rotate(Matrix.Rotation(0.4, 3, "Y"))
-            ours = rotations().Rotation.apply(composed[i : i + 1], np.array([[0.3, -1.2, 2.0]]))[0]
+            ours = KernelFixtures.rotations().Rotation.apply(composed[i : i + 1], np.array([[0.3, -1.2, 2.0]]))[0]
             np.testing.assert_allclose(ours, np.array(v), atol=1e-5)
 
 
 class RotationErrors(unittest.TestCase):
+    """An unknown axis and a composition of no rotations are ValueErrors."""
+
     def test_unknown_axis_and_empty_composition(self):
         with self.assertRaisesRegex(ValueError, "axis"):
-            rotations().Rotation.about(np.zeros(2), "W")
+            KernelFixtures.rotations().Rotation.about(np.zeros(2), "W")
         with self.assertRaisesRegex(ValueError, "at least one"):
-            rotations().Rotation.compose()
+            KernelFixtures.rotations().Rotation.compose()
 
 
 class QuaternionMatrices(unittest.TestCase):
+    """The quaternion arrays convert to matrices and multiply as mathutils does, and from_matrices returns
+    the same rotations."""
+
     def test_to_matrices_equals_blender(self):
         rng = random.Random(5)
         quats = []
@@ -73,7 +88,9 @@ class QuaternionMatrices(unittest.TestCase):
             q = Quaternion((rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1)))
             q.normalize()
             quats.append(q)
-        ours = rotations().Quaternions.to_matrices(np.array([(q.w, q.x, q.y, q.z) for q in quats], np.float32))
+        ours = KernelFixtures.rotations().Quaternions.to_matrices(
+            np.array([(q.w, q.x, q.y, q.z) for q in quats], np.float32)
+        )
         for q, matrix in zip(quats, ours, strict=True):
             np.testing.assert_allclose(matrix, np.array(q.to_matrix()), atol=1e-6)
 
@@ -91,8 +108,8 @@ class QuaternionMatrices(unittest.TestCase):
             Quaternion((0.001, 0, 0, 1)).normalized(),
         ]
         matrices = np.array([np.array(q.to_matrix()) for q in quats])
-        ours = rotations().Quaternions.from_matrices(matrices)
-        rebuilt = rotations().Quaternions.to_matrices(ours)
+        ours = KernelFixtures.rotations().Quaternions.from_matrices(matrices)
+        rebuilt = KernelFixtures.rotations().Quaternions.to_matrices(ours)
         np.testing.assert_allclose(rebuilt, matrices, atol=1e-6)
         self.assertTrue((ours[:, 0] >= 0).all())
 
@@ -106,7 +123,7 @@ class QuaternionMatrices(unittest.TestCase):
             Quaternion((rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1), rng.gauss(0, 1))).normalized()
             for _ in range(500)
         ]
-        ours = rotations().Quaternions.multiply(
+        ours = KernelFixtures.rotations().Quaternions.multiply(
             np.array([(q.w, q.x, q.y, q.z) for q in a]), np.array([(q.w, q.x, q.y, q.z) for q in b])
         )
         for qa, qb, row in zip(a, b, ours, strict=True):
@@ -129,32 +146,35 @@ class TrackFrames(unittest.TestCase):
     )
 
     def directions(self):
+        """3000 random unit directions and the SPECIAL directions (shape: directions x 3)."""
         rng = random.Random(8)
-        return np.concatenate([random_directions(rng, 3000), np.array(self.SPECIAL, dtype=float)])
+        return np.concatenate([KernelFixtures.random_directions(rng, 3000), np.array(self.SPECIAL, dtype=float)])
 
     def test_z_up_y(self):
         d = self.directions()
-        ours = rotations().TrackFrame.matrices(d)
+        ours = KernelFixtures.rotations().TrackFrame.matrices(d)
         for v, matrix in zip(d, ours, strict=True):
             expected = np.array(Vector(v).normalized().to_track_quat("Z", "Y").to_matrix())
             np.testing.assert_allclose(matrix, expected, atol=1e-5, err_msg=str(v))
 
     def test_quaternions_match_too(self):
-        d = random_directions(random.Random(9), 500)
-        ours = rotations().TrackFrame.quaternions(d)
+        d = KernelFixtures.random_directions(random.Random(9), 500)
+        ours = KernelFixtures.rotations().TrackFrame.quaternions(d)
         for v, q in zip(d, ours, strict=True):
             expected = np.array(Vector(v).to_track_quat("Z", "Y"))
             self.assertGreater(abs(float(np.dot(q, expected))), 1 - 1e-6, str(v))  # equal up to the sign
 
     def test_zero_direction_is_the_identity(self):
-        np.testing.assert_array_equal(rotations().TrackFrame.matrices(np.zeros((1, 3)))[0], np.eye(3))
+        np.testing.assert_array_equal(KernelFixtures.rotations().TrackFrame.matrices(np.zeros((1, 3)))[0], np.eye(3))
 
 
 class TrunkFrames(unittest.TestCase):
+    """TrunkFrame gives the trunk rotation that the per-stem code computed from each direction."""
+
     def test_equals_the_trunk_euler(self):
         """growth.py level 0: Euler((-rx, ry, 0), "XYZ") from the direction, as the per-stem code computed it."""
-        d = random_directions(random.Random(10), 2000)
-        ours = rotations().TrunkFrame.matrices(d)
+        d = KernelFixtures.random_directions(random.Random(10), 2000)
+        ours = KernelFixtures.rotations().TrunkFrame.matrices(d)
         for v, matrix in zip(d, ours, strict=True):
             adir = Vector((0, 0, 1))
             adir.rotate(Vector(v).to_track_quat("Z", "Y"))
@@ -165,15 +185,19 @@ class TrunkFrames(unittest.TestCase):
 
 
 class CompatibleEulers(unittest.TestCase):
+    """EulerXYZ.compatible gives the same rotation and z angle as mathutils to_euler with a compatible Euler."""
+
     def test_rebuilt_rotation_and_z_angle_equal_blender(self):
         """Quaternion.to_euler("XYZ", compatible): the same rotation back, and the same z angle (Attract Out uses it).
         The sign of a middle angle of exactly +-pi depends on float rounding, so raw angles are not compared."""
         rng = random.Random(11)
-        d = random_directions(rng, 3000)
+        d = KernelFixtures.random_directions(rng, 3000)
         reference = np.array([rng.uniform(0, 2 * pi) + 2 * pi for _ in range(3000)])
-        frames = rotations().TrackFrame.matrices(d)
-        ours = rotations().EulerXYZ.compatible(frames, np.stack([np.zeros(3000), np.zeros(3000), reference], 1))
-        rebuilt = rotations().EulerXYZ.matrices(ours)
+        frames = KernelFixtures.rotations().TrackFrame.matrices(d)
+        ours = KernelFixtures.rotations().EulerXYZ.compatible(
+            frames, np.stack([np.zeros(3000), np.zeros(3000), reference], 1)
+        )
+        rebuilt = KernelFixtures.rotations().EulerXYZ.matrices(ours)
         for v, c, e, m in zip(d, reference, ours, rebuilt, strict=True):
             expected = Vector(v).to_track_quat("Z", "Y").to_euler("XYZ", Euler((0, 0, c), "XYZ"))
             np.testing.assert_allclose(m, np.array(expected.to_matrix()), atol=1e-4, err_msg=str(v))
@@ -181,11 +205,15 @@ class CompatibleEulers(unittest.TestCase):
 
 
 class AttractUpKernel(unittest.TestCase):
+    """AttractUp bends the vectors as the per-stem code did, and an attraction of 0 returns the vectors unchanged."""
+
     def test_equals_the_per_stem_bend(self):
         rng = random.Random(12)
-        vectors = random_directions(rng, 1500) * np.array([rng.uniform(0.1, 3) for _ in range(1500)])[:, None]
+        vectors = (
+            KernelFixtures.random_directions(rng, 1500) * np.array([rng.uniform(0.1, 3) for _ in range(1500)])[:, None]
+        )
         for attract_up in (-1.0, 0.5, 2.0):
-            ours = rotations().AttractUp.apply(vectors, attract_up, 10)
+            ours = KernelFixtures.rotations().AttractUp.apply(vectors, attract_up, 10)
             for v, bent in zip(vectors, ours, strict=True):
                 expected = Vector(v)
                 track = expected.to_track_quat("Z", "Y")
@@ -212,20 +240,23 @@ class AttractUpKernel(unittest.TestCase):
         return angle
 
     def test_zero_attraction_changes_nothing(self):
-        vectors = random_directions(random.Random(1), 10)
-        self.assertIs(rotations().AttractUp.apply(vectors, 0.0, 10), vectors)
+        vectors = KernelFixtures.random_directions(random.Random(1), 10)
+        self.assertIs(KernelFixtures.rotations().AttractUp.apply(vectors, 0.0, 10), vectors)
 
 
 class BezierBatches(unittest.TestCase):
+    """The Bezier batch points and unit tangents equal the cubic formula on random segments."""
+
     def test_points_and_tangents_equal_the_cubic_formula(self):
         rng = random.Random(13)
         p1, h1, h2, p2 = (np.array([[rng.uniform(-3, 3) for _ in range(3)] for _ in range(300)]) for _ in range(4))
         t = np.array([rng.random() for _ in range(300)])
-        points = rotations().BezierBatch.points(p1, h1, h2, p2, t)
-        tangents = rotations().BezierBatch.tangents(p1, h1, h2, p2, t)
+        points = KernelFixtures.rotations().BezierBatch.points(p1, h1, h2, p2, t)
+        tangents = KernelFixtures.rotations().BezierBatch.tangents(p1, h1, h2, p2, t)
         for i in range(300):
             a, b, c, d = (Vector(v[i]) for v in (p1, h1, h2, p2))
-            u, s = float(1 - t[i]), float(t[i])
+            u = float(1 - t[i])
+            s = float(t[i])
             expected = (u**3) * a + (3 * s * u**2) * b + (3 * s**2 * u) * c + (s**3) * d
             derivative = (-3 * u**2) * a + (-6 * s * u + 3 * u**2) * b + (-3 * s**2 + 6 * s * u) * c + (3 * s**2) * d
             np.testing.assert_allclose(points[i], np.array(expected), atol=1e-5)
@@ -233,7 +264,11 @@ class BezierBatches(unittest.TestCase):
 
 
 class KeyedDraws(unittest.TestCase):
+    """KeyedRandom draws stay in their ranges and spread evenly, give the same numbers for the same key, step
+    and draw, and give other numbers for another key, step, draw or seed."""
+
     def keyed(self):
+        """The add-on's KeyedRandom class."""
         return Addon.module("model.randomness").KeyedRandom
 
     def test_pick_stays_below_the_count(self):
@@ -309,7 +344,8 @@ class SwayMatchesTheScalarFormula(unittest.TestCase):
         p = model.params
         rows = []
         for c in np.flatnonzero(joints.eligible).tolist():
-            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            start = int(joints.starts[c])
+            size = int(joints.sizes[c])
             points = [Vector(flat.co[start + i].tolist()) for i in range(size)]
             segments = size - 1
             step = int(joints.step[c])
@@ -342,7 +378,8 @@ class SwayMatchesTheScalarFormula(unittest.TestCase):
                 model = Model.grow(settings)
                 joints = Model.joints(settings, model)
                 wind = wind_model(Model.wind_params(settings, model.params), 24.0)
-                sway = joints.sway(wind, random.Random(5))
+                joints_module = Addon.module("model.joints")
+                sway = joints_module.JointSwayBuilder(joints).sway(wind, random.Random(5))
                 expected = self.reference(joints, wind, random.Random(5))
                 ours = np.stack(
                     [
@@ -363,6 +400,7 @@ class TrunkClumpMatchesMathutils(unittest.TestCase):
 
     @staticmethod
     def reference(params, rng, tries):
+        """The further trunk positions that the mathutils loop placed, as lists of x, y and z."""
         gap = 2.5 * params.scale * params.length[0] * params.ratio * params.scale0
         radius = max((params.trunks * params.scale * params.ratio / 2.5) ** 0.5, gap * params.trunks**0.5)
         placed = [Vector((0.0, 0.0, 0.0))]

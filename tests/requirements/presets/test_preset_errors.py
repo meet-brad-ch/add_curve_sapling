@@ -16,11 +16,13 @@ class PresetErrors(unittest.TestCase):
     """User preset files that cannot be used make the operator cancel with a clear message."""
 
     def write(self, name, text):
+        """Write a user preset file with the name and the text, removed after the test."""
         path = Addon.preset_store().user_folder(create=True) / f"{name}.py"
         path.write_text(text, encoding="utf-8")
         self.addCleanup(path.unlink)
 
     def assert_add_fails(self, preset, message):
+        """Adding a tree with the preset fails with the message, and the scene stays empty."""
         Scene.reset()
         with self.assertRaisesRegex(RuntimeError, message):
             bpy.ops.curve.tree_add(preset=preset, do_update=True)
@@ -53,7 +55,10 @@ class PresetErrors(unittest.TestCase):
 
 @Verifies("SWR-0046")
 class PresetApplication(unittest.TestCase):
+    """Applying a preset with a setting that does not exist fails with a SettingsError that names the setting."""
+
     def apply(self, props, name, defaults):
+        """Load the preset, fill its missing settings from the defaults and apply it to the properties."""
         names = Addon.generation_names()
         Addon.preset_store().load(name).complete(defaults).apply_to(props, names)
 
@@ -78,6 +83,7 @@ class PresetFileErrors(unittest.TestCase):
     """Preset files with the right syntax but the wrong content cancel with a message naming the cause."""
 
     def write(self, name, text):
+        """Write a user preset file with the name and the text, removed after the test."""
         path = Addon.preset_store().user_folder(create=True) / f"{name}.py"
         self.addCleanup(path.unlink, missing_ok=True)
         path.write_text(text, encoding="utf-8")
@@ -100,6 +106,7 @@ class SettingsShape(unittest.TestCase):
     """Settings of the wrong shape are SettingsErrors naming the problem; older shapes are brought up to date."""
 
     def settings(self):
+        """The add-on's TreeSettings class."""
         return Addon.module("settings").TreeSettings
 
     def test_not_a_dictionary(self):

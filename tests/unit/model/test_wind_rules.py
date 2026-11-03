@@ -16,6 +16,7 @@ class RemovedStemWind(unittest.TestCase):
     FPS = 24.0
 
     def wind_model(self, **changes):
+        """The wind model of a quaking aspen with wind and the changes, at FPS frames per second."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(windAnim=True, **changes)
         params = Model.params(settings)
@@ -32,6 +33,8 @@ class RemovedStemWind(unittest.TestCase):
 
 
 class JointRadius(unittest.TestCase):
+    """A joint with radius 0 makes the joint sway fail with a RuntimeError that names the joint."""
+
     def test_a_joint_of_radius_zero_is_a_model_defect(self):
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(windAnim=True)
@@ -39,14 +42,16 @@ class JointRadius(unittest.TestCase):
         joints = Model.joints(settings, model)
         joints.flat.radius[joints.joint_point[0]] = 0.0
         wind_model = Addon.module("model.wind_model").WindModel(joints.params, 24.0)
+        joints_module = Addon.module("model.joints")
         with self.assertRaisesRegex(RuntimeError, "joint 0 has radius 0"):
-            joints.sway(wind_model, random.Random(0))
+            joints_module.JointSwayBuilder(joints).sway(wind_model, random.Random(0))
 
 
 class ParentCycles(unittest.TestCase):
     """The loops over parent links are bounded: a cycle raises instead of hanging."""
 
     def joints(self):
+        """The joints of a quaking aspen with wind, grown in the model alone."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(windAnim=True)
         model = Model.grow(settings)

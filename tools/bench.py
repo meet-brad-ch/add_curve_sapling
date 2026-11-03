@@ -12,7 +12,7 @@ import argparse
 import json
 import sys
 
-from blender_env import BUILD, ROOT, install_fresh, run_script
+from blender_env import BUILD, ROOT, BlenderEnv
 
 BASELINE = ROOT / "tools" / "bench_baseline.json"
 RESULT = BUILD / "bench_result.json"
@@ -20,12 +20,14 @@ TOLERANCE = 0.15
 
 
 def main() -> int:
+    """Install the add-on, time every built-in preset in Blender and compare with the baseline (or save it with --save-
+    baseline). Returns the process exit code: 1 when a preset is slower than the baseline by more than TOLERANCE."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--save-baseline", action="store_true")
     args = parser.parse_args()
 
-    install_fresh()
-    code = run_script(ROOT / "tools" / "bench_in_blender.py", [str(RESULT)])
+    BlenderEnv.install_fresh()
+    code = BlenderEnv.run_script(ROOT / "tools" / "bench_in_blender.py", [str(RESULT)])
     if code != 0:
         return code
     result = json.loads(RESULT.read_text(encoding="utf-8"))

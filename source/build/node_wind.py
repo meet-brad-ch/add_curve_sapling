@@ -2,8 +2,8 @@
 
 """Wind in Geometry Nodes, for trees without the armature rig.
 
-The motion is the rig's wind (Joints.sway: per joint two waves and a gust bend on the joint's X and Z axes, from
-the same random draws), computed per frame as forward kinematics: each joint's pose is a transform about its
+The motion is the rig's wind (JointSwayBuilder.sway: per joint two waves and a gust bend on the joint's X and Z
+axes, from the same random draws), computed per frame as forward kinematics: each joint's pose is a transform about its
 head, composed along every stem and down the branch hierarchy, as an armature composes its bones. The transforms
 are computed once per frame by the "Sapling Wind" modifier on a hidden Curves object with one point per joint
 ("tree_wind": a few thousand points, where the tree has a hundred thousand); the bark's sweep, the leaves and a
@@ -32,6 +32,7 @@ class NodeWind:
     JOINT = "sapling_joint"
 
     def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        """A builder with the tree's build settings (the wind) and the factory of the tree's objects."""
         self.params = params
         self.objects = objects
 

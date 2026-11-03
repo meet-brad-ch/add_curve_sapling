@@ -38,6 +38,7 @@ class NodeMath:
     """Builds nodes in a group: maths, attributes, sampling and the geometry primitives the groups share."""
 
     def __init__(self, group: NodeTree) -> None:
+        """A builder that adds its nodes and links to `group`."""
         self.nodes = group.nodes
         self.links = group.links
 

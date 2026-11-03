@@ -14,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from blender_env import ROOT, SOURCE, install_fresh, run_script
+from blender_env import ROOT, SOURCE, BlenderEnv
 
 
 def main() -> int:
@@ -35,7 +35,7 @@ def main() -> int:
     if missing:
         sys.exit(f"not a folder: {', '.join(missing)}")
     args.out.mkdir(parents=True, exist_ok=True)
-    install_fresh()
+    BlenderEnv.install_fresh()
     script_args = [
         str(args.treegen.resolve()),
         str(args.out.resolve()),
@@ -43,7 +43,7 @@ def main() -> int:
         ",".join(str(folder.resolve()) for folder in folders),
         *args.species,
     ]
-    return run_script(ROOT / "tools" / "render_ports_in_blender.py", script_args)
+    return BlenderEnv.run_script(ROOT / "tools" / "render_ports_in_blender.py", script_args)
 
 
 if __name__ == "__main__":

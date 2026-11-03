@@ -19,6 +19,7 @@ class Trees:
 
     @staticmethod
     def add(**overrides):
+        """Add a quaking aspen with the overrides through the operator (the result must be FINISHED), and return it."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(overrides)
         result = bpy.ops.curve.tree_add(**settings, do_update=True)
@@ -41,6 +42,7 @@ class Trees:
 
     @staticmethod
     def root_of(ob):
+        """The root object of the tree that the object is part of."""
         return Addon.module("build.tree_record").TreeRecord.root_of(ob)
 
     @staticmethod

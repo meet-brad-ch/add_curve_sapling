@@ -22,6 +22,8 @@ class LeafFlutter(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a rigged quaking aspen with leaves, wind and Leaf Flutter once.
+        Keep the leaves' rest vertices and pivots."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         cls.result = Scene.generate(settings)
@@ -55,7 +57,10 @@ class LeafFlutter(unittest.TestCase):
 
 @Verifies("SWR-0122")
 class LeafFlutterOptions(unittest.TestCase):
+    """A rigged tree without Leaf Flutter or without Wind has no flutter: its leaves have only the Armature modifier."""
+
     def generate(self, **overrides):
+        """Generate a rigged quaking aspen with leaves, wind and Leaf Flutter, with the overrides."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         settings.update(overrides)
@@ -74,6 +79,8 @@ class LeafFlutterOptions(unittest.TestCase):
 
 @Verifies("SWR-0122")
 class NodeWindLeafOptions(unittest.TestCase):
+    """With the node wind, the flutter modifier comes before Follow Wind, and instanced leaves move with the wind."""
+
     def test_flutter_comes_before_the_wind(self):
         settings = NodeTrees.settings(showLeaves=True, windAnim=True, leafFlutter=True)
         self.assertEqual(Scene.generate(settings), {"FINISHED"})

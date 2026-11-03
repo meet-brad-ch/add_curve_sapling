@@ -15,6 +15,9 @@ from support.scene import Scene
 
 
 class TreeStructure(unittest.TestCase):
+    """A tree grown in the model alone has one bone link per spline, parents before their children, the right
+    point count per spline, the trunk count, splits at the Segment Splits rate, and sprouts on their parents."""
+
     def test_one_bone_link_per_spline_and_monotone_levels(self):
         model = Model.grow_preset(levels=4)
         curve = model.curve
@@ -68,14 +71,16 @@ class TreeStructure(unittest.TestCase):
             levels=2, branches=(0, 400, 0, 0), segSplits=(0.0, 0.3, 0.0, 0.0), splitByLen=False, curveRes=(8, 10, 3, 1)
         )
         grown = model.grown
-        start, end = grown.level_ends[0], grown.level_ends[1]
+        start = grown.level_ends[0]
+        end = grown.level_ends[1]
         links = [grown.bone_map[i] for i in range(start, end)]
         roots = sum(1 for link in links if not link.is_split)
         splits = sum(1 for link in links if link.is_split)
         # a root stem draws at 9 of its 10 segments (none at the first); the expected count is between
         # 0.3 and 0.3 * 1.33 per draw, and the splits themselves draw again
         draws = roots * 9
-        low, high = 0.3 * draws, 0.3 * 1.33 * (draws + splits * 5)
+        low = 0.3 * draws
+        high = 0.3 * 1.33 * (draws + splits * 5)
         self.assertGreater(splits, low - 4 * math.sqrt(low), f"{splits} splits of {roots} stems")
         self.assertLess(splits, high + 4 * math.sqrt(high), f"{splits} splits of {roots} stems")
 
@@ -89,8 +94,10 @@ class TreeStructure(unittest.TestCase):
         bezier = Addon.module("model.rotations").BezierBatch
         t = np.arange(65) / 64
         for i in range(0, sprouts.count, max(1, sprouts.count // 200)):
-            spline, point = int(sprouts.parent_spline[i]), int(sprouts.parent_point[i])
-            a, b = flat.start[spline] + point, flat.start[spline] + point + 1
+            spline = int(sprouts.parent_spline[i])
+            point = int(sprouts.parent_point[i])
+            a = flat.start[spline] + point
+            b = flat.start[spline] + point + 1
             controls = (flat.co[a], flat.right[a], flat.left[b], flat.co[b])
             along = bezier.points(*(np.repeat(c[None], 65, axis=0) for c in controls), t)
             best = np.linalg.norm(along - sprouts.co[i], axis=1).min()
@@ -122,6 +129,9 @@ class RadiusRange(unittest.TestCase):
 
 
 class FailFast(unittest.TestCase):
+    """The model stops with a message that names the cause: missing stem fields, a bone map without a trunk,
+    no level, sprouts that are not finite, pruning that does not settle, a subset of a grown level, unknown shapes."""
+
     def test_stem_rows_need_every_field(self):
         with self.assertRaisesRegex(TypeError, "missing"):
             Addon.module("model.level_grid").StemRows(key=np.zeros(1, np.uint64))
@@ -179,6 +189,8 @@ class FailFast(unittest.TestCase):
 
 
 class CrownShapes(unittest.TestCase):
+    """The crown shape ratios and the angle means of the arrays equal the per-stem add-on's formulas."""
+
     @staticmethod
     def reference(shape, r, custom):
         """The Weber-Penn shape ratios as the per-stem add-on computed them, one value at a time."""
@@ -223,7 +235,8 @@ class CrownShapes(unittest.TestCase):
         ours = geometry.Angles.means(a1, a2, 0.3)
         for x, y, value in zip(a1.tolist(), a2.tolist(), ours.tolist(), strict=True):
             # the per-stem add-on's mean of two angles through their unit vectors
-            sx, sy = math.sin(x) + (math.sin(y) - math.sin(x)) * 0.3, math.cos(x) + (math.cos(y) - math.cos(x)) * 0.3
+            sx = math.sin(x) + (math.sin(y) - math.sin(x)) * 0.3
+            sy = math.cos(x) + (math.cos(y) - math.cos(x)) * 0.3
             self.assertAlmostEqual(value, math.atan2(sx, sy), places=9)
 
 
@@ -248,6 +261,7 @@ class PlainParams(unittest.TestCase):
     PLAIN = (int, float, bool, str)
 
     def assert_plain(self, params):
+        """Every value of the parameters is a plain Python value, a list of numbers, a dataclass or PlainParams."""
         for name, value in vars(params).items():
             with self.subTest(name=name):
                 if isinstance(value, list):

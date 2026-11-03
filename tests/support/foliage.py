@@ -20,6 +20,7 @@ class Foliage:
 
     @staticmethod
     def blossoms_module():
+        """The add-on's model.blossoms module."""
         return Addon.module("model.blossoms")
 
     @classmethod

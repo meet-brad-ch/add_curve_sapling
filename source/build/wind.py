@@ -50,6 +50,7 @@ class WindAnimator:
     LAST_FRAME = 1_048_574  # Blender's last frame: an NLA strip holds its end value beyond its range
 
     def __init__(self, armature_ob: Object) -> None:
+        """An animator for the rig `armature_ob`; it collects each bone's sway, and finish() writes the F-curves."""
         self.armature_ob = armature_ob
         self.sways: list[BranchSway] = []
 

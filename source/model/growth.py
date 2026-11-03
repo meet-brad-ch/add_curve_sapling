@@ -77,6 +77,7 @@ class LevelGrower:
     FLATTEN_MIN = 0.33
 
     def __init__(self, params: TreeParams, scale: float) -> None:
+        """A grower with the model's parameters, for a tree of size `scale` (Blender units)."""
         self.params = params
         self.scale = scale
 
@@ -134,7 +135,8 @@ class LevelGrower:
     def _local_rotations(stems: StemRows, angles: StepAngles, level: int, has_split: np.ndarray) -> np.ndarray:
         """Every row's rotation of its next segment within its growth frame: the plain curve, or the continuing
         side of a split."""
-        curve, split = angles.curve, angles.split
+        curve = angles.curve
+        split = angles.split
         bend = Rotation.about(curve.variation, "Y")
         plain = Rotation.about(stems.roll, "Z") @ bend
         if curve.bend is not None:

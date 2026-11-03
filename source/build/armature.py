@@ -32,6 +32,7 @@ class BoneGeometry:
     """
 
     def __init__(self, heads: np.ndarray, tails: np.ndarray) -> None:
+        """The heads and tails (N, 3) of the bones, in the order the bones are made."""
         self.heads = np.asarray(heads, dtype=np.float32)
         self.tails = np.asarray(tails, dtype=np.float32)
 
@@ -100,6 +101,8 @@ class ArmatureBuilder:
     BONE_COLLECTION = "Sapling Bones"
 
     def __init__(self, params: BuildParams, rng: random.Random, objects: ObjectFactory, context: Context) -> None:
+        """A builder for one tree: its build settings, the random draws of the wind, the factory of the tree's objects,
+        and the Blender context the armature is edited in."""
         self.params = params
         self.rng = rng
         self.objects = objects

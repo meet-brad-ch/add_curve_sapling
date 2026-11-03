@@ -28,6 +28,8 @@ class LevelPruning:
     REMOVE_BELOW = 0.15
 
     def __init__(self, params: TreeParams, tree_scale: float) -> None:
+        """A pruning search with the model's parameters (the envelope), for a tree of size `tree_scale` (Blender
+        units)."""
         self.params = params
         self.tree_scale = tree_scale
 

@@ -18,6 +18,7 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
+        """Generate a quaking aspen (2 levels, leaves, blossom rate 0.5, the changes) and return its blossoms object."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
@@ -43,7 +44,11 @@ class BlossomObjects(unittest.TestCase):
 
 @Verifies("SWR-0085")
 class LeafMaterial(unittest.TestCase):
+    """Leaf Material gives mesh leaves the Sapling Leaf material and the bark Sapling Bark, also on a baked mesh.
+    Instanced leaves keep their object's material, and an existing Sapling Leaf material is used again as it is."""
+
     def generate(self, **overrides):
+        """Generate a quaking aspen with leaves and with the overrides."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, **overrides)
         self.assertEqual(Scene.generate(settings), {"FINISHED"})

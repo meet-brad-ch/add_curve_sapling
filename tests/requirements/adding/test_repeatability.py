@@ -21,6 +21,8 @@ from support.verifies import Verifies
 
 @Verifies("SWR-0013")
 class GoldenTrees(unittest.TestCase):
+    """Each golden case (a preset with overrides) gives the fingerprint that its golden file records (Windows only)."""
+
     def test_golden(self):
         # the fingerprints hash exact float32 values: they hold for the Blender build and platform they came from
         self.assertEqual(sys.platform, "win32", "the golden files are valid on Windows only (README, Decisions)")
@@ -86,6 +88,7 @@ class PrunedTrees(unittest.TestCase):
         first = model.curve
         model = Model.grow_preset(preset="cambridge_oak")
         second = model.curve
-        a, b = first.flatten(), second.flatten()
+        a = first.flatten()
+        b = second.flatten()
         for name in ("co", "left", "right", "radius", "h1", "h2", "start"):
             np.testing.assert_array_equal(getattr(a, name), getattr(b, name), err_msg=name)

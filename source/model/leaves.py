@@ -117,6 +117,7 @@ class LeafPlacement:
     """The leaves' draws as arrays of length L, in leaf order, with their sprouts' positions and frames."""
 
     def __init__(self, sprouts: SproutArrays, draws: list[LeafDraw]) -> None:
+        """The placement of one leaf per draw in `draws` (L leaves), on the sprouts they came from."""
         self.index = np.array([draw.sprout for draw in draws], dtype=np.int64)
         self.spin = np.array([draw.spin for draw in draws], dtype=np.float64)
         self.rotation = np.array([draw.rotation for draw in draws], dtype=np.float64)
@@ -132,6 +133,7 @@ class LeafGenerator:
     """Places the leaves on the sprout points of the last branch level."""
 
     def __init__(self, params: TreeParams, rng: Random) -> None:
+        """A generator with the model's parameters (the leaf and blossom settings) and the tree's random stream."""
         self.params = params
         self.rng = rng
 

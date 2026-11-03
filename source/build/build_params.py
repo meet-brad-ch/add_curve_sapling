@@ -11,6 +11,8 @@ class BuildParams(PlainParams):
     """Plain copies of the build settings, with the model's parameters (`tree`) and the wind's (`wind`)."""
 
     def __init__(self, settings: Any, tree: TreeParams, wind: WindParams) -> None:
+        """Copies the build settings from `settings` (anything with the operator's property names) and keeps the model's
+        and the wind's parameters."""
         s = settings
         self.tree = tree
         self.wind = wind

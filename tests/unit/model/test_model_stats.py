@@ -41,37 +41,44 @@ LENGTH_TOLERANCE = 0.10
 BOX_TOLERANCE = 0.10
 
 
-def stats(preset, changes):
-    settings = Addon.resolve_preset(f"{preset}.py")
-    settings.update(changes)
-    model = Model.grow(settings)
-    params = model.params
-    grown = model.grown
-    flat = model.curve.flatten()
-    starts = [0, *grown.level_ends]
-    out: dict[str, Any] = {"levels": []}
-    for level in range(len(grown.level_ends)):
-        splines = range(starts[level], starts[level + 1])
-        lengths = [
-            float(np.linalg.norm(np.diff(flat.co[flat.start[i] : flat.start[i + 1]], axis=0), axis=1).sum())
-            for i in splines
-        ]
-        out["levels"].append(
-            {"stems": len(splines), "length_mean": float(np.mean(lengths)), "length_std": float(np.std(lengths))}
+class StatsCase:
+    """A grown tree's statistics, as the recording holds them."""
+
+    @staticmethod
+    def stats(preset, changes):
+        """The statistics of the preset with the changes: stem count and lengths per level, bounding box, leaf count."""
+        settings = Addon.resolve_preset(f"{preset}.py")
+        settings.update(changes)
+        model = Model.grow(settings)
+        params = model.params
+        grown = model.grown
+        flat = model.curve.flatten()
+        starts = [0, *grown.level_ends]
+        out: dict[str, Any] = {"levels": []}
+        for level in range(len(grown.level_ends)):
+            splines = range(starts[level], starts[level + 1])
+            lengths = [
+                float(np.linalg.norm(np.diff(flat.co[flat.start[i] : flat.start[i + 1]], axis=0), axis=1).sum())
+                for i in splines
+            ]
+            out["levels"].append(
+                {"stems": len(splines), "length_mean": float(np.mean(lengths)), "length_std": float(np.std(lengths))}
+            )
+        out["box"] = (flat.co.max(axis=0) - flat.co.min(axis=0)).tolist()
+        out["leaves"] = int(
+            Addon.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).leaves.count
         )
-    out["box"] = (flat.co.max(axis=0) - flat.co.min(axis=0)).tolist()
-    out["leaves"] = int(
-        Addon.module("model.leaves").LeafGenerator(params, random.Random(1)).generate(grown.sprouts).leaves.count
-    )
-    return out
+        return out
 
 
 class ModelStatistics(unittest.TestCase):
+    """The statistics of each case's tree stay within their tolerances of the recorded statistics."""
+
     def test_cases(self):
         recorded = {}  # none yet: every case then fails with "record it first"
         if STATS.exists():
             recorded = json.loads(STATS.read_text(encoding="utf-8"))
-        current = {name: stats(*case) for name, case in CASES.items()}
+        current = {name: StatsCase.stats(*case) for name, case in CASES.items()}
         if Golden.record:
             STATS.write_text(json.dumps(current, indent=1, sort_keys=True) + "\n", encoding="utf-8")
             self.fail("model statistics recorded: review the diff, then run without --record-golden")
@@ -81,6 +88,7 @@ class ModelStatistics(unittest.TestCase):
                 self.compare(recorded[name], now)
 
     def compare(self, old, now):
+        """The two statistics agree: per level, the stem count and stem lengths, then the box and the leaf count."""
         self.assertEqual(len(old["levels"]), len(now["levels"]))
         for was, is_ in zip(old["levels"], now["levels"], strict=True):
             self.within(was["stems"], is_["stems"], COUNT_TOLERANCE, "stems")
@@ -91,6 +99,7 @@ class ModelStatistics(unittest.TestCase):
         self.assertEqual(old["leaves"], now["leaves"])
 
     def within(self, was, is_, tolerance, what):
+        """The new value is within the relative tolerance of the old value (an old value of 0 must stay 0)."""
         if was == 0:
             self.assertEqual(is_, 0, what)
         else:

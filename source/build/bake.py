@@ -34,6 +34,7 @@ class BarkBake:
     ROUNDING = 1e-3
 
     def __init__(self, params: BuildParams, context: Context) -> None:
+        """A bake with the tree's build settings, in the given Blender context."""
         self.params = params
         self.context = context
 

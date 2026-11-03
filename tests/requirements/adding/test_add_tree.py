@@ -16,6 +16,8 @@ from support.verifies import Verifies
 
 @Verifies("SWR-0012")
 class Placement(unittest.TestCase):
+    """A new tree goes to the 3D cursor, and it is the only selected object and the active object."""
+
     def test_new_tree_at_cursor_selected_and_active(self):
         Scene.reset()
         other = bpy.data.objects.new("other", None)
@@ -52,6 +54,7 @@ class RedoPanel(unittest.TestCase):
     so execute runs on a stand-in operator."""
 
     def execute(self, stand_in):
+        """Run the add operator's execute on the stand-in operator and return its result."""
         return Addon.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
 
     def test_a_setting_change_regenerates(self):
@@ -64,6 +67,7 @@ class UpdateCallbacks(unittest.TestCase):
     """A setting's update callback decides whether the next run regenerates the tree."""
 
     def properties(self):
+        """The add-on's TreeProperties class (the settings and their update callbacks)."""
         return Addon.module("ui.properties").TreeProperties
 
     def test_a_leaf_setting_regenerates_only_with_leaves_shown(self):
@@ -79,6 +83,7 @@ class TreeUi(unittest.TestCase):
     """The sidebar panel and the menu entries, on a generated tree."""
 
     def panels(self):
+        """The add-on's ui.panels module."""
         return Addon.module("ui.panels")
 
     def test_menu_entries(self):

@@ -57,6 +57,8 @@ class LeafObjectBuilder:
     UV_LAYER = "leafUV"
 
     def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        """A builder with the tree's build settings (the leaf shape and object) and the factory of the tree's
+        objects."""
         self.params = params
         self.objects = objects
 
@@ -137,6 +139,7 @@ class BlossomObjectBuilder:
     UV_LAYER = "blossomUV"
 
     def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        """A builder with the tree's build settings (the blossom material) and the factory of the tree's objects."""
         self.params = params
         self.objects = objects
 

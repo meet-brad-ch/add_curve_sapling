@@ -104,6 +104,8 @@ class TreePlacement:
     """Where a tree sits (transform, parent, collections) and the user's objects attached to it."""
 
     def __init__(self, root: Object, owned: list[Object]) -> None:
+        """Notes where the tree `root` sits and which of the objects under it are the user's (not in `owned`, the tree's
+        own parts). Raises TreeRecordError when the root is in no collection."""
         self.root = root
         # The root's own transform: with the same parent link and parent inverse it puts the new root
         # exactly where the old one was (setting matrix_world misplaces vertex-parented roots)
@@ -159,14 +161,23 @@ class StoredSettings:
 class TreeEdit:
     """Editing a tree in place: its stored settings, and putting the new tree where the old one was."""
 
-    def __init__(self, name: str, view_layer: ViewLayer) -> None:
+    def __init__(self, root: Object, placement: TreePlacement) -> None:
+        """An edit of the claimed tree `root`, with where its parts and the user's objects are (see claim())."""
+        self.root = root
+        self.placement = placement
+
+    @classmethod
+    def claim(cls, name: str, view_layer: ViewLayer) -> "TreeEdit":
+        """Start editing the tree the object `name` belongs to: claim its parts and note where they are. Raises
+        TreeRecordError when there is no such object or it is not a tree."""
         ob = bpy.data.objects.get(name)
         if ob is None:
             raise TreeRecordError(f"No object named '{name}'")
-        self.root: Object = TreeRecord.root_of(ob)
-        TreeRecord.claim(self.root)
+        root = TreeRecord.root_of(ob)
+        TreeRecord.claim(root)
         view_layer.update()  # current world matrices of the tree and the user's objects
-        self.placement: TreePlacement = TreePlacement(self.root, TreeRecord.owned(self.root))
+        placement = TreePlacement(root, TreeRecord.owned(root))
+        return cls(root, placement)
 
     @property
     def collections(self) -> list[Collection]:

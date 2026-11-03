@@ -58,17 +58,22 @@ class BoneMap:
     """One BoneLink per curve spline, in spline order (the first must be a trunk's)."""
 
     def __init__(self, links: list[BoneLink]) -> None:
+        """The map of `links`, one per spline in spline order. Raises ValueError when the first link is not a
+        trunk's."""
         if not links or links[0].bone:
             raise ValueError("the first spline must be a trunk")
         self._links = list(links)
 
     def __len__(self) -> int:
+        """The number of splines."""
         return len(self._links)
 
     def __getitem__(self, index: int) -> BoneLink:
+        """The link of spline `index`."""
         return self._links[index]
 
     def __iter__(self) -> Iterator[BoneLink]:
+        """The links in spline order."""
         return iter(self._links)
 
     def bones(self) -> list[str]:

@@ -35,8 +35,10 @@ class Angles:
     @staticmethod
     def means(a1: np.ndarray, a2: np.ndarray, fac: float) -> np.ndarray:
         """Per element, the angle `fac` of the way from a1 to a2, through unit vectors (so it goes the short way)."""
-        x1, y1 = np.sin(a1), np.cos(a1)
-        x2, y2 = np.sin(a2), np.cos(a2)
+        x1 = np.sin(a1)
+        y1 = np.cos(a1)
+        x2 = np.sin(a2)
+        y2 = np.cos(a2)
         return np.arctan2(x1 + (x2 - x1) * fac, y1 + (y2 - y1) * fac)
 
 

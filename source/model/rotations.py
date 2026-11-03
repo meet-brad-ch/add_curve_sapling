@@ -57,7 +57,9 @@ class Rotation:
     @staticmethod
     def axis_angle(axes: np.ndarray, angle: np.ndarray) -> np.ndarray:
         """One matrix per row: the rotation about the row's unit axis by the row's angle (Rodrigues)."""
-        x, y, z = axes[:, 0], axes[:, 1], axes[:, 2]
+        x = axes[:, 0]
+        y = axes[:, 1]
+        z = axes[:, 2]
         c = np.cos(angle)
         s = np.sin(angle)
         t = 1.0 - c
@@ -104,10 +106,19 @@ class Quaternions:
     def to_matrices(cls, quaternions: np.ndarray) -> np.ndarray:
         """(N, 3, 3) rotation matrices of unit quaternions, Blender's quat_to_mat3 row for row (double maths)."""
         q = np.asarray(quaternions, dtype=np.float64) * cls.SQRT2
-        q0, q1, q2, q3 = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
-        qda, qdb, qdc = q0 * q1, q0 * q2, q0 * q3
-        qaa, qab, qac = q1 * q1, q1 * q2, q1 * q3
-        qbb, qbc, qcc = q2 * q2, q2 * q3, q3 * q3
+        q0 = q[:, 0]
+        q1 = q[:, 1]
+        q2 = q[:, 2]
+        q3 = q[:, 3]
+        qda = q0 * q1
+        qdb = q0 * q2
+        qdc = q0 * q3
+        qaa = q1 * q1
+        qab = q1 * q2
+        qac = q1 * q3
+        qbb = q2 * q2
+        qbc = q2 * q3
+        qcc = q3 * q3
         # Blender stores m[column][row]; these are the rows of R = the matrix that rotates v as R @ v
         return np.stack(
             [
@@ -171,8 +182,14 @@ class Quaternions:
     @staticmethod
     def multiply(a: np.ndarray, b: np.ndarray) -> np.ndarray:
         """Row-wise a * b (Blender's mul_qt_qtqt)."""
-        a0, a1, a2, a3 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
-        b0, b1, b2, b3 = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
+        a0 = a[:, 0]
+        a1 = a[:, 1]
+        a2 = a[:, 2]
+        a3 = a[:, 3]
+        b0 = b[:, 0]
+        b1 = b[:, 1]
+        b2 = b[:, 2]
+        b3 = b[:, 3]
         return np.stack(
             [
                 a0 * b0 - a1 * b1 - a2 * b2 - a3 * b3,
@@ -224,7 +241,9 @@ class TrackFrame:
     @classmethod
     def _first_turn(cls, tvec: np.ndarray) -> FirstTurn:
         """The rotation onto the z axis: its axis, and the cosine of its angle times the length."""
-        x, y, z = tvec[:, 0], tvec[:, 1], tvec[:, 2]
+        x = tvec[:, 0]
+        y = tvec[:, 1]
+        z = tvec[:, 2]
         nor = np.stack([-y, x, np.zeros_like(x)], axis=1)
         nor[np.abs(x) + np.abs(y) < cls.EPS, 0] = 1.0
         return FirstTurn(nor, z)

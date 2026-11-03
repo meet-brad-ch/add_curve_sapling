@@ -63,7 +63,8 @@ class NodeWindJoints(unittest.TestCase):
         self.assertEqual(len(point_joints), int(joints.flat.start[-1]))
         checked = 0
         for c in range(len(joints.sizes)):
-            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            start = int(joints.starts[c])
+            size = int(joints.sizes[c])
             if size < 2:
                 continue
             last_head = start + (int(joints.count[c]) - 1) * 2
@@ -85,7 +86,8 @@ class NodeWindJoints(unittest.TestCase):
         second_level = np.arange(grown.level_ends[0], grown.level_ends[1])
         hanging = joints.nearest_joint(joints.link_spline[second_level], joints.link_point[second_level])
         for c, joint in zip(second_level.tolist(), hanging.tolist(), strict=True):
-            start, size = int(joints.starts[c]), int(joints.sizes[c])
+            start = int(joints.starts[c])
+            size = int(joints.sizes[c])
             self.assertTrue((point_joints[start : start + size] == joint).all(), f"curve {c}")
         np.testing.assert_array_equal(joints.leaf_joints(NodeTrees.empty_leaves(grown)), [])
 

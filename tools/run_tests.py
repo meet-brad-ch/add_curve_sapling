@@ -11,10 +11,12 @@ python tools/run_tests.py --coverage 99 96   # with coverage; fails below 99 % l
 import argparse
 import sys
 
-from blender_env import ROOT, install_fresh, run_script, venv_site_packages
+from blender_env import ROOT, BlenderEnv
 
 
 def main() -> int:
+    """Install the add-on into the test profile (unless --no-install) and run the test suite in Blender with the given
+    options. Returns Blender's exit code."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-k", dest="pattern", action="append", default=[], help="run only tests matching")
     parser.add_argument("--record-golden", action="store_true", help="rewrite the golden fingerprints")
@@ -29,14 +31,18 @@ def main() -> int:
     args = parser.parse_args()
 
     if not args.no_install:
-        install_fresh()
+        BlenderEnv.install_fresh()
     script_args = [f"-k={p}" for p in args.pattern]
     if args.record_golden:
         script_args.append("--record-golden")
     if args.coverage is not None:
         line_min, branch_min = args.coverage
-        script_args += [f"--line-min={line_min}", f"--branch-min={branch_min}", f"--site={venv_site_packages()}"]
-    return run_script(ROOT / "tests" / "run.py", script_args)
+        script_args += [
+            f"--line-min={line_min}",
+            f"--branch-min={branch_min}",
+            f"--site={BlenderEnv.venv_site_packages()}",
+        ]
+    return BlenderEnv.run_script(ROOT / "tests" / "run.py", script_args)
 
 
 if __name__ == "__main__":

@@ -49,6 +49,7 @@ class PlainParams:
     _frozen = False  # the instance's own True, set by _freeze(), shadows this
 
     def __setattr__(self, name: str, value: object) -> None:
+        """Sets a value until the parameters are frozen. Raises AttributeError after _freeze()."""
         if self._frozen:
             raise AttributeError(f"{type(self).__name__} is read-only; cannot set {name}")
         super().__setattr__(name, value)
@@ -67,6 +68,8 @@ class TreeParams(PlainParams):
     HANDLE_TYPES = MappingProxyType({"0": HandleType.AUTO, "1": HandleType.VECTOR})
 
     def __init__(self, settings: Any) -> None:
+        """Copies and checks the settings from `settings` (anything with the operator's property names), then freezes
+        them. Raises ValueError for a choice that is not known, InvalidSettingError for values the model refuses."""
         s = settings
         self.seed = int(s.seed)
         self.levels = int(s.levels)
@@ -244,6 +247,8 @@ class WindParams(PlainParams):
     """The joints (what the rig's bones and the node wind's joints are) and the wind's strength and timing."""
 
     def __init__(self, settings: Any, tree: TreeParams) -> None:
+        """Copies the joint and wind settings from `settings`, with the tree's parameters `tree`. Raises
+        InvalidSettingError for a wind setting the model refuses."""
         s = settings
         self.bone_step = tree.bone_step
         # Joint Levels: index of the last level with joints of its own; -1 when every level has them (0)

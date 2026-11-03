@@ -76,6 +76,8 @@ class ObjectFactory:
     SUFFIX = re.compile(r"\.\d{3,}$")
 
     def __init__(self, collections: Sequence[Collection]) -> None:
+        """A factory that links each new object into every one of `collections`. Raises ValueError when `collections` is
+        empty."""
         if not collections:
             raise ValueError("a tree needs at least one collection to be linked into")
         self.collections = list(collections)

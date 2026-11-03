@@ -34,6 +34,7 @@ class TreeCopy:
     """
 
     def __init__(self, original: Object) -> None:
+        """A copy of the tree whose root is `original`; nothing is copied until copy() or complete() runs."""
         self.original = original
         self.copies: dict[Object, Object] = {}
 

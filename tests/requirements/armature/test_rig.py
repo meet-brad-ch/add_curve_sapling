@@ -36,6 +36,7 @@ class RigLevels(unittest.TestCase):
 
     @staticmethod
     def rig_bones(settings, model):
+        """The bone count of the rig for the settings and the grown model."""
         return Addon.module("build.armature").RigSize.bones(Model.joints(settings, model))
 
     def test_joint_length_thins_the_rig(self):
@@ -66,6 +67,7 @@ class PrunedArmature(unittest.TestCase):
     """Issue #4: armature on a pruned tree raised KeyError; bones must sit on their own spline."""
 
     def assert_bones_on_their_splines(self):
+        """Each bone's head is on a spline that exists, at its own point within 1e-4. At least one bone is checked."""
         splines = Evaluated.spline_points()
         checked = 0
         for bone in Scene.armature().data.bones:
@@ -102,6 +104,7 @@ class BoneStep(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a quaking aspen with the rig, wind and Joint Length 2, 2, 1, 1 once for all tests."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, windAnim=True, jointStep=(2, 2, 1, 1))
         cls.result = Scene.generate(settings)
@@ -187,6 +190,7 @@ class RigSweep(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate the node-tree test tree with the rig and wind once for all tests."""
         cls.result = Scene.generate(NodeTrees.settings(useRig=True, windAnim=True))
 
     def test_curves_source_and_joint_proxy(self):
@@ -219,6 +223,7 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
+        """Generate a quaking aspen (2 levels, leaves, blossom rate 0.5, the changes) and return its blossoms object."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
@@ -238,9 +243,11 @@ class RigSizeLimits(unittest.TestCase):
     the square of its bone count: the operator warns above WARN_BONES and refuses above MAX_BONES."""
 
     def rig_size(self):
+        """The add-on's RigSize class (the bone count limits and the time estimate)."""
         return Addon.module("build.armature").RigSize
 
     def limit(self, name, value):
+        """Set a RigSize limit to the value for this test only (the old value comes back at cleanup)."""
         rig_size = self.rig_size()
         self.addCleanup(setattr, rig_size, name, getattr(rig_size, name))
         setattr(rig_size, name, value)
@@ -323,6 +330,7 @@ class MoveByTheBranches(unittest.TestCase):
 
     @staticmethod
     def world_vertices(name, frame):
+        """The evaluated world positions of the object's mesh vertices at a frame."""
         bpy.context.scene.frame_set(frame)
         ob = bpy.data.objects[name].evaluated_get(bpy.context.evaluated_depsgraph_get())
         mesh = ob.to_mesh()

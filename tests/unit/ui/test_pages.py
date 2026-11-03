@@ -13,6 +13,7 @@ class TreeUi(unittest.TestCase):
     """The sidebar panel and the menu entries, on a generated tree."""
 
     def panels(self):
+        """The add-on's ui.panels module."""
         return Addon.module("ui.panels")
 
     def test_panel_draw_without_a_layout_fails(self):

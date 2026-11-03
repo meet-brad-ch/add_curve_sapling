@@ -22,6 +22,7 @@ class StageTimer:
     """Adds up the time spent in the given methods while a tree is built (patched for the test's duration)."""
 
     def __init__(self, test: unittest.TestCase, stages: tuple[TimedStage, ...]) -> None:
+        """Patch each stage method to add its time in seconds to total, until the test cleans up."""
         self.total = 0.0
         for stage in stages:
             method_name = stage.method

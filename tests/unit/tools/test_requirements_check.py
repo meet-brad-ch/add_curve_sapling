@@ -11,18 +11,29 @@ import requirements_check as rc
 GOOD = "When the user runs *Sapling: Add Tree*, the Sapling Tree Gen extension shall create a tree."
 
 
-def requirement(statement=GOOD, method="test"):
-    fields = {"Statement": statement, "Rationale": "r", "Method": method, "Criteria": "c"}
-    return rc.Requirement("SWR-9999", "Title", 1, fields)
+class RequirementFixtures:
+    """Requirements and rule checks built for the checker's tests."""
 
+    @staticmethod
+    def requirement(statement=GOOD, method="test"):
+        """A requirement SWR-9999 with the statement, the method and short rationale and criteria."""
+        fields = {"Statement": statement, "Rationale": "r", "Method": method, "Criteria": "c"}
+        return rc.Requirement("SWR-9999", "Title", 1, fields)
 
-def rules_broken(statement=GOOD, method="test"):
-    return {finding.rule for finding in rc.StatementRules().check(requirement(statement, method))}
+    @staticmethod
+    def rules_broken(statement=GOOD, method="test"):
+        """The rules that the statement rules check finds broken in a requirement with the statement and the method."""
+        return {
+            finding.rule for finding in rc.StatementRules().check(RequirementFixtures.requirement(statement, method))
+        }
 
 
 class StatementRules(unittest.TestCase):
+    """The statement rules pass a good EARS statement, and find each broken rule: no shall, clauses out of order,
+    two sentences, more than 25 words, a semicolon, a banned word, an unknown method, a missing field."""
+
     def test_good_statement_passes(self):
-        self.assertEqual(rules_broken(), set())
+        self.assertEqual(RequirementFixtures.rules_broken(), set())
 
     def test_every_ears_form_passes(self):
         for statement in (
@@ -33,43 +44,49 @@ class StatementRules(unittest.TestCase):
             "Where *Wind* is on, while it plays, when a frame changes, the Sapling Tree Gen extension shall sway.",
         ):
             with self.subTest(statement=statement):
-                self.assertEqual(rules_broken(statement), set())
+                self.assertEqual(RequirementFixtures.rules_broken(statement), set())
 
     def test_no_shall_breaks_the_form(self):
-        self.assertIn("form", rules_broken("The Sapling Tree Gen extension creates a tree."))
+        self.assertIn("form", RequirementFixtures.rules_broken("The Sapling Tree Gen extension creates a tree."))
 
     def test_clauses_out_of_order_break_the_form(self):
         statement = "When a tree is added, where *Prune* is on, the Sapling Tree Gen extension shall cut."
-        self.assertIn("form", rules_broken(statement))
+        self.assertIn("form", RequirementFixtures.rules_broken(statement))
 
     def test_two_sentences(self):
-        self.assertIn("sentence", rules_broken(GOOD + " It is green."))
+        self.assertIn("sentence", RequirementFixtures.rules_broken(GOOD + " It is green."))
 
     def test_more_than_25_words(self):
         long = "The Sapling Tree Gen extension shall " + " ".join(["grow"] * 20) + " trees."
-        self.assertIn("length", rules_broken(long))
+        self.assertIn("length", RequirementFixtures.rules_broken(long))
 
     def test_semicolon(self):
-        self.assertIn("semicolon", rules_broken("The Sapling Tree Gen extension shall grow trees; and leaves."))
+        self.assertIn(
+            "semicolon",
+            RequirementFixtures.rules_broken("The Sapling Tree Gen extension shall grow trees; and leaves."),
+        )
 
     def test_banned_word(self):
-        self.assertIn("word", rules_broken("The Sapling Tree Gen extension shall grow many trees."))
+        self.assertIn("word", RequirementFixtures.rules_broken("The Sapling Tree Gen extension shall grow many trees."))
 
     def test_banned_word_in_an_interface_name_is_allowed(self):
         statement = "While *Fast Preview* is on, the Sapling Tree Gen extension shall draw curves."
-        self.assertEqual(rules_broken(statement), set())
+        self.assertEqual(RequirementFixtures.rules_broken(statement), set())
 
     def test_unknown_method(self):
-        self.assertIn("method", rules_broken(method="guess"))
+        self.assertIn("method", RequirementFixtures.rules_broken(method="guess"))
 
     def test_missing_field(self):
-        broken = requirement()
+        broken = RequirementFixtures.requirement()
         del broken.fields["Criteria"]
         found = rc.StatementRules().check(broken)
         self.assertIn("no Criteria", [finding.message for finding in found])
 
 
 class Document(unittest.TestCase):
+    """The requirements document reads the fields and their continuation lines from TEXT, and fails on a
+    duplicate ID, a malformed heading or a missing document."""
+
     TEXT = (
         f"### SWR-0001 One\n- **Statement:** {GOOD}\n- **Rationale:** r\n- **Method:** test\n- **Criteria:** first\n"
         f"  second line\n\n### SWR-0001 Again\n- **Statement:** {GOOD}\n- **Rationale:** r\n- **Method:** test\n"
@@ -77,6 +94,7 @@ class Document(unittest.TestCase):
     )
 
     def document(self):
+        """The requirements document read from TEXT in a temporary file."""
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "requirements.md"
             path.write_text(self.TEXT, encoding="utf-8")
@@ -100,6 +118,9 @@ class Document(unittest.TestCase):
 
 
 class AppendixA(unittest.TestCase):
+    """Appendix A of docs/requirements.md matches the settings in the code, and the checker finds a changed
+    default and a setting that is not in the table."""
+
     def test_document_matches_the_code(self):
         document = rc.RequirementsDocument(rc.DOCUMENT)
         self.assertEqual(rc.Checker(document).findings(), [])
@@ -123,6 +144,9 @@ class AppendixA(unittest.TestCase):
 
 
 class Trace(unittest.TestCase):
+    """The test trace adds up the class and method requirement IDs of the tests, skips helpers, traces the
+    repository without findings, and finds a requirement without a test."""
+
     MODULE = (
         "from support.verifies import Verifies\n\n\n"
         '@Verifies("SWR-0001")\n'
@@ -136,6 +160,7 @@ class Trace(unittest.TestCase):
     )
 
     def refs(self):
+        """The requirement IDs of each test in MODULE, by class and method name, from a temporary tests folder."""
         with tempfile.TemporaryDirectory() as folder:
             tests = Path(folder) / "tests"
             module = tests / "requirements" / "area" / "test_trace.py"

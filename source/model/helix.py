@@ -29,6 +29,7 @@ class HelixPath:
     RADIUS_FACTOR = 3.0 / 16.0
 
     def __init__(self, params: TreeParams) -> None:
+        """A helix path with the model's parameters (the helix levels and their curve settings)."""
         self.params = params
 
     def grow(self, grid: LevelGrid, close_tip: bool) -> None:

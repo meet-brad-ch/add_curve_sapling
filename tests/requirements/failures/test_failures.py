@@ -18,6 +18,7 @@ class FailureSafety(unittest.TestCase):
     """A generation that fails part-way leaves nothing behind, and a failed edit keeps the old tree."""
 
     def fail_during_the_bake(self):
+        """Make the bark bake raise a RuntimeError for this test only."""
         builder = Addon.module("build.bake").BarkBake
         original = builder.bake
 
@@ -90,6 +91,7 @@ class RedoPanel(unittest.TestCase):
     so execute runs on a stand-in operator."""
 
     def execute(self, stand_in):
+        """Run the add operator's execute on the stand-in operator and return its result."""
         return Addon.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
 
     def test_a_settings_error_cancels_with_its_message(self):
@@ -132,6 +134,8 @@ class SharedRandom(unittest.TestCase):
 
 @Verifies("SWR-0144")
 class DataLifecycle(unittest.TestCase):
+    """Removing a tree or generating it again leaves no data blocks behind, with the rig and with the node wind."""
+
     def test_remove_leaves_no_data(self):
         for rig in (True, False):
             with self.subTest(rig=rig):
@@ -148,6 +152,7 @@ class DataLifecycle(unittest.TestCase):
                 self.regenerate_three_times(Trees.full_settings(rig))
 
     def regenerate_three_times(self, settings):
+        """Generate the tree, then edit it three times, and check that the data block counts stay the same."""
         Scene.reset()
         self.assertEqual(bpy.ops.curve.tree_add(**settings, do_update=True), {"FINISHED"})
         kinds = [*Scene.DATA, "materials", "node_groups"]  # materials and node groups are shared, made once
@@ -163,6 +168,8 @@ class DataLifecycle(unittest.TestCase):
 
 @Verifies("SWR-0145")
 class ArmatureContext(unittest.TestCase):
+    """Building a rig leaves another selected and active armature in Object Mode."""
+
     def test_other_selected_armature_is_not_edited(self):
         Scene.reset()
         other = bpy.data.objects.new("other_rig", bpy.data.armatures.new("other_rig"))

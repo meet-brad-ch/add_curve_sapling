@@ -9,6 +9,8 @@ from support.scene import Scene
 
 
 class Ownership(unittest.TestCase):
+    """Edit Sapling Tree on a name that is not an object, or on an object that is not a tree, fails with the reason."""
+
     def test_replace_names(self):
         Scene.reset()
         plain = bpy.data.objects.new("plain", None)

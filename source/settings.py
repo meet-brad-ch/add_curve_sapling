@@ -55,6 +55,8 @@ class TreeSettings:
     )
 
     def __init__(self, values: object) -> None:
+        """Settings from `values`, a dictionary keyed by operator property name. Raises SettingsError when `values` is
+        not a dictionary."""
         if not isinstance(values, dict):
             raise SettingsError(f"Settings must be a dictionary, not {type(values).__name__}")
         self.values = dict(values)
@@ -220,3 +222,18 @@ class TreeSettings:
             if not isinstance(item, str | bool | int | float):
                 raise SettingsError(f"a vector setting's items must be numbers or flags, not {type(item).__name__}")
         return items
+
+
+class SettingValues:
+    """A tree's settings as attributes (settings.levels, ...), the way the model and the generator read them."""
+
+    def __init__(self, settings: TreeSettings) -> None:
+        """The values of `settings`, read as attributes."""
+        self._values = dict(settings.values)
+
+    def __getattr__(self, name: str) -> Any:
+        """The setting's value. Raises AttributeError naming a setting the tree's settings do not have."""
+        # only called for a name the object lacks: _values itself always exists after __init__
+        if name not in self._values:
+            raise AttributeError(f"The settings have no '{name}'")
+        return self._values[name]

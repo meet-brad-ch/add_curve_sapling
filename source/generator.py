@@ -5,7 +5,6 @@
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
 
 from bpy.types import Collection, Context, Object
 
@@ -22,12 +21,12 @@ from .build.tree_record import TreeRecord
 from .build.tree_root import CurveSource, TreeRootBuilder
 from .build.wind import LeafFlutter
 from .model.curve_data import CurveData
-from .model.joints import Joints, TreeWind
+from .model.joints import Joints, JointSwayBuilder, TreeWind
 from .model.leaves import LeafGenerator, LeafShape
 from .model.params import TreeParams, WindParams
 from .model.tree import GrownTree, TreeGrower
 from .model.wind_model import WindModel
-from .settings import TreeSettings
+from .settings import SettingValues, TreeSettings
 
 
 class TreeResult:
@@ -35,6 +34,7 @@ class TreeResult:
     others hang from."""
 
     def __init__(self, objects: ObjectFactory) -> None:
+        """The result of one generation, from the objects the factory made."""
         self.objects = objects
         self.roles = objects.roles
 
@@ -75,7 +75,9 @@ class Movers:
 class TreeGenerator:
     """Generates one tree from settings (anything with the operator's property names)."""
 
-    def __init__(self, settings: Any, context: Context, collections: Sequence[Collection]) -> None:
+    def __init__(self, settings: SettingValues, context: Context, collections: Sequence[Collection]) -> None:
+        """Derives the model's, the wind's and the build's parameters from `settings`; the tree goes into `collections`.
+        Raises ValueError (InvalidSettingError among them) for a setting the model refuses."""
         self.params = TreeParams(settings)
         self.wind_params = WindParams(settings, self.params)
         self.build_params = BuildParams(settings, self.params, self.wind_params)
@@ -192,7 +194,7 @@ class TreeGenerator:
     def _wind(self, joints: Joints, rng: random.Random) -> TreeWind:
         """The wind's numbers and every joint's sway (drawing two phases per curve with joints)."""
         model = WindModel(self.wind_params, self._fps())
-        return TreeWind(model, joints.sway(model, rng))
+        return TreeWind(model, JointSwayBuilder(joints).sway(model, rng))
 
     def _fps(self) -> float:
         """The scene's frame rate, which the wind's timing is relative to."""

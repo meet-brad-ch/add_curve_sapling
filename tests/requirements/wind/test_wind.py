@@ -23,6 +23,7 @@ class NodeWind(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate the node-tree test tree with wind and a 48-frame loop once. Keep the bark's vertices at frame 1."""
         cls.settings = NodeTrees.settings(windAnim=True, loopFrames=48)
         cls.result = Scene.generate(cls.settings)
         cls.rest = Evaluated.vertices("tree", 1)
@@ -86,6 +87,7 @@ class NodeWind(unittest.TestCase):
 
     @staticmethod
     def evaluated_edges():
+        """The edges of the tree's evaluated mesh, as an array of vertex index pairs (shape: edges x 2)."""
         ob = bpy.data.objects["tree"].evaluated_get(bpy.context.evaluated_depsgraph_get())
         mesh = ob.to_mesh()
         edges = np.empty(len(mesh.edges) * 2, np.int32)
@@ -100,6 +102,7 @@ class NodeWindLeaves(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate the node-tree test tree with leaves and wind once. Keep the leaves and their vertices per leaf."""
         settings = NodeTrees.settings(showLeaves=True, windAnim=True)
         cls.result = Scene.generate(settings)
         cls.leaves = bpy.data.objects["leaves"]
@@ -141,6 +144,7 @@ class BoneStep(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a quaking aspen with the rig, wind and Joint Length 2, 2, 1, 1 once for all tests."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(useRig=True, windAnim=True, jointStep=(2, 2, 1, 1))
         cls.result = Scene.generate(settings)
@@ -162,6 +166,7 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
+        """Generate a quaking aspen (2 levels, leaves, blossom rate 0.5, the changes) and return its blossoms object."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
@@ -182,18 +187,21 @@ class NodeWindMatchesTheRig(unittest.TestCase):
     FRAMES = range(5, 97, 8)
 
     def displacements(self, rig, strength):
+        """The bark's vertices at each frame of FRAMES, with the rig or the node wind and the wind and gust strength."""
         settings = NodeTrees.settings(levels=3, branches=(0, 30, 10, 0), windAnim=True, useRig=rig)
         settings.update(windStrength=strength, gustStrength=strength)
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
         return np.stack([Evaluated.vertices("tree", frame) for frame in self.FRAMES])
 
     def relative_rms(self, strength):
+        """The RMS difference of the node wind's bark moves from the rig's, divided by the RMS of the rig's moves."""
         rest = self.still()
         rig = self.displacements(True, strength) - rest
         node = self.displacements(False, strength) - rest
         return float(np.sqrt(np.mean((node - rig) ** 2)) / np.sqrt(np.mean(rig**2)))
 
     def still(self):
+        """The bark's vertices at frame 1 of the same tree without wind."""
         settings = NodeTrees.settings(levels=3, branches=(0, 30, 10, 0))
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
         return Evaluated.vertices("tree", 1)
@@ -213,6 +221,7 @@ class WindAnimation(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a rigged quaking aspen with leaves, wind and Leaf Flutter once for all tests."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         cls.result = Scene.generate(settings)
@@ -261,6 +270,7 @@ class LargeRigWind(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a rigged quaking aspen with wind once, with CHUNK set to 50 so that it uses the large-rig path."""
         animator = Addon.module("build.wind").WindAnimator
         cls.addClassCleanup(setattr, animator, "CHUNK", animator.CHUNK)  # runs even if this method fails
         animator.CHUNK = 50  # the test tree's 308 bones take the large-rig path
@@ -292,7 +302,10 @@ class LargeRigWind(unittest.TestCase):
 
 @Verifies("SWR-0123")
 class LeafFlutterOptions(unittest.TestCase):
+    """With Loop Frames 48, the fluttering leaves are at rest on frames 0 and 48 and move between them."""
+
     def generate(self, **overrides):
+        """Generate a rigged quaking aspen with leaves, wind and Leaf Flutter, with the overrides."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=True, useRig=True, windAnim=True, leafFlutter=True)
         settings.update(overrides)

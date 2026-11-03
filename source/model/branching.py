@@ -98,6 +98,8 @@ class TrunkClump:
     TRIES = 1000
 
     def __init__(self, params: TreeParams, rng: Random) -> None:
+        """A clump with the model's parameters (the trunk count and spacing) and the tree's random stream for the
+        positions."""
         self.params = params
         self.rng = rng
 
@@ -129,6 +131,36 @@ class TrunkClump:
         return sqrt(float((squares[2] + squares[1]) + squares[0]))
 
 
+class BranchAngles:
+    """The angle formulas the trunk's branching and the levels share: the down-angle taper, the running rotate angle,
+    and the crown shape ratio."""
+
+    @staticmethod
+    def down_taper(params: TreeParams, level: int, offset: np.ndarray, base_size: float) -> np.ndarray:
+        """The Down Angle Variation along the parent: the down angle decreases towards the parent's end."""
+        return -params.down_angle_v[level] * (1 - (1 - offset) / (1 - base_size)) ** 2
+
+    @staticmethod
+    def running_rotate(params: TreeParams, level: int, keys: np.ndarray, ordinal: np.ndarray) -> np.ndarray:
+        """The running rotate angle of the ordinal-th child around its parent (a negative Rotate alternates
+        sides), with its random variation."""
+        rotate = params.rotate[level]
+        rotate_v = params.rotate_v[level]
+        if rotate < 0:
+            # a negative Rotate alternates the side: +|rotate|, -|rotate|, ...
+            running = (-1.0) ** (ordinal + 1) * abs(rotate)
+        else:
+            running = (ordinal + 1) * rotate
+        return running + KeyedRandom.between(keys, 0, Draw.ROTATE, -rotate_v, rotate_v)
+
+    @staticmethod
+    def shapes(params: TreeParams, level: int, ratio: np.ndarray) -> np.ndarray:
+        """Crown shape ratios: the tree's shape for the first branch level, the secondary shape deeper."""
+        if level == LevelStarter.TRUNK_BRANCHES:
+            return CrownShape.ratios(params.shape, ratio, custom=params.custom_shape)
+        return CrownShape.ratios(params.shape_s, ratio)
+
+
 class TrunkPick:
     """Rotate/random branching modes at the first branch level: which sprout of each height gets the branch.
 
@@ -138,6 +170,8 @@ class TrunkPick:
     """
 
     def __init__(self, params: TreeParams, root_key: np.ndarray) -> None:
+        """A pick with the model's parameters (the branching mode) and the tree's root key for the keyed random
+        draws."""
         self.params = params
         self.root_key = root_key
 
@@ -178,7 +212,7 @@ class TrunkPick:
 
     def _rotations(self, keys: np.ndarray, rank: np.ndarray) -> np.ndarray:
         """The rotate angle of each height group, as the running rotate angle goes along a trunk."""
-        return LevelStarter.running_rotate(self.params, LevelStarter.TRUNK_BRANCHES, keys, rank)
+        return BranchAngles.running_rotate(self.params, LevelStarter.TRUNK_BRANCHES, keys, rank)
 
     @staticmethod
     def _nearest(
@@ -212,10 +246,10 @@ class TrunkPick:
         aim = np.stack([np.sin(rotate), np.cos(rotate)], axis=1)
         trunk_distance = np.hypot(co[:, 0], co[:, 1])
         offset = sprouts.offset[best]
-        shape = LevelStarter.shapes(p, level, (1 - offset) / (1 - base_size))
+        shape = BranchAngles.shapes(p, level, (1 - offset) / (1 - base_size))
         reach = sprouts.length_parent[best] * p.length[level] * shape
         if p.down_angle_v[level] > 0:
-            down = p.down_angle[level] + LevelStarter.down_taper(p, level, offset, base_size)
+            down = p.down_angle[level] + BranchAngles.down_taper(p, level, offset, base_size)
         else:
             down = np.full(len(best), p.down_angle[level])
         reach = np.where(down < 0.5 * pi, reach * np.sin(down) ** 2, reach) * 0.33
@@ -239,6 +273,8 @@ class LevelStarter:
     MAX_BASE_SIZE = 0.999
 
     def __init__(self, params: TreeParams, rng: Random, root_key: np.ndarray) -> None:
+        """A starter with the model's parameters, the tree's random stream (the trunk clump) and its root key (the keyed
+        draws)."""
         self.params = params
         self.rng = rng
         self.root_key = root_key
@@ -376,11 +412,6 @@ class LevelStarter:
             has_rotation=np.zeros(count, dtype=bool),
         )
 
-    @staticmethod
-    def down_taper(params: TreeParams, level: int, offset: np.ndarray, base_size: float) -> np.ndarray:
-        """The Down Angle Variation along the parent: the down angle decreases towards the parent's end."""
-        return -params.down_angle_v[level] * (1 - (1 - offset) / (1 - base_size)) ** 2
-
     def _down_angles(self, sprouts: "SproutArrays", level: int, base_size: float, keys: np.ndarray) -> np.ndarray:
         """Each child's angle away from its parent (Down Angle with its variation); none for a tip's continuation."""
         p = self.params
@@ -394,25 +425,12 @@ class LevelStarter:
             if down_angle_v < 0.0:
                 down_v = drawn
             else:
-                down_v = self.down_taper(p, level, offset, base_size)
+                down_v = BranchAngles.down_taper(p, level, offset, base_size)
         return np.where(sprouts.is_end, 0.0, p.down_angle[level] + down_v)
-
-    @staticmethod
-    def running_rotate(params: TreeParams, level: int, keys: np.ndarray, ordinal: np.ndarray) -> np.ndarray:
-        """The running rotate angle of the ordinal-th child around its parent (a negative Rotate alternates
-        sides), with its random variation."""
-        rotate = params.rotate[level]
-        rotate_v = params.rotate_v[level]
-        if rotate < 0:
-            # a negative Rotate alternates the side: +|rotate|, -|rotate|, ...
-            running = (-1.0) ** (ordinal + 1) * abs(rotate)
-        else:
-            running = (ordinal + 1) * rotate
-        return running + KeyedRandom.between(keys, 0, Draw.ROTATE, -rotate_v, rotate_v)
 
     def _rotations(self, level: int, keys: np.ndarray) -> np.ndarray:
         """Each child's rotation about its parent, in sprout order."""
-        return self.running_rotate(self.params, level, keys, np.arange(len(keys)))
+        return BranchAngles.running_rotate(self.params, level, keys, np.arange(len(keys)))
 
     def _directions(self, sprouts: "SproutArrays", level: int, down: np.ndarray, rotate: np.ndarray) -> np.ndarray:
         """Each new stem's first direction for every sprout at once."""
@@ -441,7 +459,7 @@ class LevelStarter:
         """Each stem's length, and how many children (branches, or leaves on the last level) it gets."""
         p = self.params
         max_length = p.length_product(level, scale)
-        shape = self.shapes(p, level, (1 - sprouts.stem_offset) / (1 - base_size))
+        shape = BranchAngles.shapes(p, level, (1 - sprouts.stem_offset) / (1 - base_size))
         length = sprouts.length_parent * p.length[level] * shape
         children = p.branches[TreeParams.level_index(level + 1)] * (0.1 + 0.9 * (length / max_length))
         if depth == p.levels - 1:
@@ -453,10 +471,3 @@ class LevelStarter:
                     p.leaves * (0.1 + 0.9 * (length / max_length)) * CrownShape.ratios(p.leaf_dist, 1 - sprouts.offset)
                 )
         return LengthsAndChildren(length, children)
-
-    @staticmethod
-    def shapes(params: TreeParams, level: int, ratio: np.ndarray) -> np.ndarray:
-        """Crown shape ratios: the tree's shape for the first branch level, the secondary shape deeper."""
-        if level == LevelStarter.TRUNK_BRANCHES:
-            return CrownShape.ratios(params.shape, ratio, custom=params.custom_shape)
-        return CrownShape.ratios(params.shape_s, ratio)

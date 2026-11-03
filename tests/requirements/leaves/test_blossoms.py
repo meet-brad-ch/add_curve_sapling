@@ -16,6 +16,9 @@ from support.verifies import Verifies
 
 @Verifies("SWR-0084")
 class BlossomPositions(unittest.TestCase):
+    """Blossom Rate picks that share of the leaf positions for blossoms, in trees grown in the model alone.
+    A higher rate keeps each blossom of a lower rate, and each blossom has its size and place."""
+
     def test_rate_zero_draws_nothing(self):
         randomness = Addon.module("model.randomness")
         original = randomness.KeyedRandom.uniform
@@ -73,6 +76,7 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
+        """Generate a quaking aspen (2 levels, leaves, blossom rate 0.5, the changes) and return its blossoms object."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
         self.assertEqual(Scene.generate(settings), {"FINISHED"})

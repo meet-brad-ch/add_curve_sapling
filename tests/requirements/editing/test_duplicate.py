@@ -31,13 +31,15 @@ class DuplicateTree(unittest.TestCase):
         """The copy draws where it stands: its bounds are the original's, moved along x."""
         copy.location.x += self.MOVE
         bpy.context.view_layer.update()
-        before, after = self.world_box(original), self.world_box(copy)
+        before = self.world_box(original)
+        after = self.world_box(copy)
         for low_high in range(2):
             self.assertAlmostEqual(after[low_high][0], before[low_high][0] + self.MOVE, places=4)
             self.assertAlmostEqual(after[low_high][2], before[low_high][2], places=4)
 
     @staticmethod
     def select_only(ob):
+        """Select only the object and make it the active object."""
         for other in bpy.context.view_layer.objects:
             other.select_set(other == ob)
         bpy.context.view_layer.objects.active = ob
@@ -162,6 +164,8 @@ class DuplicateTree(unittest.TestCase):
 
 @Verifies("SWR-0029")
 class Ownership(unittest.TestCase):
+    """A copy of every part of a rigged tree with leaves stays whole when Edit Sapling Tree changes its twin."""
+
     def test_duplicated_tree_survives_editing_its_twin(self):
         """Duplicating copies the custom properties; editing one copy used to delete both."""
         Scene.reset()

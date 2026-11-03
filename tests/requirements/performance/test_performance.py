@@ -29,6 +29,9 @@ class BuildTime:
 
 @Verifies("SWR-0162")
 class LeafScaling(unittest.TestCase):
+    """The leaf stages of the build take less than MAX_RATIO times as long for 80 leaves as for 40 leaves.
+    The shortest of RUNS builds counts."""
+
     RUNS = 2  # the shortest of these runs counts, which keeps other load on the machine out of the ratio
 
     STAGES = (
@@ -39,6 +42,7 @@ class LeafScaling(unittest.TestCase):
     )
 
     def leaf_time(self, leaves):
+        """The shortest leaf stage time in seconds of RUNS builds of a rigged tree with wind and the leaf count."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(
             levels=3, branches=(0, 50, 30, 10), leaves=leaves, showLeaves=True,
@@ -74,6 +78,7 @@ class BuildScaling(unittest.TestCase):
     RUNS = 2
 
     def build(self, branches):
+        """The spline count and the shortest build time over RUNS builds of a tree with the first-level branch count."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(
             levels=3, branches=(0, branches, 30, 10), showLeaves=True,

@@ -31,6 +31,8 @@ class BlenderVersion(unittest.TestCase):
 
 @Verifies("SWR-0002")
 class PlatformPackage(unittest.TestCase):
+    """Blender's extension validate command accepts the source folder."""
+
     def test_extension_validate_accepts_the_source(self):
         command = [bpy.app.binary_path, "--factory-startup", "--command", "extension", "validate", str(Paths.SOURCE)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
@@ -39,6 +41,9 @@ class PlatformPackage(unittest.TestCase):
 
 @Verifies("SWR-0004")
 class UserFiles(unittest.TestCase):
+    """The add-on writes files only through the preset store, into the extension's user folder.
+    A scan of the source finds each call that writes or removes a file or a folder."""
+
     # calls that write or remove a file or a folder: Path's writing methods, the builtin open with a mode, os and
     # shutil. Not unlink/rename/replace: Blender's collections unlink objects, and str.replace is everywhere.
     WRITES = frozenset({"write_text", "write_bytes", "mkdir", "rmdir", "touch"})

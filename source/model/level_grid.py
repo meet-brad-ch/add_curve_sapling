@@ -52,6 +52,7 @@ class StemRows:
         return [field.name for field in fields(cls)]
 
     def __len__(self) -> int:
+        """The number of stems (rows)."""
         return len(self.key)
 
     def append(self, other: "StemRows") -> None:
@@ -118,6 +119,8 @@ class LevelGrid:
         start: GridStart,
         next_spline: int,
     ) -> None:
+        """A grid of the stems of `level`: `segments` segments each, handle type `handles`, starting at `start`; the
+        next split gets the tree's spline index `next_spline`."""
         count = len(stems)
         self.level = level
         self.segments = segments
@@ -129,7 +132,8 @@ class LevelGrid:
         self.radius[:, 0] = start.radius
         self.h1 = np.full((count, segments + 1), handles, dtype=np.int8)
         self.h2 = np.full((count, segments + 1), handles, dtype=np.int8)
-        self.h1[:, 0] = self.h2[:, 0] = HandleType.VECTOR
+        self.h1[:, 0] = HandleType.VECTOR
+        self.h2[:, 0] = HandleType.VECTOR
         self.dir0 = np.asarray(start.direction, dtype=np.float64)
         self.next_spline = next_spline  # the tree's spline index the next split gets
         self.free: FreeHandles | None = None  # set by a helix level: its points keep these handles
@@ -250,10 +254,12 @@ class LevelGrid:
         if self.free is not None:
             left = self.free.left[valid].astype(np.float32)
             right = self.free.right[valid].astype(np.float32)
-            h1[:] = h2[:] = HandleType.FREE
+            h1[:] = HandleType.FREE
+            h2[:] = HandleType.FREE
         # a removed stem's point keeps FREE handles: set before the recalculation, which skips FREE sides
         at = start[:-1][stems.removed]
-        h1[at] = h2[at] = HandleType.FREE
+        h1[at] = HandleType.FREE
+        h2[at] = HandleType.FREE
         right[at] = (self.co[stems.removed, 0] + self.dir0[stems.removed]).astype(np.float32)
         grown = sizes >= 2
         points = HandleArrays(co=co, left=left, right=right, h1=h1, h2=h2)

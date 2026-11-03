@@ -8,6 +8,9 @@ from support.verifies import Verifies
 
 
 class VerifiesDecorator(unittest.TestCase):
+    """Verifies keeps the requirement IDs on a class or a function, adds up the IDs of stacked decorators,
+    and refuses bad IDs."""
+
     def test_ids_are_kept_on_the_target(self):
         @Verifies("SWR-0084")
         class Target:

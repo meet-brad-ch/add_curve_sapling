@@ -15,7 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from blender_env import ROOT, SOURCE, install_fresh, run_script
+from blender_env import ROOT, SOURCE, BlenderEnv
 
 
 def main() -> int:
@@ -30,11 +30,11 @@ def main() -> int:
     commit = subprocess.run(
         ["git", "-C", str(args.treegen), "rev-parse", "--short=7", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
-    install_fresh()
+    BlenderEnv.install_fresh()
     if not args.out.is_dir():
         sys.exit(f"{args.out} is not a folder")
     script_args = [str(args.treegen.resolve()), commit, str(args.out.resolve()), *args.species]
-    return run_script(ROOT / "tools" / "port_treegen_in_blender.py", script_args)
+    return BlenderEnv.run_script(ROOT / "tools" / "port_treegen_in_blender.py", script_args)
 
 
 if __name__ == "__main__":

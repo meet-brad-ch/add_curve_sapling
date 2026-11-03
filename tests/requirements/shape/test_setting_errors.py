@@ -37,7 +37,10 @@ class ExplicitChoices(unittest.TestCase):
 
 @Verifies("SWR-0076")
 class TreeSizeAboveZero(unittest.TestCase):
+    """A Scale minus Scale Variation of 0 refuses the tree with both settings named, and a size above 0 generates."""
+
     def settings(self, scale, variation):
+        """Quaking aspen settings with the Scale and the Scale Variation."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(scale=scale, scaleV=variation)
         return settings
@@ -54,6 +57,8 @@ class TreeSizeAboveZero(unittest.TestCase):
 
 @Verifies("SWR-0077")
 class PruningEnvelopeHeight(unittest.TestCase):
+    """Prune with Prune Base Height and Trunk Height at 1 refuses the tree, and the scene stays empty."""
+
     def test_an_envelope_without_height_is_refused(self):
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(prune=True, pruneBase=1.0, baseSize=1.0)
@@ -65,7 +70,10 @@ class PruningEnvelopeHeight(unittest.TestCase):
 
 @Verifies("SWR-0125")
 class FlutterSpeedAboveZero(unittest.TestCase):
+    """A Flutter Speed of 0 refuses the tree with Leaf Flutter on, and does not block it with Leaf Flutter off."""
+
     def settings(self, flutter):
+        """Quaking aspen settings with leaves, wind, a Flutter Speed of 0 and Leaf Flutter on or off."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(showLeaves=True, windAnim=True, leafFlutter=flutter, flutterSpeed=0.0)
         return settings

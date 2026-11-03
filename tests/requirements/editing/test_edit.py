@@ -21,6 +21,7 @@ class ReEdit(unittest.TestCase):
     """Edit Sapling Tree: regenerate from the settings stored on the tree, in the same place."""
 
     def generate(self, **overrides):
+        """Generate a callistemon with face leaves on a new leaf card in an empty scene. Return the active object."""
         settings = Addon.resolve_preset("callistemon.py")
         settings.update(showLeaves=True, leafShape="dFace", **overrides)
         Scene.reset()
@@ -30,6 +31,7 @@ class ReEdit(unittest.TestCase):
         return bpy.context.active_object
 
     def assert_same_transform(self, a, b):
+        """The two matrices have the same location, rotation and scale, within 1e-5."""
         self.assertLess((a.to_translation() - b.to_translation()).length, 1e-5)
         self.assertLess(a.to_quaternion().rotation_difference(b.to_quaternion()).angle, 1e-5)
         self.assertLess((a.to_scale() - b.to_scale()).length, 1e-5)
@@ -93,6 +95,9 @@ class ReEdit(unittest.TestCase):
 
 
 class Placement(unittest.TestCase):
+    """An edit keeps the tree's parent (a bone or a vertex), its place after a move, and all its collections.
+    An edit also names a child object whose part is gone, and keeps that object."""
+
     @Verifies("SWR-0022")
     def test_bone_parent_is_kept(self):
         Scene.reset()
@@ -190,6 +195,7 @@ class FailureSafety(unittest.TestCase):
     """A generation that fails part-way leaves nothing behind, and a failed edit keeps the old tree."""
 
     def fail_during_the_bake(self):
+        """Make the bark bake raise a RuntimeError for this test only."""
         builder = Addon.module("build.bake").BarkBake
         original = builder.bake
 
@@ -213,6 +219,7 @@ class TreeUi(unittest.TestCase):
     """The sidebar panel and the menu entries, on a generated tree."""
 
     def panels(self):
+        """The add-on's ui.panels module."""
         return Addon.module("ui.panels")
 
     @Verifies("SWR-0026")
@@ -252,6 +259,8 @@ class TreeUi(unittest.TestCase):
 
 @Verifies("SWR-0030")
 class Ownership(unittest.TestCase):
+    """A tree whose stored settings are gone is not a tree: the record and Edit Sapling Tree fail with the reason."""
+
     def test_broken_record_is_an_error(self):
         Scene.reset()
         root = Trees.add(showLeaves=True)

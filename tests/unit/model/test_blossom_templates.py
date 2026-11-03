@@ -13,10 +13,15 @@ from support.model import Model
 
 
 class BlossomTemplates(unittest.TestCase):
+    """Each blossom template is a closed disc of unit diameter with petals that repeat around the centre and faces
+    that look up. An unknown blossom shape is an error."""
+
     def template(self, shape):
+        """The blossom template (vertices and faces) of the shape."""
         return Foliage.blossoms_module().BlossomShape.template(shape)
 
     def form(self, shape):
+        """The blossom form (petal count, cup and other values) of the shape."""
         return Foliage.blossoms_module().BlossomShape.FORMS[shape]
 
     def test_counts(self):

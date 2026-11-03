@@ -36,7 +36,9 @@ class JointFrame:
         """(N, 4) quaternions of the rest frames of (N, 3) unit directions (the sign may differ; the rotation is
         the same)."""
         d = np.asarray(directions, dtype=np.float64)
-        x, y, z = d[:, 0], d[:, 1], d[:, 2]
+        x = d[:, 0]
+        y = d[:, 1]
+        z = d[:, 2]
         theta = 1.0 + y
         theta_alt = x * x + z * z
         regular = (theta > cls.SAFE) | (theta_alt > cls.CRITICAL * cls.CRITICAL)
@@ -136,6 +138,8 @@ class Joints:
     """
 
     def __init__(self, params: WindParams, curve: CurveData, grown: GrownTree) -> None:
+        """The joints of the grown tree `grown`, from the splines of `curve`, with the joint length and levels of
+        `params`."""
         self.params = params
         self.flat = curve.flatten()
         self.sizes = self.flat.sizes
@@ -278,29 +282,37 @@ class Joints:
         """Per leaf vertex, the number of the joint its leaf hangs from (int32)."""
         return np.repeat(self.leaf_joint(leaves), leaves.verts_per_leaf).astype(np.int32)
 
+
+class JointSwayBuilder:
+    """The joints' wind: every joint's sway amplitudes, phases and frequencies, from the joints' curve arrays."""
+
+    def __init__(self, joints: Joints) -> None:
+        """A builder for these joints."""
+        self.joints = joints
+
     def sway(self, model: WindModel, rng: Random) -> JointSway:
         """Every joint's wind, drawing two phases per curve with joints from the rng in curve order (as the rig
         always drew them)."""
-        p = self.params
-        spline = self.joint_spline
-        segments = (self.sizes - 1)[spline]
-        n = self.joint_n
-        spline_length = (self.sizes - 1) * self._first_segment_lengths()
+        p = self.joints.params
+        spline = self.joints.joint_spline
+        segments = (self.joints.sizes - 1)[spline]
+        n = self.joints.joint_n
+        spline_length = (self.joints.sizes - 1) * self._first_segment_lengths()
         per_curve = self._per_curve(model, rng, spline_length)
         direction = self._directions()
-        radius = self.flat.radius[self.joint_point].astype(np.float64)
+        radius = self.joints.flat.radius[self.joints.joint_point].astype(np.float64)
         flat_joints = np.flatnonzero(radius <= 0)
         if flat_joints.size:
             # a joint is the start of its segments, never a closed tip: a radius of 0 here is a model defect
             first = int(flat_joints[0])
             raise RuntimeError(f"joint {first} has radius {radius[first]:g}: a joint needs a radius above 0")
         a0 = 2 * (spline_length[spline] / segments) * (1 - n / (segments + 1)) / radius
-        a0 = a0 * np.minimum(self.step[spline], segments)
+        a0 = a0 * np.minimum(self.joints.step[spline], segments)
         a1 = (p.wind / 50) * a0
         gust = (p.wind * p.gust / 50) * a0
         sway = np.stack([a1, a1 * model.SECOND_WAVE_AMPLITUDE, -direction[:, 0] * gust, direction[:, 2] * gust], 1)
         # the first two joints of every trunk hold the tree base still
-        sway[(self.link_spline[spline] < 0) & (n <= self.step[spline])] = 0.0
+        sway[(self.joints.link_spline[spline] < 0) & (n <= self.joints.step[spline])] = 0.0
         sway = sway * radians(1.0)
         return JointSway(
             wind1=sway[:, 0],
@@ -325,9 +337,11 @@ class Joints:
     def _first_segment_lengths(self) -> np.ndarray:
         """Per curve, the length of its first segment as mathutils measures (P0 - P1).length, to the bit (0 for a
         curve of one point)."""
-        lengths = np.zeros(len(self.sizes))
-        starts = self.starts[self.eligible]
-        lengths[self.eligible] = np.sqrt(self._dot(self.flat.co[starts] - self.flat.co[starts + 1]))
+        lengths = np.zeros(len(self.joints.sizes))
+        starts = self.joints.starts[self.joints.eligible]
+        lengths[self.joints.eligible] = np.sqrt(
+            self._dot(self.joints.flat.co[starts] - self.joints.flat.co[starts + 1])
+        )
         return lengths
 
     def _directions(self) -> np.ndarray:
@@ -338,8 +352,8 @@ class Joints:
         on 20,000 vectors): its reciprocal is not the correctly rounded one, which no array formula reproduces.
         A gust amplitude of the rig therefore differs from the per-bone code by at most one float32 unit.
         """
-        tails = self.starts[self.joint_spline] + self.joint_tail
-        d32 = self.flat.co[tails] - self.flat.co[self.joint_point]
+        tails = self.joints.starts[self.joints.joint_spline] + self.joints.joint_tail
+        d32 = self.joints.flat.co[tails] - self.joints.flat.co[self.joints.joint_point]
         dot = self._dot(d32)
         tiny = dot <= 1.0e-35
         length = np.sqrt(np.where(tiny, 1.0, dot)).astype(np.float32)
@@ -349,12 +363,12 @@ class Joints:
 
     def _per_curve(self, model: WindModel, rng: Random, spline_length: np.ndarray) -> CurveWind:
         """The two phases (drawn in curve order) and the frequencies of every curve with joints."""
-        count = len(self.sizes)
+        count = len(self.joints.sizes)
         offset_x = np.zeros(count)
         offset_z = np.zeros(count)
         frequency1 = np.zeros(count)
         frequency2 = np.zeros(count)
-        for i in np.flatnonzero(self.eligible).tolist():
+        for i in np.flatnonzero(self.joints.eligible).tolist():
             offset_x[i] = rng.uniform(0, Angles.TAU)
             offset_z[i] = rng.uniform(0, Angles.TAU)
             frequencies = model.branch_frequencies(float(spline_length[i]))

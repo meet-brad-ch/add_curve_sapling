@@ -175,6 +175,7 @@ class CurveData:
     """The tree's curve in memory: its splines, in the order they are grown, held as flat arrays."""
 
     def __init__(self) -> None:
+        """An empty curve: no splines until load() runs."""
         self._flat = FlatCurve.empty()
 
     @property

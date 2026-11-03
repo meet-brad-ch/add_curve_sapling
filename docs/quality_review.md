@@ -27,23 +27,8 @@ for the stdlib `Random` stream order.
   (`baseSize_s` 0.25), `:121` (`per_level` pads with 0). Fix: raise, or add to the `Ported.clamped` report.
 
 ### Records and structure
-- **Q17** OOD splits: `model/joints.py` `Joints` holds topology and sway (move sway to `JointSwayBuilder`);
-  `model/branching.py` `TrunkPick` uses `LevelStarter`'s static methods (a `BranchAngles` object);
-  `model/tree.py:64-79` placeholder grower and pruning (temporal coupling), `root_key` twice;
-  `build/tree_record.py:159` `TreeEdit.__init__` changes data (an explicit `claim` step).
-- **Q18** Duck typing at the service boundary: `service/trees.py:111` and `generator.py:79` (`SimpleNamespace`/`Any`),
-  `service/trees.py:122` `replaced(result: Any)`. Fix: named types.
 
 ### State, duplication, style
-- **Q22** Module-level functions (full OOD): 36 in tools (check.py, blender_env.py 9, port_treegen 6, render_ports 10,
-  bench 2, the `main`s), 16 in tests (run.py 3, test_trunk `root_of` - a copy of `Trees.root_of`, test_architecture 3,
-  test_curve_data 4, test_kernels 2, test_model_stats 1, test_requirements_check 2). Fix: classes, `main` stays.
-- **Q24** One idea per line, named locals: model (branching, growth, helix, leaves, curve_data, joints, sprouting,
-  wind_model; keep left-to-right order: [N] if regrouped), build (joint_proxy, objects, tree_record, tree_copy,
-  settings, leaf_object, node_wind, tree_root: keep the node creation order), tools (render/port multi-assignments),
-  `growth.py:106-108` (state changes hidden in an argument list). Magic numbers `growth.py:202`, `branching.py:433`.
-- **Q25** Docstrings missing: 9 in source (generator, armature, materials, node_wind, the Blender overrides of ui),
-  24 in tests/support, 22 in tools, 308 test methods, 59 classes, 123 other test functions.
 
 ## Fixed
 
@@ -140,3 +125,19 @@ for the stdlib `Random` stream order.
   `Trees.add`. Checked and kept: `OldSettingNames` declares each old id (Blender needs a declared property per
   name; `TreeSettings.RENAMED` maps them); `SettingsPages.ORDER` is checked against `Choices.PAGES` by a unit test
   (Q20). The test-helper duplicates were Q16.
+- **Q18** the service hands the generator a named type, `SettingValues` (a tree's settings as attributes, a
+  missing one named), not a `SimpleNamespace`; `TreeGenerator` takes `SettingValues`, `TreeService.replaced` a
+  `TreeResult`. The model's `TreeParams` keeps reading attributes from what it is given (the tests pass their own
+  settings objects). Unit tests for `SettingValues`.
+- **Q17** `JointSwayBuilder` holds the sway (moved from `Joints`, which keeps the topology); `BranchAngles` holds the
+  down-angle taper, the running rotate and the crown shape ratio that `TrunkPick` and `LevelStarter` share;
+  `TreeGrower.grow` makes its grower, pruning and level collector together (`TreeGrowth`), no placeholders, the root
+  key once; `TreeEdit.claim(name, view_layer)` claims the tree, the constructor only stores.
+- **Q22** module functions in classes (an AST tool, every use named through the class): `BlenderEnv` (blender_env,
+  9, and its 5 importers), `Gate` (check.py), `BenchScene`, and the test helpers (`ProjectModules`, `CurveFixtures`,
+  `KernelFixtures`, `StatsCase`, `RequirementFixtures`); the `main` functions stay. The port tools wait for the owner.
+- **Q24** one assignment per line: 31 multiple and chained assignments split (an AST tool: only where no value reads
+  a target, a chained value only a name or constant); the float operations unchanged.
+- **Q25** docstrings: the 44 constructors and magic methods of source/, the 8 tool functions, the test-support
+  functions and the test classes (owner 2026-11-03: test methods keep their sentence names); ruff's D1 is on for
+  tools/ and tests/ except the test methods.

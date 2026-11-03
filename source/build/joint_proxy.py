@@ -23,6 +23,7 @@ class JointProxy:
     PER_POINT = 3  # vertex 3i is point i, 3i + 1 its left handle, 3i + 2 its right handle
 
     def __init__(self, objects: ObjectFactory) -> None:
+        """A builder that makes the proxy mesh through the factory of the tree's objects."""
         self.objects = objects
 
     def build(self, root: Object, joints: Joints) -> Object:

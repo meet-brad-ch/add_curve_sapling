@@ -44,33 +44,42 @@ TUPLE_BOUNDARIES = frozenset(
 )
 
 
-def modules():
-    return [p for p in SOURCE.rglob("*.py") if "presets" not in p.relative_to(SOURCE).parts]
+class ProjectModules:
+    """The add-on's modules and the imports between them, read from their source."""
 
+    @staticmethod
+    def modules():
+        """The add-on's Python source files, without the presets folder."""
+        return [p for p in SOURCE.rglob("*.py") if "presets" not in p.relative_to(SOURCE).parts]
 
-def parse(path):
-    return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    @staticmethod
+    def parse(path):
+        """The syntax tree of the source file."""
+        return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 
-
-def project_imports(path, tree):
-    """(top-level project module, imported names) for every relative import of a module."""
-    package = path.relative_to(SOURCE).parent.parts
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.level:
-            base = package[: len(package) - (node.level - 1)]
-            module: tuple[str, ...] = ()
-            if node.module:
-                module = tuple(node.module.split("."))
-            target = (*base, *module)
-            yield target, [alias.name for alias in node.names]
+    @staticmethod
+    def project_imports(path, tree):
+        """(top-level project module, imported names) for every relative import of a module."""
+        package = path.relative_to(SOURCE).parent.parts
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.level:
+                base = package[: len(package) - (node.level - 1)]
+                module: tuple[str, ...] = ()
+                if node.module:
+                    module = tuple(node.module.split("."))
+                target = (*base, *module)
+                yield target, [alias.name for alias in node.names]
 
 
 class Architecture(unittest.TestCase):
+    """The add-on's source keeps the structure rules: layers, no Blender modules in the model, named records,
+    classes only at module level, no print. A scan of the syntax trees finds each break."""
+
     def test_layers(self):
-        for path in modules():
+        for path in ProjectModules.modules():
             layer = path.relative_to(SOURCE).parts[0]
             forbidden = LAYERS.get(layer, set())
-            for target, _names in project_imports(path, parse(path)):
+            for target, _names in ProjectModules.project_imports(path, ProjectModules.parse(path)):
                 with self.subTest(module=str(path.relative_to(SOURCE))):
                     self.assertNotIn(target[0] if target else "", forbidden, f"imports {'.'.join(target)}")
 
@@ -78,7 +87,7 @@ class Architecture(unittest.TestCase):
         """The model grows the tree in memory, without Blender (bpy, mathutils, ...); only build/ writes Blender data,
         in bulk."""
         for path in (SOURCE / "model").rglob("*.py"):
-            for node in ast.walk(parse(path)):
+            for node in ast.walk(ProjectModules.parse(path)):
                 names = []
                 if isinstance(node, ast.Import):
                     names = [alias.name for alias in node.names]
@@ -91,9 +100,9 @@ class Architecture(unittest.TestCase):
     def test_no_positional_records(self):
         """Every record is a named class: no tuple in an annotation, and no function returns several values as a
         tuple (only Blender's enum items are tuples, where its API takes them)."""
-        for path in modules():
+        for path in ProjectModules.modules():
             relative = path.relative_to(SOURCE).as_posix()
-            for node in ast.walk(parse(path)):
+            for node in ast.walk(ProjectModules.parse(path)):
                 if (relative, self.defined_name(node)) in TUPLE_BOUNDARIES:
                     continue
                 with self.subTest(module=relative, line=getattr(node, "lineno", 0)):
@@ -150,16 +159,16 @@ class Architecture(unittest.TestCase):
         self.assertEqual(uncovered, [], "add them to the override in pyproject.toml")
 
     def test_project_imports_are_classes(self):
-        for path in modules():
-            for target, names in project_imports(path, parse(path)):
+        for path in ProjectModules.modules():
+            for target, names in ProjectModules.project_imports(path, ProjectModules.parse(path)):
                 for name in names:
                     with self.subTest(module=str(path.relative_to(SOURCE)), name=name):
                         self.assertTrue(name[:1].isupper() and not name.isupper(), f"{'.'.join(target)}.{name}")
 
     def test_no_module_level_state_or_functions(self):
-        for path in modules():
+        for path in ProjectModules.modules():
             is_root = path == SOURCE / "__init__.py"
-            for node in parse(path).body:
+            for node in ProjectModules.parse(path).body:
                 with self.subTest(module=str(path.relative_to(SOURCE)), line=node.lineno):
                     if isinstance(node, ast.FunctionDef):
                         self.assertTrue(is_root and node.name in BLENDER_ENTRY_POINTS, node.name)
@@ -181,8 +190,8 @@ class Architecture(unittest.TestCase):
         )
 
     def test_no_print(self):
-        for path in modules():
-            for node in ast.walk(parse(path)):
+        for path in ProjectModules.modules():
+            for node in ast.walk(ProjectModules.parse(path)):
                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
                     with self.subTest(module=str(path.relative_to(SOURCE)), line=node.lineno):
                         self.assertNotEqual(node.func.id, "print")

@@ -13,8 +13,11 @@ from support.verifies import Verifies
 
 @Verifies("SWR-0005")
 class LifecycleRegistration(unittest.TestCase):
+    """Disabling the add-on removes its entry from the Add > Curve menu, and enabling it puts the entry back."""
+
     @staticmethod
     def menu_entries():
+        """The number of functions that the Add > Curve menu draws."""
         # Menu.append stores the functions on the draw method; there is no public accessor.
         return len(getattr(bpy.types.VIEW3D_MT_curve_add.draw, "_draw_funcs", ()))
 
@@ -71,6 +74,8 @@ class FailedRegistration(unittest.TestCase):
 
 @Verifies("SWR-0005")
 class UiRegistration(unittest.TestCase):
+    """Disabling the add-on removes its panel, and enabling it again registers the operator, two times in a row."""
+
     def test_reregister(self):
         self.addCleanup(bpy.ops.preferences.addon_enable, module=Addon.MODULE)  # enabled again if a step fails
         for _ in range(2):
@@ -82,6 +87,8 @@ class UiRegistration(unittest.TestCase):
 
 @Verifies("SWR-0010")
 class SmokeRegistration(unittest.TestCase):
+    """The Add Tree operator is registered and has the seed setting."""
+
     def test_operator_registered(self):
         self.assertIsNotNone(bpy.types.Operator.bl_rna_get_subclass_py("CURVE_OT_tree_add"))
         self.assertIn("seed", Addon.operator_property_names())

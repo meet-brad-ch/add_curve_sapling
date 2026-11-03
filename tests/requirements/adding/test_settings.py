@@ -80,6 +80,8 @@ FACES_PER_LEAF = MappingProxyType({"hex": 2, "rect": 1, "dFace": 1, "dVert": 0})
 
 @Verifies("SWR-0014")
 class SettingsPages(unittest.TestCase):
+    """Every page of the Add Tree panel draws existing settings, and every generation setting is on a page."""
+
     def draw(self, **changes):
         """The properties drawn on every page, with the operator's defaults plus `changes`."""
         pages = Addon.module("ui.pages").SettingsPages
@@ -116,7 +118,8 @@ class SettingsPages(unittest.TestCase):
         self.assertEqual(set(Addon.generation_names()) - drawn - hidden, set())
 
     def test_conditional_fields(self):
-        geometry, leaves = 0, 5
+        geometry = 0
+        leaves = 5
         self.assertNotIn("customShape", self.draw()[geometry])
         self.assertIn("customShape", self.draw(shape="8")[geometry])
         self.assertIn("leafMaterial", self.draw(leafShape="hex")[leaves])
@@ -132,11 +135,16 @@ class SettingsPages(unittest.TestCase):
 
 @Verifies("SWR-0016")
 class SettingsFuzz(unittest.TestCase):
+    """100 sets of random settings in their ranges each make a whole, finite tree without an error or a slow build.
+    The random generator has a fixed seed."""
+
     def setUp(self):
+        """Make the seeded random generator and record each model that the generator grows."""
         self.rng = random.Random(SEED)
         self.grown = Model.record_growth(self)
 
     def random_settings(self):
+        """Random values for all generation settings (helix levels keep their Curvature Variation below 89 degrees)."""
         rna = bpy.ops.curve.tree_add.get_rna_type()
         settings = {}
         for name in Addon.generation_names():
@@ -154,6 +162,7 @@ class SettingsFuzz(unittest.TestCase):
         return settings
 
     def random_value(self, prop):
+        """A random value for one property: booleans, an enum item, or numbers in their caps or soft ranges."""
         name = prop.identifier
         if prop.type == "BOOLEAN" and prop.is_array:
             return [self.rng.random() < BOOL_ODDS[name] for _ in range(prop.array_length)]
@@ -173,6 +182,7 @@ class SettingsFuzz(unittest.TestCase):
         return self.number(prop, CAPS.get(name), prop.default)
 
     def number(self, prop, cap, default):
+        """A random number for the property: in the cap, or in the soft range limited around the default."""
         if prop.type == "INT":
             return self.integer(prop, cap)
         if cap:
@@ -279,6 +289,7 @@ class SettingsFuzz(unittest.TestCase):
         ]
 
     def check_tree(self, settings):
+        """Check the generated tree: one bone link per spline, finite points, whole leaves, bones on their splines."""
         model = self.grown[-1]
         self.assertEqual(len(model.grown.bone_map), model.curve.spline_count, "one bone link per spline")
         self.assert_finite("tree_curves", [c for points in Evaluated.spline_points() for co, _r in points for c in co])
@@ -303,10 +314,12 @@ class SettingsFuzz(unittest.TestCase):
         self.assertEqual(len(leaves.data.polygons) % per_leaf, 0, "whole leaves")
 
     def assert_finite(self, name, values):
+        """Fail if one of the values is NaN or infinite (the message names the first five)."""
         not_finite = [v for v in values if not math.isfinite(v)]
         self.assertEqual(not_finite[:5], [], f"{name} has NaN or inf coordinates")
 
     def assert_bones_on_splines(self):
+        """Each bone's head is on its own spline point, within 1e-4."""
         splines = Evaluated.spline_points()
         for bone in Scene.armature().data.bones:
             index = BoneIndex.of(bone.name)

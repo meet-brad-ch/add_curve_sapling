@@ -13,6 +13,9 @@ from support.scene import Scene
 
 
 class FailFast(unittest.TestCase):
+    """The build fails with a message that names the cause: wrong bone geometry, a material without its BSDF,
+    too many values for a math node, a foreign node group with the leaf instancer's name."""
+
     def test_bone_geometry_must_match_the_bones(self):
         Scene.reset()
         armature = bpy.data.armatures.new("probe")

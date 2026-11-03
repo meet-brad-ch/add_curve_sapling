@@ -23,6 +23,7 @@ class DeepTrees(unittest.TestCase):
     levels Close Tip and the last level's base size reset never applied."""
 
     def tip_radii(self, close_tip):
+        """Generate a quaking aspen with 5 levels and Close Tip on or off. Return the radius at each spline's tip."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=5, branches=(0, 8, 3, 2), closeTip=close_tip)
         self.assertEqual(Scene.generate(settings), {"FINISHED"})
@@ -41,12 +42,14 @@ class SeveralTrunks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Generate a quaking aspen with 3 trunks, the rig and wind once for all tests."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, trunks=cls.TRUNKS, useRig=True, windAnim=True)
         cls.settings = settings
         cls.result = Scene.generate(settings)
 
     def roots(self):
+        """The bones of the armature that have no parent."""
         return [b for b in Scene.armature().data.bones if b.parent is None]
 
     @staticmethod
@@ -140,7 +143,8 @@ class TrunksFaceOut(unittest.TestCase):
         cosines = []
         for trunk in range(1, model.grown.level_ends[0]):
             co = flat.co[flat.start[trunk] : flat.start[trunk + 1]].astype(np.float64)
-            base, shift = co[0, :2], co[-1, :2] - co[0, :2]
+            base = co[0, :2]
+            shift = co[-1, :2] - co[0, :2]
             cosines.append(float(base @ shift / (np.linalg.norm(base) * np.linalg.norm(shift))))
         return np.array(cosines)
 
@@ -160,12 +164,14 @@ class SplitTrunkBranches(unittest.TestCase):
     piece kept its own branch at every height and a birch with two base splits grew 2.7 times the branches."""
 
     def branches(self, base_splits: int) -> int:
+        """The first-level stem count of a white birch without segment splits, with the Base Splits."""
         settings = Addon.resolve_preset("white_birch.py")
         settings.update(levels=2, baseSplits=base_splits, segSplits=(0.0, 0.0, 0.0, 0.0), showLeaves=False)
         ends = Model.grow(settings).grown.level_ends
         return ends[1] - ends[0]
 
     def test_base_splits_do_not_multiply_the_first_level(self):
-        whole, split = self.branches(0), self.branches(2)
+        whole = self.branches(0)
+        split = self.branches(2)
         self.assertGreater(whole, 20)
         self.assertLess(split, 1.25 * whole, f"{split} branches on the split trunk, {whole} on the whole one")

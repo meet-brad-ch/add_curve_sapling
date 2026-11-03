@@ -129,7 +129,8 @@ class HelixWind(unittest.TestCase):
     def offsets(attributes, free):
         """Each FREE point's right handle minus the point."""
         count = len(attributes["position"].data)
-        co, right = np.zeros(count * 3), np.zeros(count * 3)
+        co = np.zeros(count * 3)
+        right = np.zeros(count * 3)
         attributes["position"].data.foreach_get("vector", co)
         attributes["handle_right"].data.foreach_get("vector", right)
         return (right - co).reshape(-1, 3)[free]
@@ -218,7 +219,8 @@ class BendVariation(unittest.TestCase):
             curve = growth.CurveAngles(np.full(2, 0.4), np.full(2, 0.05), bend)
             return growth.LevelGrower._local_rotations(stems, growth.StepAngles(curve, split), 1, has_split)
 
-        unbent, bent = rotations(None), rotations(np.full(2, 0.25))
+        unbent = rotations(None)
+        bent = rotations(np.full(2, 0.25))
         np.testing.assert_array_equal(bent[0], unbent[0])
         self.assertGreater(np.abs(bent[1] - unbent[1]).max(), 0.1)
 
@@ -231,6 +233,7 @@ class PalmSettings(unittest.TestCase):
 
     @staticmethod
     def first_level(model):
+        """The indices of the first-level stems of the model that are not split stems."""
         ends = model.grown.level_ends
         return [i for i in range(ends[0], ends[1]) if not model.grown.bone_map[i].is_split]
 
@@ -299,8 +302,12 @@ class RootSweep(unittest.TestCase):
 
 @Verifies("SWR-0069")
 class BranchBase(unittest.TestCase):
+    """Branch Base keeps the sprouts off that share of a level's stems, on a Cambridge oak without splits.
+    A Branch Base of 0 changes nothing."""
+
     @classmethod
     def setUpClass(cls):
+        """Keep the Cambridge oak settings (3 levels, seed 5, no pruning, no splits) and their spray starts."""
         settings = Addon.resolve_preset("cambridge_oak.py")
         # no splits: every spline is one stem, starting where it sprouts (a split piece starts mid-stem)
         settings.update(levels=3, seed=5, prune=False, baseSplits=0, segSplits=[0.0, 0.0, 0.0, 0.0])

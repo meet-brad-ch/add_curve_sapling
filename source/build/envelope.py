@@ -25,6 +25,7 @@ class EnvelopeBuilder:
     HANDLE: Final = "VECTOR"
 
     def __init__(self, params: TreeParams, objects: ObjectFactory) -> None:
+        """A builder with the model's parameters (the pruning shape) and the factory of the tree's objects."""
         self.params = params
         self.objects = objects
 

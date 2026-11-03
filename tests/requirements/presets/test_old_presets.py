@@ -65,7 +65,7 @@ class EditReports(unittest.TestCase):
         stored["settings"].pop("rootFlare")
         root[Trees.record().SETTINGS] = json.dumps(stored)
         edit_class = Addon.module("build.tree_record").TreeEdit
-        found = edit_class(root.name, bpy.context.view_layer).stored(Addon.operator_defaults())
+        found = edit_class.claim(root.name, bpy.context.view_layer).stored(Addon.operator_defaults())
         self.assertEqual(found.missing, ["rootFlare"])
         self.assertIn("rootFlare", found.settings.values)
         with Console.capture() as console:
@@ -77,6 +77,9 @@ class EditReports(unittest.TestCase):
 
 @Verifies("SWR-0048")
 class RenameKeys(unittest.TestCase):
+    """Settings with the 0.3.x names move to the current names, and an old and a new name with different values fail.
+    The old wind turns into the node wind only with the old armature on."""
+
     def test_every_old_key_moves(self):
         renamed = Addon.module("settings").TreeSettings
         values = {old: f"value of {old}" for old in renamed.RENAMED}
@@ -132,6 +135,8 @@ class OldTrees(unittest.TestCase):
 
 @Verifies("SWR-0048")
 class OldUserPresets(unittest.TestCase):
+    """A user preset file with the 0.3.x setting names loads under the current names."""
+
     def test_user_preset_with_old_ids_loads(self):
         values = OldNames.with_old_names(Addon.resolve_preset("quaking_aspen.py"))
         values["wind"] = 3.0

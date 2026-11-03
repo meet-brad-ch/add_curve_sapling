@@ -33,6 +33,7 @@ class TreeRootBuilder:
     MODIFIER = "Sapling Tree"
 
     def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        """A builder with the tree's build settings (the bark sweep) and the factory of the tree's objects."""
         self.params = params
         self.objects = objects
 
@@ -75,6 +76,7 @@ class CurveSource:
     ROLE = "tree_curves"
 
     def __init__(self, params: BuildParams, objects: ObjectFactory) -> None:
+        """A builder with the tree's build settings (the curve resolution) and the factory of the tree's objects."""
         self.params = params
         self.objects = objects
 

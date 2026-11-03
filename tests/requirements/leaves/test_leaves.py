@@ -107,6 +107,8 @@ class LeafObjectSetting(unittest.TestCase):
 
 @Verifies("SWR-0083")
 class TreeStructure(unittest.TestCase):
+    """A negative leaf count (palmate fans) grows sprouts only at the stem tips, one per last-level stem."""
+
     def test_no_children_sprout_only_tips(self):
         """A negative leaf count (palmate leaves) sprouts at the stem tips only."""
         model = Model.grow_preset(levels=2, leaves=-3, showLeaves=True)
@@ -117,8 +119,12 @@ class TreeStructure(unittest.TestCase):
 
 @Verifies("SWR-0086")
 class LeafUp(unittest.TestCase):
+    """Leaf Face Up turns the leaves of a Cambridge oak with rect leaves toward the sky by its share.
+    Leaf Face Up Variation tilts each leaf within its range."""
+
     @classmethod
     def setUpClass(cls):
+        """Keep the Cambridge oak settings (3 levels, seed 5, 12 rect leaves) for all tests."""
         settings = Addon.resolve_preset("cambridge_oak.py")
         settings.update(levels=3, seed=5, leafShape="rect", leaves=12, showLeaves=True)
         cls.base = settings
@@ -152,6 +158,7 @@ class PalmSettings(unittest.TestCase):
 
     @staticmethod
     def first_level(model):
+        """The indices of the first-level stems of the model that are not split stems."""
         ends = model.grown.level_ends
         return [i for i in range(ends[0], ends[1]) if not model.grown.bone_map[i].is_split]
 

@@ -28,6 +28,7 @@ class NodeTrees:
 
     @staticmethod
     def settings(**changes):
+        """Quaking aspen settings with 2 levels, no leaves and Bevel at resolution 1, with the changes."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update(levels=2, showLeaves=False, bevel=True, bevelRes=1)
         settings.update(changes)
@@ -112,6 +113,7 @@ class LegacyBevel:
 
     @classmethod
     def counts(cls, settings):
+        """The mesh element counts of the old bevel: the tree's curves swept with the settings in a temporary object."""
         data = cls.legacy_curve(Evaluated.tree_curves().data)
         data.bevel_depth = 1.0 if settings["bevel"] else 0.0
         data.bevel_resolution = settings["bevelRes"]

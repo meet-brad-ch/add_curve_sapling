@@ -44,6 +44,7 @@ class PresetStore:
         return cls(__package__)
 
     def __init__(self, package: str) -> None:
+        """A store for the add-on `package`: its built-in presets and the user's preset folder."""
         self.builtin = Path(__file__).resolve().parent / "presets"
         self.package = package
 

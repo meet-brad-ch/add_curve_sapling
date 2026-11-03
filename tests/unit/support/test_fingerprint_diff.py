@@ -8,6 +8,9 @@ from support.fingerprint import FingerprintDiff
 
 
 class FirstDifference(unittest.TestCase):
+    """FingerprintDiff.first names the path and the kind of the first difference between two fingerprints
+    (a value, a missing or unexpected key, a list length), depth first in key order."""
+
     def test_equal_fingerprints_have_no_difference(self):
         tree = {"a": [1, {"b": 2.0}], "c": "x"}
         self.assertEqual(FingerprintDiff.first(tree, {"a": [1, {"b": 2.0}], "c": "x"}), "")

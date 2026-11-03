@@ -16,6 +16,7 @@ class RedoPanel(unittest.TestCase):
     so execute runs on a stand-in operator."""
 
     def execute(self, stand_in):
+        """Run the add operator's execute on the stand-in operator and return its result."""
         return Addon.module("ui.operators").AddTreeOperator.execute(stand_in, bpy.context)
 
     def test_ui_state_passes_through(self):
@@ -27,6 +28,7 @@ class UpdateCallbacks(unittest.TestCase):
     """A setting's update callback decides whether the next run regenerates the tree."""
 
     def properties(self):
+        """The add-on's TreeProperties class (the settings and their update callbacks)."""
         return Addon.module("ui.properties").TreeProperties
 
     def test_generation_and_ui_settings(self):
@@ -38,6 +40,8 @@ class UpdateCallbacks(unittest.TestCase):
 
 
 class RigDefault(unittest.TestCase):
+    """The rig default that TreeSettings uses for old settings is the default of the Armature Rig setting."""
+
     def test_the_settings_rig_default_is_the_propertys(self):
         """TreeSettings.RIG_DEFAULT (what a left-out rig setting means for old settings) is useRig's default."""
         default = Addon.operator_defaults()["useRig"]
@@ -45,7 +49,10 @@ class RigDefault(unittest.TestCase):
 
 
 class PlainValues(unittest.TestCase):
+    """TreeSettings.plain turns a vector into a list, and refuses a nested or an unknown value."""
+
     def settings(self):
+        """The add-on's settings module."""
         return Addon.module("settings")
 
     def test_a_vector_becomes_a_list(self):

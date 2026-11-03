@@ -17,12 +17,29 @@ class Service:
 
     @staticmethod
     def module(name):
+        """The add-on's service module with the name."""
         return Addon.module(f"service.{name}")
 
     @classmethod
     def trees(cls):
+        """A TreeService on the current context, with the operator's generation and stored setting names."""
         names = Addon.module("ui.properties").TreeProperties
         return cls.module("trees").TreeService(bpy.context, names.generation_names(), names.stored_names())
+
+
+class SettingValuesAccess(unittest.TestCase):
+    """The generator reads a tree's settings as attributes; a missing one is named."""
+
+    def test_a_setting_is_an_attribute(self):
+        settings_module = Addon.module("settings")
+        values = settings_module.SettingValues(settings_module.TreeSettings({"levels": 3}))
+        self.assertEqual(values.levels, 3)
+
+    def test_a_missing_setting_is_named(self):
+        settings_module = Addon.module("settings")
+        values = settings_module.SettingValues(settings_module.TreeSettings({"levels": 3}))
+        with self.assertRaisesRegex(AttributeError, "The settings have no 'branches'"):
+            _ = values.branches
 
 
 class MissingViewLayer(unittest.TestCase):
@@ -46,6 +63,8 @@ class MissingViewLayer(unittest.TestCase):
 
 
 class PresetChoices(unittest.TestCase):
+    """The preset choices have a label and a description by kind, and the built-in presets come first."""
+
     def test_labels_by_kind(self):
         choice = Service.module("presets").PresetService.choice
         self.assertEqual(choice("japanese_maple", True, None).label, "Japanese Maple")
@@ -60,7 +79,11 @@ class PresetChoices(unittest.TestCase):
 
 
 class PageRules(unittest.TestCase):
+    """The page rules show the leaf object, the blossom options, the leaf material and the custom shape only
+    for the settings that use them."""
+
     def rules(self):
+        """The add-on's PageRules class."""
         return Service.module("page_rules").PageRules
 
     def test_leaf_object_only_for_instanced_shapes(self):
@@ -82,6 +105,8 @@ class PageRules(unittest.TestCase):
 
 
 class TreeSummary(unittest.TestCase):
+    """The tree summary is readable for a generated tree, and gives the reason when the stored settings are not JSON."""
+
     def test_readable_and_broken(self):
         Scene.reset()
         root = Trees.add()
@@ -97,7 +122,10 @@ class TreeSummary(unittest.TestCase):
 
 
 class LoadedSettings(unittest.TestCase):
+    """The tree service loads nothing without a preset or an edit, a preset complete, or a tree's stored settings."""
+
     def request(self, **changes):
+        """A SettingsRequest with the quaking aspen settings, the operator's defaults and the changes."""
         trees = Service.module("trees")
         current = Addon.module("settings").TreeSettings(Addon.resolve_preset("quaking_aspen.py"))
         values = dict(current=current, defaults=Addon.operator_defaults())
@@ -123,19 +151,25 @@ class LoadedSettings(unittest.TestCase):
 
 
 class OldNameForwarding(unittest.TestCase):
+    """A value that a script sets under an old setting name moves to the new name, and nothing changes without one."""
+
     class Props:
         """A stand-in for an operator's properties: which ids a script set, and unsetting them."""
 
         def __init__(self, given):
+            """Keep the ids that the script set."""
             self.given = set(given)
 
         def is_property_set(self, name):
+            """True if the script set the id."""
             return name in self.given
 
         def property_unset(self, name):
+            """Remove the id from the set ids."""
             self.given.discard(name)
 
     def settings(self):
+        """The add-on's TreeSettings class."""
         return Addon.module("settings").TreeSettings
 
     def test_an_old_id_moves_to_its_new_id(self):

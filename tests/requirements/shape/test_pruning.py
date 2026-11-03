@@ -138,12 +138,14 @@ class WindShape(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Keep the pruned black oak settings and the crown points of the tree without wind shape for all tests."""
         settings = Addon.resolve_preset("black_oak.py")
         settings.update(levels=3, prune=True, pruneWidth=0.5, pruneRatio=1.0, seed=3)
         cls.base = settings
         cls.still = Crown.points(settings)
 
     def grown(self, **wind) -> np.ndarray:
+        """The crown points of the pruned black oak with the wind shape settings."""
         settings = dict(self.base)
         settings.update(wind)
         return Crown.points(settings)

@@ -21,8 +21,12 @@ max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 # Docstrings and annotations are required in the add-on, not in tests and tools.
-"tests/*" = ["N802", "D1", "ANN"]
-"tools/*" = ["D1", "ANN"]
+# Test methods (D102) keep their sentence names as their documentation (owner 2026-11-03); every other test and
+# tool definition has a docstring. The port tools wait for the owner's decision (docs/requirements.md Appendix B).
+"tests/*" = ["N802", "D102", "ANN"]
+"tools/*" = ["ANN"]
+"tools/port_treegen*.py" = ["D1", "ANN"]
+"tools/render_ports*.py" = ["D1", "ANN"]
 # Operator property names are the public operator API and the preset keys, so they stay camelCase.
 "source/ui/properties.py" = ["N815"]
 

@@ -2,7 +2,7 @@
 
 """The wind's numbers for one tree: how fast the branches sway, how the gust bends them, how the leaves flutter.
 
-The rig's F-curves and the node wind's attributes both take their numbers from here, through Joints.sway().
+The rig's F-curves and the node wind's attributes both take their numbers from here, through JointSwayBuilder.sway().
 """
 
 from dataclasses import dataclass
@@ -37,6 +37,7 @@ class WindModel:
     LEAF_STRENGTH = 0.25
 
     def __init__(self, params: WindParams, fps: float) -> None:
+        """The wind model of the wind settings `params`, for a scene of `fps` frames per second."""
         self.params = params
         self.anim_speed = (24 / fps) * params.animation_speed
         if params.loop_frames == 0:

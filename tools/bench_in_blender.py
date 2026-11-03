@@ -18,12 +18,20 @@ from blender_env import MODULE  # noqa: E402  (needs the sys.path entry above)
 RUNS = 5
 
 
-def clear() -> None:
-    data = bpy.data
-    bpy.data.batch_remove([*data.objects, *data.curves, *data.meshes, *data.armatures, *data.actions])
+class BenchScene:
+    """The benchmark's empty scene."""
+
+    @staticmethod
+    def clear() -> None:
+        """Remove the objects and the curve, mesh, armature and action data of the last tree, so each run starts
+        empty."""
+        data = bpy.data
+        bpy.data.batch_remove([*data.objects, *data.curves, *data.meshes, *data.armatures, *data.actions])
 
 
 def main() -> None:
+    """Time each built-in preset (the median of RUNS runs, in ms) in this Blender and write the times to the file after
+    '--'."""
     out = Path(sys.argv[sys.argv.index("--") + 1])
     bpy.ops.preferences.addon_enable(module=MODULE)
     result = {}
@@ -32,7 +40,7 @@ def main() -> None:
         settings["showLeaves"] = True
         times = []
         for _ in range(RUNS):
-            clear()
+            BenchScene.clear()
             start = time.perf_counter()
             if bpy.ops.curve.tree_add(**settings, do_update=True) != {"FINISHED"}:
                 raise RuntimeError(f"{path.stem} did not generate")

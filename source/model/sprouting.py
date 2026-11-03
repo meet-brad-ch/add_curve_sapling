@@ -113,6 +113,7 @@ class LevelSprouts:
     RING_JITTER_HIGH = 1.005
 
     def __init__(self, params: TreeParams, root_key: np.ndarray) -> None:
+        """A sprout planner with the model's parameters and the tree's root key for the keyed random draws."""
         self.params = params
         self.root_key = root_key
 

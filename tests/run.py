@@ -82,6 +82,7 @@ class CoverageRun:
     """Branch coverage of the add-on, started before it is enabled (so registration code counts)."""
 
     def __init__(self, site_packages: str) -> None:
+        """Start measuring, with the coverage package from the venv's `site_packages`."""
         sys.path.append(site_packages)
         import coverage
 
@@ -110,6 +111,7 @@ class TestRun:
     """The suite in this Blender: enable the add-on, discover and run the tests, then check the coverage."""
 
     def __init__(self, options: RunOptions) -> None:
+        """A run with the parsed command line `options`."""
         self.options = options
 
     def run(self) -> int:

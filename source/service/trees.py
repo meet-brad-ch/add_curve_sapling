@@ -9,15 +9,14 @@ service directly.
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from types import SimpleNamespace
 from typing import Any
 
 from bpy.types import Collection, Context, Object, ViewLayer
 
 from ..build.tree_record import TreeEdit
-from ..generator import TreeGenerator
+from ..generator import TreeGenerator, TreeResult
 from ..presets import PresetStore
-from ..settings import SettingsError, TreeSettings
+from ..settings import SettingsError, SettingValues, TreeSettings
 
 
 @dataclass(frozen=True)
@@ -90,7 +89,7 @@ class TreeService:
 
     def stored_settings(self, request: SettingsRequest) -> LoadedSettings:
         """The settings stored on the edited tree; a warning names those an older tree lacks."""
-        edit = TreeEdit(request.replace, self.view_layer())
+        edit = TreeEdit.claim(request.replace, self.view_layer())
         stored = edit.stored(request.defaults)
         warnings = []
         if stored.missing:
@@ -106,13 +105,12 @@ class TreeService:
         selected and active, alone."""
         edit = None
         if request.replace:
-            edit = TreeEdit(request.replace, self.view_layer())
+            edit = TreeEdit.claim(request.replace, self.view_layer())
         if edit is not None:
             collections = edit.collections
         else:
             collections = [self.active_collection()]
-        properties = SimpleNamespace(**request.settings.values)
-        generator = TreeGenerator(properties, self.context, collections)
+        generator = TreeGenerator(SettingValues(request.settings), self.context, collections)
         result = generator.generate(request.settings)
         warnings = list(generator.warnings)
         if edit is None:
@@ -122,7 +120,7 @@ class TreeService:
         self.select_only(result.root)
         return TreeOutcome(result.root, warnings)
 
-    def replaced(self, edit: TreeEdit, result: Any) -> list[str]:
+    def replaced(self, edit: TreeEdit, result: TreeResult) -> list[str]:
         """Put the new tree in the edited tree's place; a warning names the user's objects left unparented."""
         unattached = edit.replace(result, self.view_layer())
         if not unattached:

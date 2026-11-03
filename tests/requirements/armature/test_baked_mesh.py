@@ -112,6 +112,8 @@ class SecondTree(unittest.TestCase):
 
 @Verifies("SWR-0104")
 class Ownership(unittest.TestCase):
+    """Make Mesh without the rig bakes the bark into the root object itself, with no separate treemesh object."""
+
     def test_baked_mesh_is_the_tree_itself(self):
         Scene.reset()
         root = Trees.add(makeMesh=True, useRig=False)
@@ -126,6 +128,7 @@ class BlossomObjects(unittest.TestCase):
     """The blossoms object of a generated tree."""
 
     def generate(self, **changes):
+        """Generate a quaking aspen (2 levels, leaves, blossom rate 0.5, the changes) and return its blossoms object."""
         settings = Addon.resolve_preset("quaking_aspen.py")
         settings.update({"levels": 2, "showLeaves": True, "blossomRate": 0.5, **changes})
         self.assertEqual(Scene.generate(settings), {"FINISHED"})

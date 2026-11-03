@@ -14,6 +14,8 @@ from support.verifies import Verifies
 
 @Verifies("SWR-0040")
 class SmokePresets(unittest.TestCase):
+    """Each built-in preset generates a tree."""
+
     def test_every_preset_generates(self):
         for name in PRESETS:
             with self.subTest(preset=name):
@@ -23,7 +25,11 @@ class SmokePresets(unittest.TestCase):
 
 
 class UiPresets(unittest.TestCase):
+    """The preset store lists and loads the built-in presets, saves user presets and refuses bad names.
+    The operator applies a chosen preset to the tree that it adds."""
+
     def store(self):
+        """The add-on's preset store."""
         return Addon.preset_store()
 
     @Verifies("SWR-0040")
@@ -58,6 +64,7 @@ class UiPresets(unittest.TestCase):
                 store.save(name, settings, overwrite=True)
 
     def add_preset(self, **options):
+        """Add a Douglas fir from its preset in an empty scene, with the options, and return the stored settings."""
         Scene.reset()
         self.assertEqual(bpy.ops.curve.tree_add(preset="douglas_fir", do_update=True, **options), {"FINISHED"})
         return Addon.module("build.tree_record").TreeRecord.settings(bpy.context.active_object).values
@@ -73,7 +80,10 @@ class UiPresets(unittest.TestCase):
 
 @Verifies("SWR-0041")
 class PresetApplication(unittest.TestCase):
+    """A preset sets every setting: the result of an old preset does not depend on the preset loaded before it."""
+
     def apply(self, props, name, defaults):
+        """Load the preset, fill its missing settings from the defaults and apply it to the properties."""
         names = Addon.generation_names()
         Addon.preset_store().load(name).complete(defaults).apply_to(props, names)
 
@@ -130,11 +140,13 @@ class PresetErrors(unittest.TestCase):
     """User preset files that cannot be used make the operator cancel with a clear message."""
 
     def write(self, name, text):
+        """Write a user preset file with the name and the text, removed after the test."""
         path = Addon.preset_store().user_folder(create=True) / f"{name}.py"
         path.write_text(text, encoding="utf-8")
         self.addCleanup(path.unlink)
 
     def assert_add_fails(self, preset, message):
+        """Adding a tree with the preset fails with the message, and the scene stays empty."""
         Scene.reset()
         with self.assertRaisesRegex(RuntimeError, message):
             bpy.ops.curve.tree_add(preset=preset, do_update=True)
@@ -162,6 +174,8 @@ class PresetErrors(unittest.TestCase):
 
 @Verifies("SWR-0045")
 class SaveOverwrite(unittest.TestCase):
+    """Save Preset keeps an existing user preset file when Overwrite is off, and replaces it when Overwrite is on."""
+
     NAME = "overwrite check"
 
     def saved(self):
@@ -171,6 +185,7 @@ class SaveOverwrite(unittest.TestCase):
         return path
 
     def save(self, preset, overwrite):
+        """Save the preset's settings under NAME with the Save Preset operator, and return the operator's result."""
         settings = Addon.preset_store().load(preset).to_json()
         return bpy.ops.sapling.preset_save(name=self.NAME, overwrite=overwrite, settings=settings)
 
