@@ -212,6 +212,7 @@ class CodeSettings:
             "geometry": "Geometry",
             "branch_radius": "Branch Radius",
             "branch_splitting": "Branch Splitting",
+            "branch_angles": "Branch Angles",
             "branch_growth": "Branch Growth",
             "pruning": "Pruning",
             "leaves": "Leaves",

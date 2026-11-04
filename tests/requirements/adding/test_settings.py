@@ -117,9 +117,29 @@ class SettingsPages(unittest.TestCase):
         hidden = {"bend"}  # Leaf Bend has no control, as in earlier versions
         self.assertEqual(set(Addon.generation_names()) - drawn - hidden, set())
 
+    def page_layout(self, page_name, **changes):
+        """The recording layout of one page (by its drawing method's name), with the defaults plus `changes`."""
+        pages = Addon.module("ui.pages").SettingsPages
+        values = {**Addon.operator_defaults(), "leafDupliObj": "", "presetName": "", "overwrite": False}
+        props = SimpleNamespace(**{**values, "chooseSet": str(pages.ORDER.index(page_name)), **changes})
+        layout = RecordingLayout()
+        pages.draw(props, layout)
+        return layout
+
+    def test_levels_above_levels_are_inactive(self):
+        """A per-level value of a level the tree does not have is drawn inactive; the others are active."""
+        layout = self.page_layout("branch_splitting", levels=2)
+        inactive = set(layout.inactive)
+        self.assertIn(("branches", 2), inactive)
+        self.assertIn(("branches", 3), inactive)
+        self.assertNotIn(("branches", 0), inactive)
+        self.assertNotIn(("branches", 1), inactive)
+        self.assertEqual({name for name, _index in inactive} & {"levels", "trunks"}, set())
+
     def test_conditional_fields(self):
-        geometry = 0
-        leaves = 5
+        order = Addon.module("ui.pages").SettingsPages.ORDER
+        geometry = order.index("geometry")
+        leaves = order.index("leaves")
         self.assertNotIn("customShape", self.draw()[geometry])
         self.assertIn("customShape", self.draw(shape="8")[geometry])
         self.assertIn("leafMaterial", self.draw(leafShape="hex")[leaves])

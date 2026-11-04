@@ -77,11 +77,12 @@ class Choices:
         EnumItem("0", "Geometry", "Tree shape, scale, curve settings and presets"),
         EnumItem("1", "Branch Radius", "Radius and taper of the branches"),
         EnumItem("2", "Branch Splitting", "Levels, splits and branch counts"),
-        EnumItem("3", "Branch Growth", "Length, angles and curvature"),
-        EnumItem("4", "Pruning", "Pruning envelope"),
-        EnumItem("5", "Leaves", "Leaf shape and placement"),
-        EnumItem("6", "Armature", "Armature rig and baked mesh"),
-        EnumItem("7", "Animation", "Wind animation"),
+        EnumItem("3", "Branch Angles", "Split, rotate and down angles"),
+        EnumItem("4", "Branch Growth", "Length, curvature and attraction"),
+        EnumItem("5", "Pruning", "Pruning envelope and wind shape"),
+        EnumItem("6", "Leaves", "Leaf shape and placement"),
+        EnumItem("7", "Armature", "Armature rig and baked mesh"),
+        EnumItem("8", "Animation", "Wind animation"),
     )
 
 
@@ -122,7 +123,11 @@ class TreeProperties:
         update=update_tree,
     )  # fmt: skip
     resU: IntProperty(
-        name="Curve Resolution", description="The resolution along the curves", min=1, default=4, update=update_tree
+        name="Resolution U",
+        description="The smoothness of the branches along their length (the curves' Resolution U)",
+        min=1,
+        default=4,
+        update=update_tree,
     )
     handleType: EnumProperty(
         name="Handle Type", description="The type of handles used in the spline", items=EnumItem.items(Choices.HANDLES),
@@ -291,7 +296,7 @@ class TreeProperties:
         default=BranchingMode.ROTATE, update=update_tree,
     )  # fmt: skip
     curveRes: IntVectorProperty(
-        name="Curve Resolution", description="The number of segments on each branch (nCurveRes)", min=1,
+        name="Segments", description="The number of segments of each branch, per level (nCurveRes)", min=1,
         default=[3, 5, 3, 1], size=4, update=update_tree,
     )  # fmt: skip
 

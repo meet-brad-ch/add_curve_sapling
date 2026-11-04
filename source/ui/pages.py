@@ -18,7 +18,8 @@ class SettingsPages:
 
     # One method per entry of Choices.PAGES, in the same order
     ORDER = (
-        "geometry", "branch_radius", "branch_splitting", "branch_growth", "pruning", "leaves", "armature", "animation",
+        "geometry", "branch_radius", "branch_splitting", "branch_angles", "branch_growth", "pruning", "leaves",
+        "armature", "animation",
     )  # fmt: skip
 
     @classmethod
@@ -28,120 +29,136 @@ class SettingsPages:
         page = getattr(cls, cls.ORDER[int(props.chooseSet)])
         page(props, layout.box())
 
+    LEVELS = 4  # every per-level setting holds one value per level, the trunk first
+
+    @classmethod
+    def level_heading(cls, box: UILayout) -> None:
+        """The column heading of the per-level rows: one label per level."""
+        row = box.row(align=True)
+        for level in range(cls.LEVELS):
+            row.label(text=f"Level {level + 1}")
+
+    @classmethod
+    def per_level(cls, props: Any, box: UILayout, name: str, label: str) -> None:
+        """A per-level setting: its label on one line, then its values side by side, the levels above Levels drawn
+        inactive (they have no effect)."""
+        box.label(text=f"{label}:")
+        row = box.row(align=True)
+        for level in range(cls.LEVELS):
+            cell = row.row(align=True)
+            cell.active = level < props.levels
+            cell.prop(props, name, index=level, text="")
+
     @staticmethod
     def geometry(props: Any, box: UILayout) -> None:
         """Tree shape, scale and curve resolution, plus loading and saving presets."""
         box.prop(props, "bevel")
-        row = box.row()
-        row.prop(props, "bevelRes")
-        row.prop(props, "resU")
-        box.prop(props, "handleType")
-        box.prop(props, "shape")
+        box.prop(props, "bevelRes")
+        box.prop(props, "resU")
+        box.label(text="Handle Type:")
+        box.prop(props, "handleType", text="")
+        box.label(text="Shape:")
+        box.prop(props, "shape", text="")
         if PageRules.custom_shape(props):
             box.column().prop(props, "customShape")
-        box.prop(props, "shapeS")
+        box.label(text="Secondary Branches Shape:")
+        box.prop(props, "shapeS", text="")
         box.prop(props, "branchDist")
         box.prop(props, "nrings")
         box.prop(props, "seed")
         box.label(text="Tree Scale:")
-        row = box.row()
-        row.prop(props, "scale")
-        row.prop(props, "scaleV")
+        box.prop(props, "scale")
+        box.prop(props, "scaleV")
 
         box.label(text="Presets:")
+        box.prop(props, "preset", text="")
+        box.prop(props, "presetName", text="")
         row = box.row()
-        row.prop(props, "preset", text="")
-        row = box.row()
-        row.prop(props, "presetName", text="")
         save = row.operator(SavePresetOperator.bl_idname, icon="FILE_TICK")
         save.name = props.presetName
         save.overwrite = props.overwrite
         save.settings = TreeSettings.from_properties(props, TreeProperties.generation_names()).to_json()
         row.prop(props, "overwrite")
 
-    @staticmethod
-    def branch_radius(props: Any, box: UILayout) -> None:
-        """Bevel, radius ratio and scale, taper and root flare."""
-        row = box.row()
-        row.prop(props, "bevel")
-        row.prop(props, "bevelRes")
+    @classmethod
+    def branch_radius(cls, props: Any, box: UILayout) -> None:
+        """Radius ratio and scale, taper and root flare (the bevel is on the Geometry page)."""
         box.prop(props, "ratio")
-        row = box.row()
-        row.prop(props, "scale0")
-        row.prop(props, "scaleV0")
+        box.prop(props, "scale0")
+        box.prop(props, "scaleV0")
         box.prop(props, "ratioPower")
         box.prop(props, "minRadius")
         box.prop(props, "closeTip")
         box.prop(props, "rootFlare")
         box.prop(props, "autoTaper")
-        split = box.split()
-        split.column().prop(props, "taper")
-        split.column().prop(props, "radiusTweak")
+        cls.level_heading(box)
+        cls.per_level(props, box, "taper", "Taper")
+        cls.per_level(props, box, "radiusTweak", "Tweak Radius")
 
-    @staticmethod
-    def branch_splitting(props: Any, box: UILayout) -> None:
+    @classmethod
+    def branch_splitting(cls, props: Any, box: UILayout) -> None:
         """Levels, base and segment splits, branch counts, angles and branching mode."""
         box.prop(props, "levels")
         box.prop(props, "trunks")
         box.prop(props, "trunksFaceOut")
         box.prop(props, "baseSplits")
-        row = box.row()
-        row.prop(props, "baseSize")
-        row.prop(props, "baseSize_s")
-        box.prop(props, "branchBase")
+        box.prop(props, "baseSize")
+        box.prop(props, "baseSize_s")
         box.prop(props, "splitHeight")
         box.prop(props, "splitBias")
         box.prop(props, "splitByLen")
         box.prop(props, "countAboveBase")
-        split = box.split()
-        col = split.column()
-        col.prop(props, "branches")
-        col.prop(props, "splitAngle")
-        col.prop(props, "rotate")
-        col.prop(props, "attractOut")
-        col = split.column()
-        col.prop(props, "segSplits")
-        col.prop(props, "splitAngleV")
-        col.prop(props, "rotateV")
-        col.prop(props, "rMode")
-        box.column().prop(props, "curveRes")
+        cls.level_heading(box)
+        cls.per_level(props, box, "branches", "Branches")
+        cls.per_level(props, box, "branchBase", "Branch Base")
+        cls.per_level(props, box, "segSplits", "Segment Splits")
+        cls.per_level(props, box, "curveRes", "Segments")
 
-    @staticmethod
-    def branch_growth(props: Any, box: UILayout) -> None:
-        """Branch lengths, down angles, curvature, attraction and the shaping wind."""
-        box.prop(props, "taperCrown")
-        split = box.split()
-        col = split.column()
-        col.prop(props, "length")
-        col.prop(props, "downAngle")
-        col.prop(props, "curve")
-        col.prop(props, "curveBack")
-        col.prop(props, "bendV")
-        col = split.column()
-        col.prop(props, "lengthV")
-        col.prop(props, "downAngleV")
-        col.prop(props, "curveV")
-        col.prop(props, "attractUp")
-        row = box.row()
-        row.prop(props, "windDir")
-        box.prop(props, "windBend")
-        box.prop(props, "helix")
+    @classmethod
+    def branch_angles(cls, props: Any, box: UILayout) -> None:
+        """The branching mode and the split, rotate and down angles with their variations and rules."""
+        box.label(text="Branching Mode:")
+        box.prop(props, "rMode", text="")
+        cls.level_heading(box)
+        cls.per_level(props, box, "splitAngle", "Split Angle")
+        cls.per_level(props, box, "splitAngleV", "Split Angle Variation")
+        cls.per_level(props, box, "rotate", "Rotate Angle")
+        cls.per_level(props, box, "rotateV", "Rotate Angle Variation")
+        cls.per_level(props, box, "downAngle", "Down Angle")
+        cls.per_level(props, box, "downAngleV", "Down Angle Variation")
         box.prop(props, "useOldDownAngle")
         box.prop(props, "useParentAngle")
 
-    @staticmethod
-    def pruning(props: Any, box: UILayout) -> None:
-        """The pruning envelope."""
+    @classmethod
+    def branch_growth(cls, props: Any, box: UILayout) -> None:
+        """Branch lengths, curvature, attraction, bend and helix."""
+        box.prop(props, "taperCrown")
+        cls.level_heading(box)
+        cls.per_level(props, box, "length", "Length")
+        cls.per_level(props, box, "lengthV", "Length Variation")
+        cls.per_level(props, box, "curve", "Curvature")
+        cls.per_level(props, box, "curveV", "Curvature Variation")
+        cls.per_level(props, box, "curveBack", "Back Curvature")
+        cls.per_level(props, box, "attractUp", "Vertical Attraction")
+        cls.per_level(props, box, "attractOut", "Outward Attraction")
+        cls.per_level(props, box, "bendV", "Bend Variation")
+        cls.per_level(props, box, "helix", "Helix")
+
+    @classmethod
+    def pruning(cls, props: Any, box: UILayout) -> None:
+        """The pruning envelope and the wind shape (direction, shear and bend)."""
         box.prop(props, "prune")
         box.prop(props, "pruneRatio")
-        row = box.row()
-        row.prop(props, "pruneWidth")
-        row.prop(props, "pruneBase")
+        box.prop(props, "pruneWidth")
+        box.prop(props, "pruneBase")
         box.prop(props, "pruneWidthPeak")
-        row = box.row()
-        row.prop(props, "prunePowerHigh")
-        row.prop(props, "prunePowerLow")
+        box.prop(props, "prunePowerHigh")
+        box.prop(props, "prunePowerLow")
+        box.label(text="Wind Shape:")
+        box.prop(props, "windDir")
         box.prop(props, "windShear")
+        cls.level_heading(box)
+        cls.per_level(props, box, "windBend", "Wind Bend")
 
     @classmethod
     def leaves(cls, props: Any, box: UILayout) -> None:
@@ -155,36 +172,34 @@ class SettingsPages:
     def leaf_shape(props: Any, box: UILayout) -> None:
         """Show Leaves, the shape, the leaf object of instanced shapes, the count and the distribution."""
         box.prop(props, "showLeaves")
-        box.prop(props, "leafShape")
+        box.label(text="Leaf Shape:")
+        box.prop(props, "leafShape", text="")
         if PageRules.leaf_object(props):
             box.prop_search(props, "leafDupliObj", bpy.data, "objects")
         box.prop(props, "leaves")
-        box.prop(props, "leafDist")
+        box.label(text="Leaf Distribution:")
+        box.prop(props, "leafDist", text="")
 
     @staticmethod
     def leaf_angles(props: Any, box: UILayout) -> None:
         """The down and rotate angles and the scales, each with its variation."""
-        row = box.row()
-        row.prop(props, "leafDownAngle")
-        row.prop(props, "leafDownAngleV")
-        row = box.row()
-        row.prop(props, "leafRotate")
-        row.prop(props, "leafRotateV")
-        row = box.row()
-        row.prop(props, "leafScale")
-        row.prop(props, "leafScaleX")
-        row = box.row()
-        row.prop(props, "leafScaleT")
-        row.prop(props, "leafScaleV")
+        box.prop(props, "leafDownAngle")
+        box.prop(props, "leafDownAngleV")
+        box.prop(props, "leafRotate")
+        box.prop(props, "leafRotateV")
+        box.prop(props, "leafScale")
+        box.prop(props, "leafScaleX")
+        box.prop(props, "leafScaleT")
+        box.prop(props, "leafScaleV")
 
     @staticmethod
     def blossoms(props: Any, box: UILayout) -> None:
         """The blossom rate; its shape and scale when there are blossoms."""
         box.prop(props, "blossomRate")
         if PageRules.blossom_options(props):
-            row = box.row()
-            row.prop(props, "blossomShape")
-            row.prop(props, "blossomScale")
+            box.label(text="Blossom Shape:")
+            box.prop(props, "blossomShape", text="")
+            box.prop(props, "blossomScale")
 
     @staticmethod
     def leaf_options(props: Any, box: UILayout) -> None:
@@ -198,19 +213,20 @@ class SettingsPages:
         box.prop(props, "leavesAboveBase")
         box.prop(props, "leafangle")
 
-    @staticmethod
-    def armature(props: Any, box: UILayout) -> None:
+    @classmethod
+    def armature(cls, props: Any, box: UILayout) -> None:
         """Armature rig, baked mesh and armature simplification."""
         box.prop(props, "useRig")
         box.prop(props, "makeMesh")
         box.label(text="Armature Simplification:")
         box.prop(props, "jointLevels")
-        box.prop(props, "jointStep")
+        cls.level_heading(box)
+        cls.per_level(props, box, "jointStep", "Joint Length")
 
     @staticmethod
     def animation(props: Any, box: UILayout) -> None:
         """Armature and leaf wind animation."""
-        box.label(text="Finalize All Other Settings First!")
+        box.label(text="Set the tree first, then the wind.")
         box.prop(props, "windAnim")
         box.prop(props, "leafFlutter")
         box.prop(props, "fastPreview")
@@ -218,9 +234,8 @@ class SettingsPages:
         box.prop(props, "loopFrames")
         box.label(text="Wind Settings:")
         box.prop(props, "windStrength")
-        row = box.row()
-        row.prop(props, "gustStrength")
-        row.prop(props, "gustFrequency")
+        box.prop(props, "gustStrength")
+        box.prop(props, "gustFrequency")
         box.label(text="Leaf Wind Settings:")
         box.prop(props, "flutterStrength")
         box.prop(props, "flutterSpeed")

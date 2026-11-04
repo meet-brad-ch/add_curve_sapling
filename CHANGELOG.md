@@ -81,6 +81,13 @@ this section and of 0.4.0 below.
 
 ### Changed
 
+- The *Add Tree* panel has nine pages. The new *Branch Angles* page holds the branching mode and the split, rotate
+  and down angles. *Pruning* also holds the wind shape (direction, shear and bend). Each page fits a 1080p screen.
+- Every label in the panel shows in full: one setting per row, and the label of a menu above the menu. A per-level
+  setting shows its four values in one row, under one *Level 1* to *Level 4* heading. The values of levels above
+  *Levels* are drawn inactive.
+- The two settings named *Curve Resolution* have their own names: *Resolution U* (the smoothness along a branch)
+  and *Segments* (the number of segments of a branch, per level). *Bevel* is on the *Geometry* page only.
 - A tree's size is no longer moved by 0.000001 away from zero. The add-on refuses a *Scale* and *Scale
   Variation* that can give a size of 0 or less, and names both settings. The trees of 12 presets change,
   because the size feeds threshold decisions (splits, pruning, sprouts): *Cambridge Oak*, *Coast Live Oak*,

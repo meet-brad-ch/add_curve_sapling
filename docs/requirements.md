@@ -635,7 +635,7 @@ The settings that the user can change in the *Add Tree* panel (SWR-0014), from `
 | --- | --- | --- | --- | --- |
 | Geometry | Bevel | `bevel` | False |  |
 | Geometry | Bevel Resolution | `bevelRes` | 0 | 0 to 32 |
-| Geometry | Curve Resolution | `resU` | 4 | 1 to - |
+| Geometry | Resolution U | `resU` | 4 | 1 to - |
 | Geometry | Handle Type | `handleType` | 0 |  |
 | Geometry | Shape | `shape` | 7 |  |
 | Geometry | Secondary Branches Shape | `shapeS` | 4 |  |
@@ -668,29 +668,29 @@ The settings that the user can change in the *Add Tree* panel (SWR-0014), from `
 | Branch Splitting | Count Above Base | `countAboveBase` | False |  |
 | Branch Splitting | Branches | `branches` | [50, 30, 10, 10] | 0 to - |
 | Branch Splitting | Segment Splits | `segSplits` | [0, 0, 0, 0] | 0 to - |
-| Branch Splitting | Split Angle | `splitAngle` | [0, 0, 0, 0] |  |
-| Branch Splitting | Split Angle Variation | `splitAngleV` | [0, 0, 0, 0] |  |
-| Branch Splitting | Rotate Angle | `rotate` | [137.5, 137.5, 137.5, 137.5] |  |
-| Branch Splitting | Rotate Angle Variation | `rotateV` | [0, 0, 0, 0] |  |
-| Branch Splitting | Outward Attraction | `attractOut` | [0, 0, 0, 0] | 0.0 to 1.0 |
-| Branch Growth | Wind Direction | `windDir` | 0.0 | 0.0 to 360.0 |
+| Branch Angles | Split Angle | `splitAngle` | [0, 0, 0, 0] |  |
+| Branch Angles | Split Angle Variation | `splitAngleV` | [0, 0, 0, 0] |  |
+| Branch Angles | Rotate Angle | `rotate` | [137.5, 137.5, 137.5, 137.5] |  |
+| Branch Angles | Rotate Angle Variation | `rotateV` | [0, 0, 0, 0] |  |
+| Branch Growth | Outward Attraction | `attractOut` | [0, 0, 0, 0] | 0.0 to 1.0 |
+| Pruning | Wind Direction | `windDir` | 0.0 | 0.0 to 360.0 |
 | Pruning | Wind Shear | `windShear` | 0.0 | 0.0 to 0.9 |
-| Branch Growth | Wind Bend | `windBend` | [0, 0, 0, 0] | 0.0 to 1.0 |
-| Branch Splitting | Branching Mode | `rMode` | BranchingMode.ROTATE |  |
-| Branch Splitting | Curve Resolution | `curveRes` | [3, 5, 3, 1] | 1 to - |
+| Pruning | Wind Bend | `windBend` | [0, 0, 0, 0] | 0.0 to 1.0 |
+| Branch Angles | Branching Mode | `rMode` | BranchingMode.ROTATE |  |
+| Branch Splitting | Segments | `curveRes` | [3, 5, 3, 1] | 1 to - |
 | Branch Growth | Taper Crown | `taperCrown` | 0 | 0.0 to - |
 | Branch Growth | Length | `length` | [1, 0.3, 0.6, 0.45] | 1e-06 to - |
 | Branch Growth | Length Variation | `lengthV` | [0, 0, 0, 0] | 0.0 to 1.0 |
-| Branch Growth | Down Angle | `downAngle` | [90, 60, 45, 45] |  |
-| Branch Growth | Down Angle Variation | `downAngleV` | [0, -50, 10, 10] |  |
+| Branch Angles | Down Angle | `downAngle` | [90, 60, 45, 45] |  |
+| Branch Angles | Down Angle Variation | `downAngleV` | [0, -50, 10, 10] |  |
 | Branch Growth | Curvature | `curve` | [0, -40, -40, 0] |  |
 | Branch Growth | Curvature Variation | `curveV` | [20, 50, 75, 0] |  |
 | Branch Growth | Back Curvature | `curveBack` | [0, 0, 0, 0] |  |
 | Branch Growth | Bend Variation | `bendV` | [0, 0, 0, 0] | 0 to 360 |
 | Branch Growth | Helix | `helix` | [False, False, False, False] |  |
 | Branch Growth | Vertical Attraction | `attractUp` | [0, 0, 0, 0] |  |
-| Branch Growth | Use Old Down Angle Variation | `useOldDownAngle` | False |  |
-| Branch Growth | Use Parent Angle | `useParentAngle` | True |  |
+| Branch Angles | Use Old Down Angle Variation | `useOldDownAngle` | False |  |
+| Branch Angles | Use Parent Angle | `useParentAngle` | True |  |
 | Pruning | Prune | `prune` | False |  |
 | Pruning | Prune Ratio | `pruneRatio` | 1.0 | 0.0 to 1.0 |
 | Pruning | Prune Width | `pruneWidth` | 0.4 | 0.0 to - |

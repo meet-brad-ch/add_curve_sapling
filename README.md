@@ -50,7 +50,7 @@ extensions automatically: click *Check for Updates* in *Get Extensions* to get a
 ## Use it
 
 - **Add a tree:** select *Add > Curve > Sapling Tree Gen*. The tree appears at the 3D cursor. The
-  settings are in the *Adjust Last Operation* panel (F9), on eight pages from *Geometry* to *Animation*.
+  settings are in the *Adjust Last Operation* panel (F9), on nine pages from *Geometry* to *Animation*.
 - **Load a preset:** on the *Geometry* page, select a preset from the list. To save your settings, type a
   name and click *Save Preset*.
 - **Edit a tree:** select a part of the tree. Click *Edit Sapling Tree* in the *Sapling* tab of the
