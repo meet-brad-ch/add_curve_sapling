@@ -113,6 +113,12 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** 100 trees with random settings within their ranges generate (the fuzz test).
 
+### SWR-0174 Setting ranges
+- **Statement:** The Sapling Tree Gen extension shall keep each setting within its range in Appendix A, as the operators of Blender do.
+- **Rationale:** Blender clamps a value outside the limits of a property. Scripts that use Blender expect this.
+- **Method:** test
+- **Criteria:** A script value of *Levels* 9 gives a tree with 6 levels. A *Prune Ratio* of 3 is stored as 1.
+
 ## Editing and duplicating
 
 ### SWR-0020 Stored settings
@@ -186,6 +192,18 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** Only a tree has the stored settings.
 - **Method:** test
 - **Criteria:** The operator cancels with a message and the object is unchanged.
+
+### SWR-0172 Edit without the leaf object
+- **Statement:** If the *Leaf Object* of an edited tree no longer exists, then the Sapling Tree Gen extension shall refuse the edit and name the object.
+- **Rationale:** The user deleted the object. A tree without its leaves would be a change that the user did not ask for.
+- **Method:** test
+- **Criteria:** The operator reports an error that names the object. The tree and its parts are unchanged.
+
+### SWR-0173 Stored settings of another version
+- **Statement:** If the stored settings of a tree have another settings version, then the Sapling Tree Gen extension shall refuse the edit and name that version.
+- **Rationale:** A newer version can store settings that this version cannot read correctly.
+- **Method:** test
+- **Criteria:** With stored settings of version 2, Edit reports an error that names version 2. The tree is unchanged.
 
 ## Presets
 
@@ -615,15 +633,6 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** The model is the part of the build that is all Python.
 - **Method:** test
 - **Criteria:** The shortest model time of the test runs is less than 0.1 s, with more than 1,000 stems.
-
-## Open questions (unwanted behaviour not yet stated)
-
-1. A *Leaf Object* that the user deletes after the tree is made: what does Edit do? (Today: not known.)
-2. The user stops a long generation (Esc): is the scene left as before? (Today: not known; Blender may not allow it
-   during the operator.)
-3. An edit of a tree whose stored settings are from a newer version of the extension: refuse, or load with a
-   warning?
-4. Settings outside their range from a script (the property ranges stop the panel, not every script path).
 
 ## Appendix A - settings
 
