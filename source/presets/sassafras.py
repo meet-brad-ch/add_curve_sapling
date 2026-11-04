@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A sassafras: a tall tree with a wide crown of level limbs. From tree-gen.
+#
 # Sassafras. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/sassafras.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

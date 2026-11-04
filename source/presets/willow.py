@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A weeping willow from tree-gen: a wide crown of hanging branches.
+#
 # Weeping Willow. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/weeping_willow.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

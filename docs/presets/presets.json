@@ -1,0 +1,226 @@
+{
+ "acer": {
+  "key": "8585273d747c075f",
+  "image": "acer.jpg",
+  "height_m": 14.22,
+  "width_m": 18.56,
+  "seconds": 0.06
+ },
+ "apple": {
+  "key": "d00636f08e6d030d",
+  "image": "apple.jpg",
+  "height_m": 11.75,
+  "width_m": 11.22,
+  "seconds": 0.34
+ },
+ "balsam_fir": {
+  "key": "4512d8b8ef91ae6d",
+  "image": "balsam_fir.jpg",
+  "height_m": 16.05,
+  "width_m": 14.17,
+  "seconds": 2.27
+ },
+ "bamboo": {
+  "key": "eb94400812073267",
+  "image": "bamboo.jpg",
+  "height_m": 11.81,
+  "width_m": 10.66,
+  "seconds": 0.19
+ },
+ "black_oak": {
+  "key": "57f15b8f0edd81cd",
+  "image": "black_oak.jpg",
+  "height_m": 14.14,
+  "width_m": 16.37,
+  "seconds": 0.69
+ },
+ "black_tupelo": {
+  "key": "64857e76efaee166",
+  "image": "black_tupelo.jpg",
+  "height_m": 31.58,
+  "width_m": 19.98,
+  "seconds": 1.16
+ },
+ "california_sagebrush": {
+  "key": "60d7e922c17ea0a2",
+  "image": "california_sagebrush.jpg",
+  "height_m": 2.19,
+  "width_m": 1.82,
+  "seconds": 0.33
+ },
+ "callistemon": {
+  "key": "41efdf3956a0a7bb",
+  "image": "callistemon.jpg",
+  "height_m": 6.71,
+  "width_m": 6.4,
+  "seconds": 0.08
+ },
+ "cambridge_oak": {
+  "key": "f6b925e86f615b2e",
+  "image": "cambridge_oak.jpg",
+  "height_m": 21.89,
+  "width_m": 25.77,
+  "seconds": 1.52
+ },
+ "coast_live_oak": {
+  "key": "735af2fe574a23ee",
+  "image": "coast_live_oak.jpg",
+  "height_m": 11.97,
+  "width_m": 18.51,
+  "seconds": 1.29
+ },
+ "coyote_brush": {
+  "key": "549da3050aafba8a",
+  "image": "coyote_brush.jpg",
+  "height_m": 1.88,
+  "width_m": 2.58,
+  "seconds": 2.6
+ },
+ "douglas_fir": {
+  "key": "44883e2ed5c2941a",
+  "image": "douglas_fir.jpg",
+  "height_m": 47.38,
+  "width_m": 12.89,
+  "seconds": 1.74
+ },
+ "european_larch": {
+  "key": "5f204f12be9bed7a",
+  "image": "european_larch.jpg",
+  "height_m": 20.16,
+  "width_m": 9.07,
+  "seconds": 1.37
+ },
+ "fan_palm": {
+  "key": "a0b53a62fa91cf21",
+  "image": "fan_palm.jpg",
+  "height_m": 8.33,
+  "width_m": 4.67,
+  "seconds": 0.06
+ },
+ "hill_cherry": {
+  "key": "5030634ef67ff838",
+  "image": "hill_cherry.jpg",
+  "height_m": 13.02,
+  "width_m": 15.17,
+  "seconds": 0.38
+ },
+ "japanese_maple": {
+  "key": "76fb9b2f99754bd3",
+  "image": "japanese_maple.jpg",
+  "height_m": 9.98,
+  "width_m": 11.44,
+  "seconds": 0.47
+ },
+ "lombardy_poplar": {
+  "key": "51da608f372cf95d",
+  "image": "lombardy_poplar.jpg",
+  "height_m": 30.72,
+  "width_m": 7.03,
+  "seconds": 0.25
+ },
+ "monterey_cypress_grove": {
+  "key": "b9e0cc1bfa59e29f",
+  "image": "monterey_cypress_grove.jpg",
+  "height_m": 18.2,
+  "width_m": 44.06,
+  "seconds": 0.59
+ },
+ "monterey_cypress_lone": {
+  "key": "ae2ddc651e0516ae",
+  "image": "monterey_cypress_lone.jpg",
+  "height_m": 11.39,
+  "width_m": 16.46,
+  "seconds": 0.41
+ },
+ "monterey_cypress_sheared": {
+  "key": "28d5e4daae165670",
+  "image": "monterey_cypress_sheared.jpg",
+  "height_m": 12.19,
+  "width_m": 33.93,
+  "seconds": 0.45
+ },
+ "monterey_pine": {
+  "key": "9df4d8941005feb6",
+  "image": "monterey_pine.jpg",
+  "height_m": 23.23,
+  "width_m": 22.98,
+  "seconds": 1.5
+ },
+ "palm": {
+  "key": "50d05a90c0685841",
+  "image": "palm.jpg",
+  "height_m": 20.58,
+  "width_m": 10.21,
+  "seconds": 0.06
+ },
+ "quaking_aspen": {
+  "key": "6bb05465a066eec1",
+  "image": "quaking_aspen.jpg",
+  "height_m": 18.11,
+  "width_m": 9.64,
+  "seconds": 0.08
+ },
+ "quaking_aspen_treegen": {
+  "key": "f44e91093fec7151",
+  "image": "quaking_aspen_treegen.jpg",
+  "height_m": 17.97,
+  "width_m": 8.92,
+  "seconds": 0.27
+ },
+ "sassafras": {
+  "key": "839cc85c49955b8d",
+  "image": "sassafras.jpg",
+  "height_m": 31.15,
+  "width_m": 24.91,
+  "seconds": 1.01
+ },
+ "silver_birch": {
+  "key": "fe9638e876cb32a1",
+  "image": "silver_birch.jpg",
+  "height_m": 31.55,
+  "width_m": 15.05,
+  "seconds": 0.88
+ },
+ "small_maple": {
+  "key": "53c3c345dadc0225",
+  "image": "small_maple.jpg",
+  "height_m": 11.76,
+  "width_m": 11.17,
+  "seconds": 0.2
+ },
+ "small_pine": {
+  "key": "045280ed4e21988a",
+  "image": "small_pine.jpg",
+  "height_m": 5.22,
+  "width_m": 3.98,
+  "seconds": 0.37
+ },
+ "sphere_tree": {
+  "key": "518aa588f411a77e",
+  "image": "sphere_tree.jpg",
+  "height_m": 6.29,
+  "width_m": 3.87,
+  "seconds": 0.4
+ },
+ "weeping_willow": {
+  "key": "0e62676b69aebe91",
+  "image": "weeping_willow.jpg",
+  "height_m": 22.08,
+  "width_m": 16.51,
+  "seconds": 0.27
+ },
+ "white_birch": {
+  "key": "97b5ba0f1d0b8e7f",
+  "image": "white_birch.jpg",
+  "height_m": 17.02,
+  "width_m": 13.5,
+  "seconds": 0.15
+ },
+ "willow": {
+  "key": "4377afd2c4c3cad7",
+  "image": "willow.jpg",
+  "height_m": 12.23,
+  "width_m": 13.31,
+  "seconds": 1.54
+ }
+}

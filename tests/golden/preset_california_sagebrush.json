@@ -3,15 +3,15 @@
  "fingerprint": {
   "leaves": {
    "data": {
-    "co": "68ade0d8695159d2",
-    "edges": 14940,
-    "faces": 3735,
-    "topology": "32f967f01cacccc2",
-    "uv": "8d1ee74d50a343bb",
+    "co": "f71bad2752b8ca57",
+    "edges": 186544,
+    "faces": 46636,
+    "topology": "9b9537e8c2520edd",
+    "uv": "2ce0a74819e03b8f",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 14940
+    "verts": 186544
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -878,15 +878,15 @@
   "leafMaterial": true,
   "leafRotate": 110.0,
   "leafRotateV": 0.0,
-  "leafScale": 0.2,
+  "leafScale": 0.04,
   "leafScaleT": 0.0,
   "leafScaleV": 0.3,
-  "leafScaleX": 1.0,
+  "leafScaleX": 0.15,
   "leafShape": "rect",
   "leafUp": 0.0,
   "leafUpV": 0.0,
   "leafangle": 0.0,
-  "leaves": 12,
+  "leaves": 150,
   "leavesAboveBase": true,
   "length": [
    1.0,

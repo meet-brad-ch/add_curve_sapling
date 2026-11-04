@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A coyote brush: a dense, rounded coastal shrub with small leaves.
+#
 # Coyote brush: a coastal shrub of many stems from the ground, a dense, rounded mound of small leaves.
 # Designed against photos from the California coast (Wikimedia Commons).
 

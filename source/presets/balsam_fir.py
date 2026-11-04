@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A balsam fir: a narrow, pointed conifer with dense, level branches. From tree-gen.
+#
 # Balsam Fir. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/balsam_fir.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

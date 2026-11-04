@@ -7,6 +7,13 @@ this section and of 0.4.0 below.
 
 ### Added
 
+- Seven presets of the California coast: *Monterey Pine*, *Monterey Cypress Grove*, *Monterey Cypress Lone*,
+  *Monterey Cypress Sheared*, *Coast Live Oak*, *Coyote Brush* and *California Sagebrush*. The cypresses carry
+  flat layers of foliage: their twigs alternate to the left and right of each limb (*Rotate* -90 on the third
+  level).
+- The presets page (`docs/presets.md`) shows a picture of each built-in preset beside a 1.8 m figure, with
+  its height, width and generation time. `tools/render_presets.py` makes the pictures and the page again
+  when a preset changes.
 - Duplicating a tree gives a whole, independent tree. After Blender's Duplicate (Shift+D, Alt+D), the
   extension copies the parts the copy lacks: the hidden curves, wind and rig parts, and the leaves and
   blossoms. *Duplicate Sapling Tree* (Sapling tab, Object menu) copies the tree from any of its parts.

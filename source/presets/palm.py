@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A palm: a tall, slender trunk with a crown of long fronds. From tree-gen.
+#
 # Palm. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/palm.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

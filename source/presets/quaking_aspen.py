@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
+# Description: A quaking aspen: a slender, straight trunk with a narrow crown of small leaves.
+#
 # Show Leaves is on (it was saved off since 2011), so the preset loads with its leaves like the others.
 #
 # Levels 3, as in the original preset (2011); the 2016 rewrite had cut it to 2, which left it nearly bare.

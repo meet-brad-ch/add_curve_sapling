@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A black oak with a wide, irregular crown on crooked limbs. From tree-gen.
+#
 # Ca Black Oak. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/black_oak.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

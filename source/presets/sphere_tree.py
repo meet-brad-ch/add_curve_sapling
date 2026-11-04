@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A topiary tree: a curved, bare stem with a ball of foliage at the top. From tree-gen.
+#
 # Default Tree Parameters. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/sphere_tree.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

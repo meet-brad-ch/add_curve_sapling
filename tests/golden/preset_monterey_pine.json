@@ -20,15 +20,15 @@
   },
   "leaves": {
    "data": {
-    "co": "116652f4d3f6e771",
-    "edges": 57380,
-    "faces": 14345,
-    "topology": "2f0b00440600663f",
-    "uv": "39e192529fc3f289",
+    "co": "4a6fa7e80ce41d71",
+    "edges": 375324,
+    "faces": 93831,
+    "topology": "6096ca6681a7b836",
+    "uv": "4fe59d77b5d7aede",
     "uv_layers": [
      "leafUV"
     ],
-    "verts": 57380
+    "verts": 375324
    },
    "instance_type": "NONE",
    "modifiers": [],
@@ -5179,7 +5179,7 @@
    false,
    false
   ],
-  "horzLeaves": true,
+  "horzLeaves": false,
   "jointLevels": 2,
   "jointStep": [
    1,
@@ -5194,15 +5194,15 @@
   "leafMaterial": true,
   "leafRotate": 110.0,
   "leafRotateV": 0.0,
-  "leafScale": 0.8,
+  "leafScale": 0.35,
   "leafScaleT": 0.0,
   "leafScaleV": 0.2,
-  "leafScaleX": 1.0,
+  "leafScaleX": 0.1,
   "leafShape": "rect",
-  "leafUp": 0.3,
+  "leafUp": 0.0,
   "leafUpV": 0.0,
   "leafangle": 0.0,
-  "leaves": 30,
+  "leaves": 200,
   "leavesAboveBase": true,
   "length": [
    1.0,

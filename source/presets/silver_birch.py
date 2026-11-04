@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A silver birch: a tall, light tree with an open crown of small, heart-shaped leaves. From tree-gen.
+#
 # Silver Birch. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/silver_birch.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

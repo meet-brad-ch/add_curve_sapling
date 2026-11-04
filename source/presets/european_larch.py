@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A European larch: a conical conifer with level branches and fine needles. From tree-gen.
+#
 # European Larch. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/european_larch.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

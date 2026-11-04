@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A coast live oak: a low, wide evergreen oak with crooked limbs and a dense, rounded crown.
+#
 # Coast live oak: a low, broad, evergreen dome on a short, forking trunk, the limbs spreading and bending down
 # to the ground. Designed against photos from Point Lobos and Carmel (Wikimedia Commons).
 

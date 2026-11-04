@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A fan palm: a tall, bare trunk with a crown of fan-shaped leaves. From tree-gen.
+#
 # Fan Palm. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/fan_palm.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

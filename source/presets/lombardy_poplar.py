@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: A Lombardy poplar: a tall, narrow column of upright branches. From tree-gen.
+#
 # Lombardy Poplar. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/lombardy_poplar.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 

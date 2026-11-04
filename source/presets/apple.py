@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# Description: An apple tree with a low, wide crown, leaves and white blossoms. From tree-gen.
+#
 # Apple. Ported from tree-gen (https://github.com/friggog/tree-gen, GPL-3.0),
 # parametric/tree_params/apple.py at commit 01e8721: its Weber-Penn parameters mapped to Sapling's.
 
