@@ -330,4 +330,5 @@ def main() -> None:
         picture.render(name)
 
 
-main()
+if __name__ == "__main__":  # tools/render_listing_in_blender.py imports the classes
+    main()

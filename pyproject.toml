@@ -52,7 +52,7 @@ disable_error_code = ["valid-type"]
 # Tests reach into generated objects: the stubs type context.scene as Optional and object.data as a
 # union of every data type; the operator bpy.ops.curve.tree_add only exists once the add-on runs.
 module = [
-    "bench_in_blender", "render_presets_in_blender", "run",
+    "bench_in_blender", "render_presets_in_blender", "render_listing_in_blender", "run",
     "support.*", "requirements.*", "unit.*",
 ]
 disable_error_code = ["union-attr", "attr-defined"]

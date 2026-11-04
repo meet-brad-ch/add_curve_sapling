@@ -95,6 +95,7 @@ python tools/check.py --fast          # the gate without the Blender tests (the 
 python tools/check.py --all-blenders  # the full gate on each supported Blender (BLENDER_5_3 and so on)
 python tools/run_tests.py -k NAME     # some tests only; --record-golden writes new golden files
 python tools/render_presets.py        # render the new and changed presets and write docs/presets.md
+python tools/render_listing.py        # render the listing's featured picture, gallery and icon into docs/listing/
 ```
 
 - The tests run in headless Blender. They build the extension zip and install it in a temporary
