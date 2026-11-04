@@ -187,14 +187,6 @@ A quaking aspen: a slender, straight trunk with a narrow crown of small leaves.
 
 Height 18.1 m, width 9.6 m. Preset name: `quaking_aspen`. Generated in 0.11 s.
 
-## Quaking aspen treegen
-
-![Quaking aspen treegen](presets/quaking_aspen_treegen.jpg)
-
-A quaking aspen from tree-gen: a slender trunk with a narrow, open crown.
-
-Height 18.0 m, width 8.9 m. Preset name: `quaking_aspen_treegen`. Generated in 0.26 s.
-
 ## Sassafras
 
 ![Sassafras](presets/sassafras.jpg)
@@ -227,14 +219,6 @@ A small pine: a young conifer with level branches and long needles.
 
 Height 5.2 m, width 4.0 m. Preset name: `small_pine`. Generated in 0.29 s.
 
-## Sphere tree
-
-![Sphere tree](presets/sphere_tree.jpg)
-
-A topiary tree: a curved, bare stem with a ball of foliage at the top. From tree-gen.
-
-Height 6.3 m, width 3.9 m. Preset name: `sphere_tree`. Generated in 0.43 s.
-
 ## Weeping willow
 
 ![Weeping willow](presets/weeping_willow.jpg)
@@ -250,11 +234,3 @@ Height 22.1 m, width 16.5 m. Preset name: `weeping_willow`. Generated in 0.27 s.
 A white birch with an open crown of small leaves.
 
 Height 17.0 m, width 13.5 m. Preset name: `white_birch`. Generated in 0.15 s.
-
-## Willow
-
-![Willow](presets/willow.jpg)
-
-A weeping willow from tree-gen: a wide crown of hanging branches.
-
-Height 12.2 m, width 13.3 m. Preset name: `willow`. Generated in 1.49 s.

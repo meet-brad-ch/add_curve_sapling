@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Measure which settings change the generated tree (for the retirement review, docs/requirements.md Appendix B).
+"""Measure which settings change the generated tree (docs/requirements.md Appendix B).
 
     python tools/setting_effect_probe.py
 

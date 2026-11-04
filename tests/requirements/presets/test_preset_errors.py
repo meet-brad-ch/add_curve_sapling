@@ -47,7 +47,7 @@ class PresetErrors(unittest.TestCase):
         self.assert_add_fails("bogus", r"unknown \['bogus'\]")
 
     def test_invalid_file_name_is_listed_not_hidden(self):
-        self.write("bad name!", repr(Addon.preset_store().load("willow").values))
+        self.write("bad name!", repr(Addon.preset_store().load("weeping_willow").values))
         (entry,) = [e for e in Addon.preset_store().entries() if e.name == "bad name!"]
         self.assertIn("invalid name", entry.problem)
         self.assert_add_fails("bad name!", "Rename the file")
@@ -72,7 +72,7 @@ class PresetApplication(unittest.TestCase):
     )  # fmt: skip
 
     def test_unknown_key_rejected(self):
-        settings = Addon.preset_store().load("willow").complete(Addon.operator_defaults())
+        settings = Addon.preset_store().load("weeping_willow").complete(Addon.operator_defaults())
         settings.values["bogus"] = 1
         with self.assertRaisesRegex(Addon.module("settings").SettingsError, r"unknown \['bogus'\]"):
             settings.apply_to(SimpleNamespace(), Addon.generation_names())

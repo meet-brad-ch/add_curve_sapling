@@ -12,7 +12,7 @@ presets of the add-on and adds the features below.
 
 ## Features
 
-- **32 built-in presets:** broadleaf trees, conifers, palms, bamboo and shrubs. The
+- **29 built-in presets:** broadleaf trees, conifers, palms, bamboo and shrubs. The
   [presets page](docs/presets.md) shows a picture of each one, with its height and generation time.
 - **Edit a tree at any time:** *Edit Sapling Tree* opens the settings that made a tree again. The new
   tree keeps the transform, the parent, the collections and the children of the old tree.
@@ -141,10 +141,10 @@ Andrew Hale (TrumanBlending) and Aaron Buchler wrote the original Sapling Tree G
 Campbell Barton, Nika Kutsniashvili and many Blender contributors maintained it. Its home is
 <https://projects.blender.org/extensions/add_curve_sapling>.
 
-Eighteen presets come from tree-gen (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and
+Fifteen presets come from tree-gen (<https://github.com/friggog/tree-gen>) by Charlie Hewitt and
 contributors: `acer`, `apple`, `balsam_fir`, `bamboo`, `black_oak`, `black_tupelo`, `cambridge_oak`,
 `douglas_fir`, `european_larch`, `fan_palm`, `hill_cherry`, `lombardy_poplar`, `palm`,
-`quaking_aspen_treegen`, `sassafras`, `silver_birch`, `sphere_tree` and `willow`. The port converts
+`sassafras` and `silver_birch`. The port converts
 their Weber–Penn values to the settings of Sapling. These files are GPL-3.0-only, as tree-gen is. The
 blossoms are this extension's own geometry.
 

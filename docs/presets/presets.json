@@ -160,13 +160,6 @@
   "width_m": 9.64,
   "seconds": 0.11
  },
- "quaking_aspen_treegen": {
-  "key": "397fbe13f9213e44",
-  "image": "quaking_aspen_treegen.jpg",
-  "height_m": 17.97,
-  "width_m": 8.92,
-  "seconds": 0.26
- },
  "sassafras": {
   "key": "d89807b783348a1d",
   "image": "sassafras.jpg",
@@ -195,13 +188,6 @@
   "width_m": 3.98,
   "seconds": 0.29
  },
- "sphere_tree": {
-  "key": "6eab590b234af50a",
-  "image": "sphere_tree.jpg",
-  "height_m": 6.29,
-  "width_m": 3.87,
-  "seconds": 0.43
- },
  "weeping_willow": {
   "key": "e666807bc86c4cac",
   "image": "weeping_willow.jpg",
@@ -215,12 +201,5 @@
   "height_m": 17.02,
   "width_m": 13.5,
   "seconds": 0.15
- },
- "willow": {
-  "key": "29afd7f10e11866c",
-  "image": "willow.jpg",
-  "height_m": 12.23,
-  "width_m": 13.31,
-  "seconds": 1.49
  }
 }

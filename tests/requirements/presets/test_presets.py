@@ -58,8 +58,19 @@ class UiPresets(unittest.TestCase):
     @Verifies("SWR-0044")
     def test_rejected_names(self):
         store = self.store()
-        settings = store.load("willow")
-        for name in ("", "..\\evil", "../evil", "a/b", "C:\\x", "willow", "Willow", ".hidden", "CON", "x" * 65):
+        settings = store.load("weeping_willow")
+        for name in (
+            "",
+            "..\\evil",
+            "../evil",
+            "a/b",
+            "C:\\x",
+            "weeping_willow",
+            "Weeping_Willow",
+            ".hidden",
+            "CON",
+            "x" * 65,
+        ):
             with self.subTest(name=name), self.assertRaises(Addon.module("presets").PresetError):
                 store.save(name, settings, overwrite=True)
 

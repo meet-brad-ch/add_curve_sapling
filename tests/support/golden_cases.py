@@ -17,7 +17,6 @@ PRESETS = (
     "small_pine",
     "weeping_willow",
     "white_birch",
-    "willow",
     # Ported from tree-gen (friggog/tree-gen, GPL-3.0)
     "acer",
     "apple",
@@ -28,10 +27,8 @@ PRESETS = (
     "european_larch",
     "hill_cherry",
     "lombardy_poplar",
-    "quaking_aspen_treegen",
     "sassafras",
     "silver_birch",
-    "sphere_tree",
     "palm",
     "fan_palm",
     "bamboo",

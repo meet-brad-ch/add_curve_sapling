@@ -1,7 +1,7 @@
 # Software requirements
 
-These are the requirements of the Sapling Tree Gen extension, version 1.0.0. They state what the extension does. A
-function that no requirement keeps is retired (Appendix B). `tools/requirements_check.py` checks the form of each
+These are the requirements of the Sapling Tree Gen extension, version 1.0.0. They state what the extension does. Each
+function has a requirement. Appendix B gives the measured effect of each setting. `tools/requirements_check.py` checks the form of each
 requirement and the trace from each requirement to its tests.
 
 ## Rules
@@ -354,6 +354,36 @@ requirement and the trace from each requirement to its tests.
 - **Method:** test
 - **Criteria:** The operator cancels with a message that names both settings and makes no objects.
 
+### SWR-0165 Handle type
+- **Statement:** The Sapling Tree Gen extension shall give each branch point the curve handles that *Handle Type* selects: automatic or vector.
+- **Rationale:** Automatic handles make smooth branches. Vector handles make straight segments between the points.
+- **Method:** test
+- **Criteria:** With *Handle Type* Auto, each point of a grown stem after its first point has automatic handles. With *Handle Type* Vector, each point has vector handles. The first point of a stem, where it joins its parent, has vector handles.
+
+### SWR-0166 Branch rings
+- **Statement:** Where *Branch Rings* is above 0, the Sapling Tree Gen extension shall start the branches of a stem at that number of heights at most.
+- **Rationale:** Pines and firs grow their branches in whorls, a ring of branches at one height.
+- **Method:** test
+- **Criteria:** With *Branch Rings* 4, the first-level branches start in 4 groups of height or fewer. A gap of more than 3 % of the trunk height separates two groups.
+
+### SWR-0167 Custom shape
+- **Statement:** Where *Shape* is *Custom*, the Sapling Tree Gen extension shall set the first-level branch lengths along the trunk by the *Custom Shape* values.
+- **Rationale:** The user draws the outline of a crown that no fixed shape gives.
+- **Method:** test
+- **Criteria:** With *Custom Shape* 1, 1, 0.5, 1 and no length variation, the first-level branches have one length within 1 %. With base and top 0.1, the lowest branch is less than half as long as the longest.
+
+### SWR-0168 Down angle from the vertical
+- **Statement:** Where *Branching Mode* is *Rotate* and *Use Parent Angle* is off, the Sapling Tree Gen extension shall measure the first-level down angle from the vertical.
+- **Rationale:** The branches then keep one angle to the ground on a curved trunk.
+- **Method:** test
+- **Criteria:** On a curved trunk with straight branches: with the setting off, each first-level branch starts at *Down Angle* from the vertical within 0.5 degrees. With it on, at least one branch differs by more than 2 degrees. The stem that continues the trunk's tip is not a branch.
+
+### SWR-0169 Old down angle variation
+- **Statement:** Where *Use Old Down Angle Variation* is on, the Sapling Tree Gen extension shall set a negative *Down Angle Variation* by the branch height.
+- **Rationale:** The original Sapling presets and the tree-gen species use this rule.
+- **Method:** test
+- **Criteria:** With *Down Angle Variation* -30 on the first level, the down angle falls as the branch start rises (correlation below -0.99). With the setting off, the correlation is between -0.6 and 0.6. The stem that continues the trunk's tip is not a branch.
+
 ## Leaves and blossoms
 
 ### SWR-0080 Leaves
@@ -411,6 +441,18 @@ requirement and the trace from each requirement to its tests.
 - **Rationale:** Palm fans are cupped, not flat (tree-gen's fans).
 - **Method:** test
 - **Criteria:** The fan leaves tilt by the down angle. Off: the fans are flat and even.
+
+### SWR-0170 Horizontal leaves
+- **Statement:** Where *Horizontal Leaves* is on, the Sapling Tree Gen extension shall turn the leaves of a stem to one side of the stem.
+- **Rationale:** Leaves on one side of their stem give a flat spray. Without the setting, the leaves face all around their stem.
+- **Method:** test
+- **Criteria:** Per stem with 3 or more leaves, the mean resultant length of the leaf normals' horizontal directions is 0.6 or more with the setting on, and 0.5 or less with it off (measured on *Quaking Aspen*: 0.75 and 0.36).
+
+### SWR-0171 Leaf angle
+- **Statement:** The Sapling Tree Gen extension shall turn each leaf blade by *Leaf Angle* about the blade's width axis.
+- **Rationale:** The angle tilts the blade against its stalk.
+- **Method:** test
+- **Criteria:** With *Leaf Angle* 30, each leaf normal is 30 degrees, within 0.01 degrees, from its normal with *Leaf Angle* 0.
 
 ## Armature and baked mesh
 
@@ -699,27 +741,7 @@ The settings that the user can change in the *Add Tree* panel (SWR-0014), from `
 
 106 settings
 
-## Appendix B - retirement review
-
-Each function or setting that no requirement above keeps, or that this review questions. The owner decides each
-row: keep (then a requirement is added) or retire (then the code, the setting and the preset files go).
-
-| Item | Kept by | Proposal | Reason (from `source/presets`) |
-| --- | --- | --- | --- |
-| *Use Old Down Angle Variation* (`useOldDownAngle`) | - | keep | On in 26 of the 32 presets (every tree-gen port uses it). Needs a requirement. |
-| *Use Parent Angle* (`useParentAngle`) | - | keep | Off in *Japanese Maple*. Needs a requirement. |
-| *Horizontal Leaves* (`horzLeaves`) | - | keep? | Off in *Small Pine* and *Weeping Willow*. Overlap with *Leaf Face Up* (on in 6 presets) to check. |
-| *Leaf Angle* (`leafangle`) | - | keep? | Used by 5 presets (*Callistemon*, *Japanese Maple*, *Small Maple*, *Small Pine*, *White Birch*). Overlap with *Leaf Face Up* to check. |
-| *Handle Type* (`handleType`) | - | keep | Auto handles in *Weeping Willow*. Needs a requirement. |
-| *Branch Rings* (`nrings`) | - | keep | 7 rings in *Small Pine*. Needs a requirement. |
-| *Custom Shape* (`customShape`) | - | keep | Custom shape in *Japanese Maple*, *Small Pine*, *White Birch*. Needs a requirement. |
-| Preset *Quaking Aspen Treegen* | SWR-0040 | review | tree-gen's port of the species of the original *Quaking Aspen*. |
-| Presets *Willow* and *Weeping Willow* | SWR-0040 | review | *Weeping Willow* is the original Sapling willow. *Willow* is now tree-gen's weeping willow (CHANGELOG). Two weeping willows. |
-| Preset *Sphere Tree* | SWR-0040 | review | A shape test from tree-gen, not a species. |
-| Old setting names (13 in `OldSettingNames`) | SWR-0048 | keep? | They load presets saved by 0.3.x. Retire only if 0.3.x presets need not load. |
-| `.github/workflows` | - | retire | They cannot run on projects.blender.org. |
-
-### Setting-effect probe
+## Appendix B - setting effects
 
 `tools/setting_effect_probe.py` changed each of the 103 settings in 7 cases and compared the scene fingerprint of
 the generated tree (`tests/support/fingerprint.py`). The cases: *Japanese Maple*, *Small Pine*, *Weeping Willow*,

@@ -30,7 +30,7 @@ class Media:
 
     featured: tuple[str, ...] = ("coyote_brush", "japanese_maple", "lombardy_poplar", "weeping_willow", "fan_palm")
     gallery: tuple[str, ...] = ("cambridge_oak", "hill_cherry")
-    icon: str = "sphere_tree"
+    icon: str = "apple"
     gap: float = -1.5  # m between two trees of the featured lineup (negative: the crowns overlap)
     stagger: float = 3.0  # m every second tree of the lineup stands back
     wide: tuple[int, int] = (1920, 1080)  # pixels of the featured and gallery pictures

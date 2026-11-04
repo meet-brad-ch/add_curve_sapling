@@ -46,15 +46,16 @@ this section and of 0.4.0 below.
   cup). They go into a *blossoms* object with the *Sapling Blossom* material and follow the rig, the
   node wind and Leaf Flutter as the leaves do. A higher rate keeps every blossom of a lower one. With
   rate 0, trees are unchanged.
-- 16 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*,
+- 14 presets ported from tree-gen (friggog/tree-gen, GPL-3.0): *Acer*, *Apple*, *Balsam Fir*,
   *Bamboo*, *Black Oak*, *Black Tupelo*, *Cambridge Oak*, *European Larch*, *Fan Palm*, *Hill Cherry*,
-  *Lombardy Poplar*, *Palm*, *Quaking Aspen Treegen*, *Sassafras*, *Silver Birch* and *Sphere Tree*.
+  *Lombardy Poplar*, *Palm*, *Sassafras* and *Silver Birch*.
   Their Weber–Penn values were converted to the settings of Sapling. Measured against tree-gen
   (seeds 1 to 5): palm 25 fronds (tree-gen 25), fan palm 50 (51) with the same fan cup (14 degrees),
   bamboo 50 culms with 1,250 branches (1,197).
 
 ### Removed
 
+- The *Willow* preset. It had only 2 of its 4 levels and almost no leaves. *Weeping Willow* is the willow preset.
 - *Limit Import* (Geometry page). It loaded a preset with 2 levels and no leaves, for speed, and made trees with
   more levels look bare. The presets generate in 0.01-1.9 s. Presets and trees never stored it; a script that
   passes `limitImport` gets Blender's error that names the keyword.
@@ -81,15 +82,15 @@ this section and of 0.4.0 below.
 ### Changed
 
 - A tree's size is no longer moved by 0.000001 away from zero. The add-on refuses a *Scale* and *Scale
-  Variation* that can give a size of 0 or less, and names both settings. The trees of 13 presets change,
+  Variation* that can give a size of 0 or less, and names both settings. The trees of 12 presets change,
   because the size feeds threshold decisions (splits, pruning, sprouts): *Cambridge Oak*, *Coast Live Oak*,
   *Douglas Fir*, *European Larch*, *Hill Cherry*, *Japanese Maple*, *Monterey Pine*, *Silver Birch*, *Small
-  Maple*, *Small Pine*, *Weeping Willow*, *White Birch* and *Willow*. A tree made by an older version of these
+  Maple*, *Small Pine*, *Weeping Willow* and *White Birch*. A tree made by an older version of these
   presets changes when you edit it, also with its settings unchanged. The other trees move by less than
   0.1 % of their size (median 5e-7).
-- The 18 presets from tree-gen use the full mapping: the leaf down angle variation sign (tree-gen's
+- The 15 presets from tree-gen use the full mapping: the leaf down angle variation sign (tree-gen's
   positive value is random, Sapling's varies along the parent), Bend Variation from `bend_v`, Helix on
-  Black Oak's third level and Sphere Tree's trunk, blossoms on Apple and Hill Cherry, and Count Above
+  Black Oak's third level, blossoms on Apple and Hill Cherry, and Count Above
   Base with Leaves Above Base. Each change is a commit of its own. Trees made from these presets change.
   Cambridge Oak grows more branches above its bare base. Measured headless, alone:
 
@@ -169,9 +170,8 @@ this section and of 0.4.0 below.
 - Wind F-curves are no longer grouped per bone in the Dope Sheet and Graph Editor. Blender 5.2 takes
   about 4 times as long to create a grouped F-curve. The cost of each grows with the number of curves
   (at 16,000 bones: 450 against 100 µs per bone).
-- *Douglas Fir* and *Willow* are replaced with tree-gen's Douglas fir and weeping willow. The old
-  presets loaded bare: Douglas Fir had leaves off and hexagon leaves, and Willow had only 2 of its
-  4 levels and almost no leaves.
+- *Douglas Fir* is replaced with tree-gen's Douglas fir. The old preset loaded bare: its leaves were off and
+  hexagonal.
 - Split angles from tree-gen are halved. tree-gen tilts each fork by half its split angle, Sapling by
   the full angle. With the full value, the trunk forks spread into near-horizontal limbs (seen first on
   the willow).
