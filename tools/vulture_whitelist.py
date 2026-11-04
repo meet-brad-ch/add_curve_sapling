@@ -100,3 +100,5 @@ _.quality  # unused attribute (tools\render_presets_in_blender.py:316)
 _.x  # unused attribute (tools\render_listing_in_blender.py:100)
 _.y  # unused attribute (tools\render_listing_in_blender.py:101)
 _.rotation_euler  # unused attribute (tools\render_listing_in_blender.py:159)
+_.major  # VersionNumber field: read by the dataclass ordering (tools/release.py)
+_.minor  # as above
