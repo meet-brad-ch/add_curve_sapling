@@ -217,4 +217,5 @@ def main() -> None:
     listing.icon()
 
 
-main()
+if __name__ == "__main__":  # tools/render_settings_in_blender.py imports the classes
+    main()

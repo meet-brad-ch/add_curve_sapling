@@ -464,7 +464,10 @@ class TreeProperties:
         default=0.0, update=update_leaves,
     )  # fmt: skip
     leafangle: FloatProperty(
-        name="Leaf Angle", description="Leaf vertical attraction", default=0.0, update=update_leaves
+        name="Leaf Angle",
+        description="Turn each leaf blade about its width axis, in degrees",
+        default=0.0,
+        update=update_leaves,
     )
     leafMaterial: BoolProperty(
         name="Leaf Material",
@@ -493,7 +496,10 @@ class TreeProperties:
         "either way, about a random horizontal axis (degrees)", min=0.0, max=90.0, default=0.0, update=update_leaves,
     )  # fmt: skip
     horzLeaves: BoolProperty(
-        name="Horizontal Leaves", description="Leaves face upwards", default=True, update=update_leaves
+        name="Horizontal Leaves",
+        description="Turn the leaves of a stem to one side of the stem. Off: the leaves face all around the stem",
+        default=True,
+        update=update_leaves,
     )
 
     # Rig and baked mesh

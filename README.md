@@ -49,6 +49,9 @@ extensions automatically: click *Check for Updates* in *Get Extensions* to get a
 
 ## Use it
 
+The [manual](docs/manual/index.md) describes every setting, with pictures.
+
+
 - **Add a tree:** select *Add > Curve > Sapling Tree Gen*. The tree appears at the 3D cursor. The
   settings are in the *Adjust Last Operation* panel (F9), on nine pages from *Geometry* to *Animation*.
 - **Load a preset:** on the *Geometry* page, select a preset from the list. To save your settings, type a
@@ -96,6 +99,8 @@ python tools/check.py --all-blenders  # the full gate on each supported Blender 
 python tools/run_tests.py -k NAME     # some tests only; --record-golden writes new golden files
 python tools/render_presets.py        # render the new and changed presets and write docs/presets.md
 python tools/render_listing.py        # render the listing's featured picture, gallery and icon into docs/listing/
+python tools/render_settings.py       # render the pictures of the manual into docs/manual/pictures/
+python tools/capture_panel.py         # take a picture of each panel page for the manual (opens a Blender window)
 ```
 
 - The tests run in headless Blender. They build the extension zip and install it in a temporary
@@ -123,7 +128,7 @@ python tools/render_listing.py        # render the listing's featured picture, g
 - `tests/`: `requirements/` (one test class per requirement), `unit/` (the internals), `support/`,
   `golden/`.
 - `tools/`: the gate, the test runner, the benchmark, the requirement check and the preset renders.
-- `docs/`: the requirements, the presets page, the release notes and the listing media.
+- `docs/`: the manual, the requirements, the presets page, the release notes and the listing media.
 
 ### Release
 

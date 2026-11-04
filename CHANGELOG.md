@@ -11,6 +11,9 @@ this section and of 0.4.0 below.
   *Monterey Cypress Sheared*, *Coast Live Oak*, *Coyote Brush* and *California Sagebrush*. The cypresses carry
   flat layers of foliage: their twigs alternate to the left and right of each limb (*Rotate* -90 on the third
   level).
+- A manual (`docs/manual/`): getting started, one page per panel page with a picture of the page and every
+  setting (default, range, what it does, what it depends on), pictures of 19 settings at three values, and
+  troubleshooting. `tools/render_settings.py` and `tools/capture_panel.py` make its pictures again.
 - The presets page (`docs/presets.md`) shows a picture of each built-in preset beside a 1.8 m figure, with
   its height, width and generation time. `tools/render_presets.py` makes the pictures and the page again
   when a preset changes.
@@ -62,6 +65,9 @@ this section and of 0.4.0 below.
 
 ### Fixed
 
+- The tooltips of *Leaf Angle* and *Horizontal Leaves* described other effects ("Leaf vertical attraction",
+  "Leaves face upwards"). *Leaf Angle* turns each leaf blade about its width axis. *Horizontal Leaves* turns the
+  leaves of a stem to one side of the stem.
 - A split trunk shares one branch per height among its pieces again, as before the array rewrite of the
   branch model. The rewrite grouped the trunk's sprouts by their offset, which each piece measures on its
   own length, so every piece kept its own branch at every height: White Birch with two base splits grew

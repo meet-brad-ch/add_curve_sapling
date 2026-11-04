@@ -103,3 +103,8 @@ _.y  # unused attribute (tools\render_listing_in_blender.py:101)
 _.rotation_euler  # unused attribute (tools\render_listing_in_blender.py:159)
 _.major  # VersionNumber field: read by the dataclass ordering (tools/release.py)
 _.minor  # as above
+_.body  # unused attribute (tools\render_settings_in_blender.py:226)
+_.align_x  # unused attribute (tools\render_settings_in_blender.py:228)
+_.default_value  # unused attribute (tools\render_settings_in_blender.py:233)
+_.default_value  # unused attribute (tools\render_settings_in_blender.py:234)
+_.visible_shadow  # unused attribute (tools\render_settings_in_blender.py:238)
