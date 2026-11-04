@@ -123,7 +123,7 @@ python tools/render_listing.py        # render the listing's featured picture, g
 - `tests/`: `requirements/` (one test class per requirement), `unit/` (the internals), `support/`,
   `golden/`.
 - `tools/`: the gate, the test runner, the benchmark, the requirement check and the preset renders.
-- `docs/`: the requirements, the presets page, the bug list and the quality review.
+- `docs/`: the requirements, the presets page, the release notes and the listing media.
 
 ### Release
 

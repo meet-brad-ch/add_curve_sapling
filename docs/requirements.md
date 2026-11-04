@@ -704,11 +704,10 @@ The settings that the user can change in the *Add Tree* panel (SWR-0014), from `
 Each function or setting that no requirement above keeps, or that this review questions. The owner decides each
 row: keep (then a requirement is added) or retire (then the code, the setting and the preset files go).
 
-| Item | Kept by | Proposal | Reason (checked in `source/presets` on 2026-11-03) |
+| Item | Kept by | Proposal | Reason (from `source/presets`) |
 | --- | --- | --- | --- |
 | *Use Old Down Angle Variation* (`useOldDownAngle`) | - | keep | On in 26 of the 32 presets (every tree-gen port uses it). Needs a requirement. |
 | *Use Parent Angle* (`useParentAngle`) | - | keep | Off in *Japanese Maple*. Needs a requirement. |
-| *Limit Import* (`limitImport`) | - | retired (owner 2026-11-03) | Loads presets with 2 levels and no leaves, for speed. It made trees with more levels look bare (CHANGELOG). The presets generate in 0.01-1.9 s. No preset sets it. |
 | *Horizontal Leaves* (`horzLeaves`) | - | keep? | Off in *Small Pine* and *Weeping Willow*. Overlap with *Leaf Face Up* (on in 6 presets) to check. |
 | *Leaf Angle* (`leafangle`) | - | keep? | Used by 5 presets (*Callistemon*, *Japanese Maple*, *Small Maple*, *Small Pine*, *White Birch*). Overlap with *Leaf Face Up* to check. |
 | *Handle Type* (`handleType`) | - | keep | Auto handles in *Weeping Willow*. Needs a requirement. |
@@ -719,4 +718,22 @@ row: keep (then a requirement is added) or retire (then the code, the setting an
 | Preset *Sphere Tree* | SWR-0040 | review | A shape test from tree-gen, not a species. |
 | Old setting names (13 in `OldSettingNames`) | SWR-0048 | keep? | They load presets saved by 0.3.x. Retire only if 0.3.x presets need not load. |
 | `.github/workflows` | - | retire | They cannot run on projects.blender.org. |
-| The tree-gen port tools (`tools/port_treegen*.py`, `tools/render_ports*.py`) | - | retired (owner 2026-11-03) | Developer tools to port more tree-gen species. Not in the package. |
+
+### Setting-effect probe
+
+`tools/setting_effect_probe.py` changed each of the 103 settings in 7 cases and compared the scene fingerprint of
+the generated tree (`tests/support/fingerprint.py`). The cases: *Japanese Maple*, *Small Pine*, *Weeping Willow*,
+*Monterey Pine*, *Palm*, and *Quaking Aspen* with leaves, wind, flutter and pruning, once with the rig and once with
+the node wind and *Make Mesh*. The result is in `build/setting_effects.json` (not committed: run the tool again).
+
+- **No setting is without effect.** Each setting changed the tree in at least one case, except these five, which
+  depend on another setting that no case turned on, or which the fingerprint does not see:
+  - *Trunks Face Out*: only with *Trunks* above 1;
+  - *Wind Direction*: only with *Wind Shear* or *Wind Bend* above 0 (`test_a_direction_without_strength_changes_nothing`);
+  - *Blossom Shape* and *Blossom Scale*: only with *Blossom Rate* above 0;
+  - *Leaf Material*: the fingerprint does not include materials (a limit of the probe, not of the setting).
+- **Settings that changed only some cases** depend on another setting in the same way: the pruning settings on
+  *Prune*, the animation settings on *Wind* or *Leaf Flutter*, the joint settings on the rig or the node wind, the
+  split settings on splits, *Fan Angles* on palmate leaves, *Leaves Above Base* on a bare base.
+- **Refused values** (the operator stopped with a message): *Helix* where *Curvature Variation* is 90 degrees or
+  more, and *Instance Faces* leaves without a *Leaf Object*. Both are intended (SWR tests).
