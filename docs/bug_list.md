@@ -6,12 +6,6 @@ that the validation finds broken (`docs/requirements.md`) is entered here with t
 
 ## Open
 
-### S4 The README points at a GitHub download and holds dated history
-- **Where:** `README.md` "Download" (GitHub Releases page), "To release a version" (a tag pushed to GitHub),
-  "Decisions" ("The owner accepted this on 2026-10-04").
-- **Seen:** 2026-11-03, while planning 1.0.0. The official home is projects.blender.org and the Extensions Platform.
-- **Fix:** the README rewrite (plan step 5): install from *Get Extensions*, the release procedure, no dated history.
-
 ### S3 The GitHub workflow cannot run in the official repository
 - **Where:** `.github/workflows/build.yml`.
 - **Seen:** 2026-11-03. projects.blender.org does not run GitHub workflows. The workflow publishes a GitHub Release.
