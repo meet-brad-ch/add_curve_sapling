@@ -25,7 +25,7 @@ class GoldenTrees(unittest.TestCase):
 
     def test_golden(self):
         # the fingerprints hash exact float32 values: they hold for the Blender build and platform they came from
-        self.assertEqual(sys.platform, "win32", "the golden files are valid on Windows only (README, Decisions)")
+        self.assertEqual(sys.platform, "win32", "the golden files are valid on Windows only")
         golden = Paths.GOLDEN
         if Golden.record:
             golden.mkdir(parents=True, exist_ok=True)

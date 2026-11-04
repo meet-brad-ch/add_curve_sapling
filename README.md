@@ -127,7 +127,7 @@ python tools/capture_panel.py         # take a picture of each panel page for th
   - `presets/`: the built-in presets, one file each.
 - `tests/`: `requirements/` (one test class per requirement), `unit/` (the internals), `support/`,
   `golden/`.
-- `tools/`: the gate, the test runner, the benchmark, the requirement check and the preset renders.
+- `tools/`: the gate, the test runner, the requirement check, the release tool and the picture renders.
 - `docs/`: the manual, the requirements, the presets page, the release notes and the listing media.
 
 ### Release

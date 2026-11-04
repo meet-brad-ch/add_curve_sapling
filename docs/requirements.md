@@ -602,20 +602,6 @@ requirement and the trace from each requirement to its tests.
 
 ## Performance
 
-### SWR-0160 Generation time
-- **Statement:** The Sapling Tree Gen extension shall generate each built-in preset with leaves in at most 60 % of the time of version 0.3.7.
-- **Rationale:** The rewrite measured 44-82 % of the 0.3.7 times (README table). OPEN: is this the right measure,
-  or an absolute time per preset on a reference machine?
-- **Method:** analysis
-- **Criteria:** `tools/bench.py` on the reference machine, 3 runs, median per preset, against the README's 0.3.7
-  values.
-
-### SWR-0161 Animation frame time
-- **Statement:** While *Wind* plays on *Cambridge Oak* with leaves and flutter, the Sapling Tree Gen extension shall evaluate each frame in at most 0.05 s.
-- **Rationale:** Measured 0.02-0.03 s per frame (CHANGELOG 1.0.0). OPEN: the limit and the reference machine.
-- **Method:** analysis
-- **Criteria:** Headless playback on the reference machine, frames 1-48, the slowest frame.
-
 ### SWR-0162 Leaf build scaling
 - **Statement:** When the leaf count doubles, the Sapling Tree Gen extension shall take less than 2.6 times as long to build the leaves.
 - **Rationale:** The build time must grow linearly with the leaves (measured in `tests/test_performance.py`).
