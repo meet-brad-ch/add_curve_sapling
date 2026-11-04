@@ -122,6 +122,14 @@ class PrunedAwayStems(unittest.TestCase):
         kept = [name for name in bones for i in removed if name.startswith(f"bone{i:03d}.")]
         self.assertEqual(kept[:5], [], "bones of removed stems")
 
+    @Verifies("SWR-0064")
+    def test_a_level_without_stems_prunes(self):
+        """S5: Branch Rings 1 leaves a level without stems; its empty removal list was a float array, and the grid's
+        boolean mask failed with a TypeError (found by tools/setting_effect_probe.py)."""
+        settings = Addon.resolve_preset("quaking_aspen.py")
+        settings.update(prune=True, nrings=1, showLeaves=True)
+        self.assertEqual(Scene.generate(settings), {"FINISHED"})
+
     @Verifies("SWR-0066")
     def test_envelope_is_hidden(self):
         settings = Addon.resolve_preset("quaking_aspen.py")

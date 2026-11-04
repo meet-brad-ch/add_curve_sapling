@@ -67,7 +67,9 @@ class LevelPruning:
         grid = start.copy()
         grower.grow(grid, close_tip, final)
         if start.level > 0:
-            grid.remove(np.array([self.removes(s, self.params.prune_ratio) for s in final.tolist()]))
+            # one flag per root; bool also for a level without stems (an empty list is float64 otherwise: S5)
+            removed = np.array([self.removes(s, self.params.prune_ratio) for s in final.tolist()], dtype=bool)
+            grid.remove(removed)
         return grid
 
     @staticmethod
